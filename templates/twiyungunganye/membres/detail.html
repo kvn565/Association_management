@@ -1,0 +1,46 @@
+{% extends 'twiyungunganye/base.html' %}
+{% block title %}Profil de {{ membre.get_full_name }}{% endblock %}
+{% block content %}
+<h2><i class="bi bi-person-circle"></i> Profil de {{ membre.get_full_name }}</h2>
+<div class="row">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header"><h5>Informations personnelles</h5></div>
+            <div class="card-body">
+                <p><strong>Nom:</strong> {{ membre.nom }}</p>
+                <p><strong>Prénom:</strong> {{ membre.prenom }}</p>
+                <p><strong>Carte ID:</strong> {{ membre.carte_identite }}</p>
+                <p><strong>Email:</strong> {{ membre.email|default:"-" }}</p>
+                <p><strong>Téléphone:</strong> {{ membre.telephone|default:"-" }}</p>
+                <p><strong>Inscription:</strong> {{ membre.date_inscription|date:"d/m/Y" }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-8">
+        <div class="card mb-3">
+            <div class="card-header"><h5>Cotisations</h5></div>
+            <div class="card-body">
+                {% if cotisations %}
+                <table class="table"><thead><tr><th>Période</th><th>Montant</th><th>Statut</th></tr></thead><tbody>
+                {% for cot in cotisations|slice:":5" %}
+                <tr><td>{{ cot.get_mois_nom }} {{ cot.annee }}</td><td>{{ cot.montant }} FBU</td><td><span class="badge bg-success">{{ cot.get_statut_display }}</span></td></tr>
+                {% endfor %}
+                </tbody></table>
+                {% else %}<p>Aucune cotisation</p>{% endif %}
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-header"><h5>Crédits</h5></div>
+            <div class="card-body">
+                {% if credits %}
+                <table class="table"><thead><tr><th>Montant</th><th>Statut</th><th>Date</th></tr></thead><tbody>
+                {% for credit in credits|slice:":5" %}
+                <tr><td>{{ credit.montant_accorde }} FBU</td><td><span class="badge bg-info">{{ credit.get_statut_display }}</span></td><td>{{ credit.date_demande|date:"d/m/Y" }}</td></tr>
+                {% endfor %}
+                </tbody></table>
+                {% else %}<p>Aucun crédit</p>{% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

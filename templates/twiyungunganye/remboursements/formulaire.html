@@ -1,0 +1,16 @@
+{% extends 'twiyungunganye/base.html' %}
+{% block title %}Ajouter remboursement{% endblock %}
+{% block content %}
+<h2><i class="bi bi-credit-card"></i> Ajouter un remboursement</h2>
+<div class="card">
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <button type="submit" class="btn btn-primary"><i class="bi bi-check"></i> Enregistrer</button>
+            <a href="javascript:history.back()" class="btn btn-secondary">Annuler</a>
+        </form>
+    </div>
+</div>
+<style>form p {margin-bottom: 1rem;} form p label {display: block; font-weight: 600; margin-bottom: 0.5rem;} form p input, form p select, form p textarea {width: 100%; padding: 0.5rem; border: 1px solid #ced4da; border-radius: 0.375rem;}</style>
+{% endblock %}

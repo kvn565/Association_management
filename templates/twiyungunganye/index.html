@@ -1,0 +1,124 @@
+{% extends 'twiyungunganye/base.html' %}
+
+{% block title %}Accueil - Twiyungunganye{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Hero Section -->
+    <div class="row mb-5 mt-4">
+        <div class="col-lg-12 text-center">
+            <h1 class="display-4 fw-bold text-primary mb-4">
+                <i class="bi bi-people-fill"></i> Bienvenue à Twiyungunganye
+            </h1>
+            {% if association %}
+            <p class="lead text-muted mb-4">{{ association.nom }}</p>
+            {% endif %}
+            <p class="lead">Une plateforme de gestion pour notre association</p>
+            <div class="mt-4">
+                {% if user.is_authenticated %}
+                    <a href="{% url 'dashboard' %}" class="btn btn-primary btn-lg me-2">
+                        <i class="bi bi-speedometer2"></i> Tableau de bord
+                    </a>
+                {% else %}
+                    <a href="{% url 'login' %}" class="btn btn-primary btn-lg me-2">
+                        <i class="bi bi-box-arrow-in-right"></i> Se connecter
+                    </a>
+                    <a href="{% url 'create_password' %}" class="btn btn-outline-primary btn-lg">
+                        <i class="bi bi-key"></i> Créer mon mot de passe
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Features -->
+    <div class="row g-4 mb-5">
+        <div class="col-md-4">
+            <div class="card h-100 text-center">
+                <div class="card-body">
+                    <div class="mb-3">
+                        <i class="bi bi-cash-coin text-primary" style="font-size: 3rem;"></i>
+                    </div>
+                    <h5 class="card-title">Gestion des Cotisations</h5>
+                    <p class="card-text text-muted">
+                        Suivez vos cotisations mensuelles et consultez l'historique de vos paiements.
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card h-100 text-center">
+                <div class="card-body">
+                    <div class="mb-3">
+                        <i class="bi bi-wallet2 text-success" style="font-size: 3rem;"></i>
+                    </div>
+                    <h5 class="card-title">Crédits & Remboursements</h5>
+                    <p class="card-text text-muted">
+                        Demandez des crédits et suivez vos remboursements en toute transparence.
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card h-100 text-center">
+                <div class="card-body">
+                    <div class="mb-3">
+                        <i class="bi bi-lightbulb text-warning" style="font-size: 3rem;"></i>
+                    </div>
+                    <h5 class="card-title">Suggestions</h5>
+                    <p class="card-text text-muted">
+                        Proposez vos idées pour améliorer notre association.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if association %}
+    <!-- Association Info -->
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-info-circle"></i> À propos de l'association</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-borderless">
+                        <tr>
+                            <th width="30%">Nom :</th>
+                            <td>{{ association.nom }}</td>
+                        </tr>
+                        {% if association.sigle %}
+                        <tr>
+                            <th>Sigle :</th>
+                            <td>{{ association.sigle }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if association.telephone %}
+                        <tr>
+                            <th>Téléphone :</th>
+                            <td>{{ association.telephone }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if association.email %}
+                        <tr>
+                            <th>Email :</th>
+                            <td>{{ association.email }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if association.adresse %}
+                        <tr>
+                            <th>Adresse :</th>
+                            <td>{{ association.adresse }}</td>
+                        </tr>
+                        {% endif %}
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,136 @@
+{% extends 'twiyungunganye/base.html' %}
+{% block title %}Réinitialiser la base de données{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card border-danger">
+            <div class="card-header bg-danger text-white">
+                <h4 class="mb-0"><i class="bi bi-exclamation-triangle-fill"></i> RÉINITIALISER LA BASE DE DONNÉES</h4>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-danger">
+                    <h5><i class="bi bi-exclamation-octagon"></i> ATTENTION - ACTION IRRÉVERSIBLE !</h5>
+                    <p class="mb-0">
+                        Cette action va <strong>SUPPRIMER DÉFINITIVEMENT</strong> toutes les données de l'application :
+                    </p>
+                </div>
+
+                <div class="card mb-4">
+                    <div class="card-header bg-warning">
+                        <h5 class="mb-0">📊 Données qui seront supprimées :</h5>
+                    </div>
+                    <div class="card-body">
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>Type de données</th>
+                                    <th class="text-end">Nombre actuel</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><i class="bi bi-people"></i> Membres (sauf super-admin)</td>
+                                    <td class="text-end"><strong>{{ stats.membres }}</strong></td>
+                                </tr>
+                                <tr>
+                                    <td><i class="bi bi-cash-coin"></i> Cotisations</td>
+                                    <td class="text-end"><strong>{{ stats.cotisations }}</strong></td>
+                                </tr>
+                                <tr>
+                                    <td><i class="bi bi-wallet2"></i> Crédits</td>
+                                    <td class="text-end"><strong>{{ stats.credits }}</strong></td>
+                                </tr>
+                                <tr>
+                                    <td><i class="bi bi-credit-card"></i> Remboursements</td>
+                                    <td class="text-end"><strong>{{ stats.remboursements }}</strong></td>
+                                </tr>
+                                <tr>
+                                    <td><i class="bi bi-lightbulb"></i> Suggestions</td>
+                                    <td class="text-end"><strong>{{ stats.suggestions }}</strong></td>
+                                </tr>
+                                <tr>
+                                    <td><i class="bi bi-percent"></i> Intérêts</td>
+                                    <td class="text-end"><strong>{{ stats.interets }}</strong></td>
+                                </tr>
+                                <tr class="table-danger">
+                                    <td><strong>TOTAL</strong></td>
+                                    <td class="text-end">
+                                        <strong>{{ stats.membres|add:stats.cotisations|add:stats.credits|add:stats.remboursements|add:stats.suggestions|add:stats.interets }}</strong>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="alert alert-info">
+                    <h6><i class="bi bi-info-circle"></i> Ce qui sera conservé :</h6>
+                    <ul class="mb-0">
+                        <li>Les comptes super-administrateurs</li>
+                        <li>La configuration de l'association</li>
+                        <li>La structure de la base de données</li>
+                    </ul>
+                </div>
+
+                <div class="card border-danger mb-4">
+                    <div class="card-header bg-danger text-white">
+                        <h6 class="mb-0">⚠️ Confirmation requise</h6>
+                    </div>
+                    <div class="card-body">
+                        <form method="post" onsubmit="return confirm('ÊTES-VOUS ABSOLUMENT CERTAIN de vouloir SUPPRIMER TOUTES LES DONNÉES ? Cette action est IRRÉVERSIBLE !');">
+                            {% csrf_token %}
+                            
+                            <div class="mb-3">
+                                <label for="confirmation" class="form-label">
+                                    <strong>Pour confirmer, tapez exactement le mot : <span class="text-danger">REINITIALISER</span></strong>
+                                </label>
+                                <input 
+                                    type="text" 
+                                    class="form-control form-control-lg" 
+                                    id="confirmation" 
+                                    name="confirmation" 
+                                    required
+                                    placeholder="REINITIALISER"
+                                    autocomplete="off"
+                                >
+                                <small class="form-text text-muted">
+                                    (en majuscules, sans accent)
+                                </small>
+                            </div>
+
+                            <div class="d-grid gap-2">
+                                <button type="submit" class="btn btn-danger btn-lg">
+                                    <i class="bi bi-trash3-fill"></i> RÉINITIALISER LA BASE DE DONNÉES
+                                </button>
+                                <a href="{% url 'dashboard' %}" class="btn btn-secondary btn-lg">
+                                    <i class="bi bi-x-circle"></i> Annuler
+                                </a>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="alert alert-warning">
+                    <h6><i class="bi bi-shield-exclamation"></i> Recommandations :</h6>
+                    <ol class="mb-0">
+                        <li>Faites une <strong>sauvegarde complète</strong> de votre base de données avant cette action</li>
+                        <li>Assurez-vous que <strong>personne n'utilise l'application</strong> en ce moment</li>
+                        <li>Vérifiez que vous avez bien l'<strong>autorisation</strong> de faire cette opération</li>
+                        <li>Préparez-vous à <strong>recréer des données de test</strong> si nécessaire</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .card-header {
+        font-weight: 600;
+    }
+    .table th, .table td {
+        vertical-align: middle;
+    }
+</style>
+{% endblock %}

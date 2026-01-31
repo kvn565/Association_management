@@ -1,0 +1,38 @@
+{% extends 'twiyungunganye/base.html' %}
+{% block title %}Suggestions{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between mb-4">
+    <h2><i class="bi bi-lightbulb"></i> Suggestions</h2>
+    {% if not user.is_admin and not user.is_gestionnaire %}<a href="{% url 'soumettre_suggestion' %}" class="btn btn-primary"><i class="bi bi-plus"></i> Nouvelle suggestion</a>{% endif %}
+</div>
+<div class="card">
+    <div class="card-body">
+        {% if suggestions %}
+        {% for suggestion in suggestions %}
+        <div class="card mb-3">
+            <div class="card-header d-flex justify-content-between">
+                <h5>{{ suggestion.titre }}</h5>
+                {% if suggestion.statut == 'EN_ATTENTE' %}<span class="badge bg-warning">En attente</span>
+                {% elif suggestion.statut == 'EN_COURS' %}<span class="badge bg-info">En cours</span>
+                {% elif suggestion.statut == 'ACCEPTEE' %}<span class="badge bg-success">Acceptée</span>
+                {% else %}<span class="badge bg-danger">Rejetée</span>{% endif %}
+            </div>
+            <div class="card-body">
+                <p><strong>Par:</strong> {{ suggestion.membre.get_full_name }}</p>
+                <p><strong>Date:</strong> {{ suggestion.date_soumission|date:"d/m/Y H:i" }}</p>
+                <p>{{ suggestion.description }}</p>
+                {% if suggestion.reponse_admin %}
+                <hr>
+                <div class="alert alert-info">
+                    <strong>Réponse admin:</strong><br>
+                    {{ suggestion.reponse_admin }}
+                    <br><small>{{ suggestion.date_reponse|date:"d/m/Y H:i" }}</small>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+        {% else %}<div class="text-center py-5"><p>Aucune suggestion</p></div>{% endif %}
+    </div>
+</div>
+{% endblock %}

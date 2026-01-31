@@ -1,0 +1,257 @@
+{% extends 'twiyungunganye/base.html' %}
+
+{% block title %}Tableau de bord - Twiyungunganye{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-speedometer2"></i> Tableau de bord</h2>
+</div>
+
+<!-- Statistiques globales -->
+{% if user.is_admin or user.is_gestionnaire %}
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card stat-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted mb-2">Membres actifs</h6>
+                        <h3 class="mb-0">{{ total_membres }}</h3>
+                    </div>
+                    <div class="text-primary" style="font-size: 2.5rem;">
+                        <i class="bi bi-people"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card stat-card success">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted mb-2">Cotisations ({{ mois_actuel }}/{{ annee_actuelle }})</h6>
+                        <h3 class="mb-0">{{ total_cotisations_mois|floatformat:0 }} FBU</h3>
+                    </div>
+                    <div class="text-success" style="font-size: 2.5rem;">
+                        <i class="bi bi-cash-coin"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card stat-card warning">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted mb-2">Crédits en cours</h6>
+                        <h3 class="mb-0">{{ credits_en_cours }}</h3>
+                    </div>
+                    <div class="text-warning" style="font-size: 2.5rem;">
+                        <i class="bi bi-wallet2"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card stat-card danger">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted mb-2">Total crédits</h6>
+                        <h3 class="mb-0">{{ total_credits|floatformat:0 }} FBU</h3>
+                    </div>
+                    <div class="text-danger" style="font-size: 2.5rem;">
+                        <i class="bi bi-credit-card"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="row">
+    <!-- Mes statistiques personnelles -->
+    <div class="col-lg-4 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-person-circle"></i> Mes statistiques</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted">Mes cotisations</span>
+                        <strong>{{ mes_cotisations.count }}</strong>
+                    </div>
+                    <div class="progress" style="height: 8px;">
+                        <div class="progress-bar bg-success" role="progressbar" style="width: {{ mes_cotisations.count|default:0 }}%"></div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted">Mes crédits</span>
+                        <strong>{{ mes_credits.count }}</strong>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted">Crédits actifs</span>
+                        <strong>{{ mes_credits_actifs.count }}</strong>
+                    </div>
+                </div>
+                
+                <div class="d-grid gap-2 mt-3">
+                    <a href="{% url 'demander_credit' %}" class="btn btn-primary btn-sm">
+                        <i class="bi bi-plus-circle"></i> Demander un crédit
+                    </a>
+                    <a href="{% url 'soumettre_suggestion' %}" class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-lightbulb"></i> Faire une suggestion
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dernières cotisations -->
+    <div class="col-lg-8 mb-4">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-cash-coin"></i> Dernières cotisations</h5>
+                <a href="{% url 'liste_cotisations' %}" class="btn btn-sm btn-outline-primary">Voir tout</a>
+            </div>
+            <div class="card-body p-0">
+                {% if dernieres_cotisations %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Membre</th>
+                                <th>Période</th>
+                                <th>Montant</th>
+                                <th>Statut</th>
+                                <th>Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for cotisation in dernieres_cotisations %}
+                            <tr>
+                                <td>{{ cotisation.membre.get_full_name }}</td>
+                                <td>{{ cotisation.get_mois_nom }} {{ cotisation.annee }}</td>
+                                <td>{{ cotisation.montant|floatformat:0 }} FBU</td>
+                                <td>
+                                    {% if cotisation.statut == 'PAYE' %}
+                                        <span class="badge bg-success badge-custom">Payé</span>
+                                    {% elif cotisation.statut == 'EN_ATTENTE' %}
+                                        <span class="badge bg-warning badge-custom">En attente</span>
+                                    {% else %}
+                                        <span class="badge bg-danger badge-custom">En retard</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ cotisation.date_paiement|date:"d/m/Y" }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4 text-muted">
+                    <i class="bi bi-inbox" style="font-size: 3rem;"></i>
+                    <p class="mb-0">Aucune cotisation enregistrée</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Derniers crédits -->
+{% if user.is_admin or user.is_gestionnaire %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-wallet2"></i> Derniers crédits</h5>
+                <a href="{% url 'liste_credits' %}" class="btn btn-sm btn-outline-primary">Voir tout</a>
+            </div>
+            <div class="card-body p-0">
+                {% if derniers_credits %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Membre</th>
+                                <th>Montant demandé</th>
+                                <th>Montant accordé</th>
+                                <th>Statut</th>
+                                <th>Date demande</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for credit in derniers_credits %}
+                            <tr>
+                                <td>{{ credit.membre.get_full_name }}</td>
+                                <td>{{ credit.montant_demande|floatformat:0 }} FBU</td>
+                                <td>{{ credit.montant_accorde|floatformat:0 }} FBU</td>
+                                <td>
+                                    {% if credit.statut == 'EN_ATTENTE' %}
+                                        <span class="badge bg-warning badge-custom">En attente</span>
+                                    {% elif credit.statut == 'APPROUVE' %}
+                                        <span class="badge bg-success badge-custom">Approuvé</span>
+                                    {% elif credit.statut == 'REJETE' %}
+                                        <span class="badge bg-danger badge-custom">Rejeté</span>
+                                    {% elif credit.statut == 'EN_COURS' %}
+                                        <span class="badge bg-info badge-custom">En cours</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary badge-custom">Remboursé</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ credit.date_demande|date:"d/m/Y" }}</td>
+                                <td>
+                                    <a href="{% url 'detail_credit' credit.pk %}" class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4 text-muted">
+                    <i class="bi bi-inbox" style="font-size: 3rem;"></i>
+                    <p class="mb-0">Aucun crédit enregistré</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- section admin -->
+
+{% if user.is_admin %}
+<div class="card border-danger mt-4">
+    <div class="card-header bg-danger text-white">
+        <h5 class="mb-0"><i class="bi bi-shield-exclamation"></i> Zone Dangereuse</h5>
+    </div>
+    <div class="card-body">
+        <p class="text-danger mb-3">
+            <strong>Attention :</strong> Ces actions sont irréversibles !
+        </p>
+        <a href="{% url 'reinitialiser_base_donnees' %}" class="btn btn-danger">
+            <i class="bi bi-trash3-fill"></i> Réinitialiser la base de données
+        </a>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
