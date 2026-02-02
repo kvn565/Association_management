@@ -2,256 +2,784 @@
 
 {% block title %}Tableau de bord - Twiyungunganye{% endblock %}
 
+{% block extra_css %}
+<style>
+    .section-card {
+        border-radius: 15px;
+        box-shadow: 0 5px 20px rgba(0,0,0,.1);
+        margin-bottom: 2rem;
+        overflow: hidden;
+        transition: all 0.3s ease;
+    }
+    
+    .section-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 30px rgba(0,0,0,.15);
+    }
+    
+    .section-header {
+        padding: 1.2rem 1.5rem;
+        color: white;
+        font-weight: 600;
+        font-size: 1.1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .section-cotisations .section-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    
+    .section-credits .section-header {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    }
+    
+    .section-imprevus .section-header {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    }
+    
+    .section-totaux .section-header {
+        background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+    }
+    
+    .month-column {
+        flex: 1;
+        padding: 1.5rem;
+        text-align: center;
+        border-right: 2px solid #f0f0f0;
+        transition: all 0.3s ease;
+    }
+    
+    .month-column:last-child {
+        border-right: none;
+    }
+    
+    .month-column:hover {
+        background: rgba(102, 126, 234, 0.05);
+        transform: scale(1.05);
+    }
+    
+    .month-name {
+        font-weight: 600;
+        color: #667eea;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 0.8rem;
+    }
+    
+    .month-amount {
+        font-size: 1.8rem;
+        font-weight: 700;
+        margin: 0.5rem 0;
+    }
+    
+    .section-cotisations .month-amount {
+        color: #667eea;
+    }
+    
+    .section-credits .month-amount {
+        color: #f5576c;
+    }
+    
+    .section-imprevus .month-amount {
+        color: #00f2fe;
+    }
+    
+    .section-totaux .month-amount {
+        color: #43e97b;
+    }
+    
+    .month-label {
+        font-size: 0.85rem;
+        color: #6c757d;
+        margin-top: 0.3rem;
+    }
+    
+    .month-icon {
+        font-size: 2rem;
+        opacity: 0.2;
+        margin-bottom: 0.5rem;
+    }
+    
+    .stat-badge {
+        display: inline-block;
+        padding: 0.3rem 0.8rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        margin-top: 0.5rem;
+    }
+    
+    .badge-success {
+        background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+        color: #155724;
+    }
+    
+    .badge-warning {
+        background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+        color: #856404;
+    }
+    
+    .badge-info {
+        background: linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%);
+        color: #0c5460;
+    }
+    
+    .global-stats {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 15px;
+        padding: 2rem;
+        color: white;
+        margin-bottom: 2rem;
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+    }
+    
+    .global-stats h2 {
+        font-weight: 700;
+        margin-bottom: 1.5rem;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+    }
+    
+    .stat-item {
+        text-align: center;
+        padding: 1rem;
+    }
+    
+    .stat-value {
+        font-size: 2.5rem;
+        font-weight: 700;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+    }
+    
+    .stat-label {
+        font-size: 0.9rem;
+        opacity: 0.9;
+        margin-top: 0.5rem;
+    }
+    
+    .quick-actions {
+        background: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        box-shadow: 0 5px 20px rgba(0,0,0,.1);
+        margin-bottom: 2rem;
+    }
+    
+    .action-btn {
+        padding: 0.8rem 1.5rem;
+        border-radius: 10px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        border: none;
+    }
+    
+    .action-btn:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 5px 15px rgba(0,0,0,.2);
+    }
+
+    /* ============================================ */
+    /* RESPONSIVE DESIGN - DASHBOARD */
+    /* ============================================ */
+
+    /* Tablettes (768px - 991px) */
+    @media (max-width: 991px) {
+        .global-stats {
+            padding: 1.5rem;
+        }
+
+        .global-stats h2 {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+        }
+
+        .month-amount {
+            font-size: 1.5rem;
+        }
+
+        .month-name {
+            font-size: 0.8rem;
+        }
+
+        .section-header {
+            font-size: 1rem;
+            padding: 1rem 1.2rem;
+        }
+    }
+
+    /* Mobiles (moins de 768px) */
+    @media (max-width: 767px) {
+        /* Statistiques globales */
+        .global-stats {
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .global-stats h2 {
+            font-size: 1.2rem;
+            margin-bottom: 0.8rem;
+        }
+
+        .stat-item {
+            padding: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+        }
+
+        /* Actions rapides */
+        .quick-actions {
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .action-btn {
+            padding: 0.6rem 1rem;
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+        }
+
+        /* Sections des 3 mois - Empilées verticalement */
+        .section-card .d-flex {
+            flex-direction: column !important;
+        }
+
+        .month-column {
+            border-right: none;
+            border-bottom: 2px solid #f0f0f0;
+            padding: 1rem;
+        }
+
+        .month-column:last-child {
+            border-bottom: none;
+        }
+
+        .month-column:hover {
+            transform: scale(1);
+        }
+
+        .month-icon {
+            font-size: 1.5rem;
+        }
+
+        .month-name {
+            font-size: 0.75rem;
+        }
+
+        .month-amount {
+            font-size: 1.3rem;
+        }
+
+        .month-label {
+            font-size: 0.75rem;
+        }
+
+        .stat-badge {
+            font-size: 0.65rem;
+            padding: 0.2rem 0.5rem;
+        }
+
+        /* En-têtes de sections */
+        .section-header {
+            font-size: 0.9rem;
+            padding: 0.8rem 1rem;
+        }
+
+        /* Capital de l'association */
+        .section-card.mt-4 .card-body {
+            padding: 1rem !important;
+        }
+
+        .section-card.mt-4 h3 {
+            font-size: 1.2rem !important;
+        }
+
+        .section-card.mt-4 .col-md-4 {
+            margin-bottom: 1rem;
+        }
+
+        .section-card.mt-4 h2 {
+            font-size: 1.5rem !important;
+        }
+
+        .section-card.mt-4 h1 {
+            font-size: 2rem !important;
+        }
+
+        .section-card.mt-4 h6 {
+            font-size: 0.75rem;
+        }
+
+        .section-card.mt-4 i {
+            font-size: 1.5rem !important;
+        }
+
+        /* Tables détails */
+        .table-responsive {
+            font-size: 0.8rem;
+        }
+
+        .table th,
+        .table td {
+            padding: 0.4rem;
+            font-size: 0.8rem;
+        }
+
+        /* Cards détails admin */
+        .card-header h5 {
+            font-size: 0.95rem;
+        }
+    }
+
+    /* Très petits mobiles (moins de 576px) */
+    @media (max-width: 575px) {
+        .global-stats h2 {
+            font-size: 1rem;
+        }
+
+        .stat-value {
+            font-size: 1.3rem;
+        }
+
+        .stat-label {
+            font-size: 0.7rem;
+        }
+
+        .month-amount {
+            font-size: 1.1rem;
+        }
+
+        .month-name {
+            font-size: 0.7rem;
+            letter-spacing: 0.5px;
+        }
+
+        .section-header {
+            font-size: 0.85rem;
+            padding: 0.7rem 0.8rem;
+        }
+
+        .action-btn {
+            font-size: 0.85rem;
+            padding: 0.5rem 0.8rem;
+        }
+
+        /* Capital - très compact */
+        .section-card.mt-4 h3 {
+            font-size: 1rem !important;
+        }
+
+        .section-card.mt-4 h2 {
+            font-size: 1.3rem !important;
+        }
+
+        .section-card.mt-4 h1 {
+            font-size: 1.8rem !important;
+        }
+
+        .section-card.mt-4 i {
+            font-size: 1.2rem !important;
+        }
+    }
+
+    /* Amélioration du scroll horizontal des tables sur mobile */
+    @media (max-width: 767px) {
+        .table-responsive {
+            -webkit-overflow-scrolling: touch;
+            margin-bottom: 1rem;
+        }
+
+        /* Indicateur de scroll horizontal */
+        .table-responsive::after {
+            content: "← Glissez pour voir plus →";
+            display: block;
+            text-align: center;
+            font-size: 0.7rem;
+            color: #6c757d;
+            padding: 0.5rem;
+            font-style: italic;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2><i class="bi bi-speedometer2"></i> Tableau de bord</h2>
-</div>
+<div class="container-fluid">
+    
+    <!-- En-tête du tableau de bord -->
+    <div class="global-stats">
+        <h2><i class="bi bi-speedometer2"></i> Tableau de bord - {{ user.get_full_name }}</h2>
+        <div class="row">
+            <div class="col-md-3 stat-item">
+                <i class="bi bi-calendar-month" style="font-size: 2rem; opacity: 0.7;"></i>
+                <div class="stat-value">{{ mois_actuel_nom }}</div>
+                <div class="stat-label">Mois en cours</div>
+            </div>
+            <div class="col-md-3 stat-item">
+                <i class="bi bi-people" style="font-size: 2rem; opacity: 0.7;"></i>
+                <div class="stat-value">{{ total_membres }}</div>
+                <div class="stat-label">Membres actifs</div>
+            </div>
+            <div class="col-md-3 stat-item">
+                <i class="bi bi-cash-stack" style="font-size: 2rem; opacity: 0.7;"></i>
+                <div class="stat-value">{{ solde_caisse|floatformat:0 }}</div>
+                <div class="stat-label">Solde caisse (FBU)</div>
+            </div>
+            <div class="col-md-3 stat-item">
+                <i class="bi bi-graph-up-arrow" style="font-size: 2rem; opacity: 0.7;"></i>
+                <div class="stat-value">{{ taux_paiement|floatformat:0 }}%</div>
+                <div class="stat-label">Taux de paiement</div>
+            </div>
+        </div>
+    </div>
 
-<!-- Statistiques globales -->
-{% if user.is_admin or user.is_gestionnaire %}
-<div class="row g-3 mb-4">
-    <div class="col-md-3">
-        <div class="card stat-card">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h6 class="text-muted mb-2">Membres actifs</h6>
-                        <h3 class="mb-0">{{ total_membres }}</h3>
-                    </div>
-                    <div class="text-primary" style="font-size: 2.5rem;">
-                        <i class="bi bi-people"></i>
-                    </div>
-                </div>
+    <!-- Actions rapides -->
+    <div class="quick-actions">
+        <div class="row g-3">
+            <div class="col-md-4">
+                <a href="{% url 'demander_credit' %}" class="btn action-btn w-100" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <i class="bi bi-plus-circle me-2"></i> Demander un crédit
+                </a>
+            </div>
+            <div class="col-md-4">
+                <a href="{% url 'soumettre_suggestion' %}" class="btn action-btn w-100" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white;">
+                    <i class="bi bi-lightbulb me-2"></i> Faire une suggestion
+                </a>
+            </div>
+            <div class="col-md-4">
+                <a href="{% url 'liste_cotisations' %}" class="btn action-btn w-100" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white;">
+                    <i class="bi bi-eye me-2"></i> Voir mes cotisations
+                </a>
             </div>
         </div>
     </div>
-    
-    <div class="col-md-3">
-        <div class="card stat-card success">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h6 class="text-muted mb-2">Cotisations ({{ mois_actuel }}/{{ annee_actuelle }})</h6>
-                        <h3 class="mb-0">{{ total_cotisations_mois|floatformat:0 }} FBU</h3>
-                    </div>
-                    <div class="text-success" style="font-size: 2.5rem;">
-                        <i class="bi bi-cash-coin"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-md-3">
-        <div class="card stat-card warning">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h6 class="text-muted mb-2">Crédits en cours</h6>
-                        <h3 class="mb-0">{{ credits_en_cours }}</h3>
-                    </div>
-                    <div class="text-warning" style="font-size: 2.5rem;">
-                        <i class="bi bi-wallet2"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-md-3">
-        <div class="card stat-card danger">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h6 class="text-muted mb-2">Total crédits</h6>
-                        <h3 class="mb-0">{{ total_credits|floatformat:0 }} FBU</h3>
-                    </div>
-                    <div class="text-danger" style="font-size: 2.5rem;">
-                        <i class="bi bi-credit-card"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-{% endif %}
 
-<div class="row">
-    <!-- Mes statistiques personnelles -->
-    <div class="col-lg-4 mb-4">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="bi bi-person-circle"></i> Mes statistiques</h5>
+    <!-- SECTION 1: COTISATIONS RÉGULIÈRES -->
+    <div class="section-card section-cotisations">
+        <div class="section-header">
+            <i class="bi bi-cash-coin"></i>
+            <span>COTISATIONS RÉGULIÈRES</span>
+        </div>
+        <div class="d-flex">
+            {% for mois_data in cotisations_3_derniers_mois %}
+            <div class="month-column">
+                <i class="bi bi-calendar-check month-icon"></i>
+                <div class="month-name">{{ mois_data.mois_nom }}</div>
+                <div class="month-amount">{{ mois_data.montant|floatformat:0 }}</div>
+                <div class="month-label">FBU</div>
+                <span class="stat-badge badge-success">{{ mois_data.nombre_paiements }} paiements</span>
             </div>
-            <div class="card-body">
-                <div class="mb-3">
-                    <div class="d-flex justify-content-between mb-2">
-                        <span class="text-muted">Mes cotisations</span>
-                        <strong>{{ mes_cotisations.count }}</strong>
+            {% empty %}
+            <div class="month-column">
+                <i class="bi bi-calendar-x month-icon"></i>
+                <div class="month-name">Mois -2</div>
+                <div class="month-amount">0</div>
+                <div class="month-label">FBU</div>
+            </div>
+            <div class="month-column">
+                <i class="bi bi-calendar-x month-icon"></i>
+                <div class="month-name">Mois -1</div>
+                <div class="month-amount">0</div>
+                <div class="month-label">FBU</div>
+            </div>
+            <div class="month-column">
+                <i class="bi bi-calendar-x month-icon"></i>
+                <div class="month-name">Mois actuel</div>
+                <div class="month-amount">0</div>
+                <div class="month-label">FBU</div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- SECTION 2: CRÉDITS -->
+    <div class="section-card section-credits">
+        <div class="section-header">
+            <i class="bi bi-wallet2"></i>
+            <span>CRÉDITS ACCORDÉS</span>
+        </div>
+        <div class="d-flex">
+            {% for mois_data in credits_3_derniers_mois %}
+            <div class="month-column">
+                <i class="bi bi-credit-card month-icon"></i>
+                <div class="month-name">{{ mois_data.mois_nom }}</div>
+                <div class="month-amount">{{ mois_data.montant|floatformat:0 }}</div>
+                <div class="month-label">FBU</div>
+                <span class="stat-badge badge-warning">{{ mois_data.nombre_credits }} crédits</span>
+            </div>
+            {% empty %}
+            <div class="month-column">
+                <i class="bi bi-credit-card-2-back month-icon"></i>
+                <div class="month-name">Mois -2</div>
+                <div class="month-amount">0</div>
+                <div class="month-label">FBU</div>
+            </div>
+            <div class="month-column">
+                <i class="bi bi-credit-card-2-back month-icon"></i>
+                <div class="month-name">Mois -1</div>
+                <div class="month-amount">0</div>
+                <div class="month-label">FBU</div>
+            </div>
+            <div class="month-column">
+                <i class="bi bi-credit-card-2-back month-icon"></i>
+                <div class="month-name">Mois actuel</div>
+                <div class="month-amount">0</div>
+                <div class="month-label">FBU</div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- SECTION 3: IMPRÉVUS SOCIAUX -->
+    <div class="section-card section-imprevus">
+        <div class="section-header">
+            <i class="bi bi-heart-fill"></i>
+            <span>IMPRÉVUS SOCIAUX</span>
+        </div>
+        <div class="d-flex">
+            {% for mois_data in imprevus_3_derniers_mois %}
+            <div class="month-column">
+                <i class="bi bi-heart-pulse month-icon"></i>
+                <div class="month-name">{{ mois_data.mois_nom }}</div>
+                <div class="month-amount">{{ mois_data.montant|floatformat:0 }}</div>
+                <div class="month-label">FBU</div>
+                <span class="stat-badge badge-info">{{ mois_data.nombre_imprevus }} événements</span>
+            </div>
+            {% empty %}
+            <div class="month-column">
+                <i class="bi bi-heart month-icon"></i>
+                <div class="month-name">Mois -2</div>
+                <div class="month-amount">0</div>
+                <div class="month-label">FBU</div>
+            </div>
+            <div class="month-column">
+                <i class="bi bi-heart month-icon"></i>
+                <div class="month-name">Mois -1</div>
+                <div class="month-amount">0</div>
+                <div class="month-label">FBU</div>
+            </div>
+            <div class="month-column">
+                <i class="bi bi-heart month-icon"></i>
+                <div class="month-name">Mois actuel</div>
+                <div class="month-amount">0</div>
+                <div class="month-label">FBU</div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- SECTION 4: TOTAUX DU MOIS EN COURS -->
+    <div class="section-card section-totaux">
+        <div class="section-header">
+            <i class="bi bi-calculator"></i>
+            <span>TOTAUX DU MOIS EN COURS ({{ mois_actuel_nom }} {{ annee_actuelle }})</span>
+        </div>
+        <div class="d-flex">
+            <div class="month-column">
+                <i class="bi bi-cash-coin" style="font-size: 3rem; color: #667eea; opacity: 0.3;"></i>
+                <div class="month-name" style="color: #667eea;">Cotisations</div>
+                <div class="month-amount">{{ total_cotisations_mois_actuel|floatformat:0 }}</div>
+                <div class="month-label">FBU</div>
+            </div>
+            <div class="month-column">
+                <i class="bi bi-wallet2" style="font-size: 3rem; color: #f5576c; opacity: 0.3;"></i>
+                <div class="month-name" style="color: #f5576c;">Crédits</div>
+                <div class="month-amount">{{ total_credits_mois_actuel|floatformat:0 }}</div>
+                <div class="month-label">FBU</div>
+            </div>
+            <div class="month-column">
+                <i class="bi bi-heart-fill" style="font-size: 3rem; color: #00f2fe; opacity: 0.3;"></i>
+                <div class="month-name" style="color: #00f2fe;">Imprévus</div>
+                <div class="month-amount">{{ total_imprevus_mois_actuel|floatformat:0 }}</div>
+                <div class="month-label">FBU</div>
+            </div>
+            <div class="month-column" style="background: linear-gradient(135deg, rgba(67, 233, 123, 0.1) 0%, rgba(56, 249, 215, 0.1) 100%);">
+                <i class="bi bi-piggy-bank" style="font-size: 3rem; color: #43e97b; opacity: 0.5;"></i>
+                <div class="month-name" style="color: #43e97b; font-size: 1.1rem;">TOTAL GÉNÉRAL</div>
+                <div class="month-amount" style="font-size: 2.2rem;">{{ total_general_mois_actuel|floatformat:0 }}</div>
+                <div class="month-label" style="font-weight: 700; color: #43e97b;">FBU</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Détails supplémentaires pour les admins/gestionnaires -->
+    {% if user.is_admin or user.is_gestionnaire %}
+    <div class="row mt-4">
+        <!-- Derniers crédits -->
+        <div class="col-lg-6 mb-4">
+            <div class="card section-card">
+                <div class="card-header" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white;">
+                    <h5 class="mb-0"><i class="bi bi-wallet2"></i> Derniers crédits</h5>
+                </div>
+                <div class="card-body p-0">
+                    {% if derniers_credits %}
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Membre</th>
+                                    <th>Montant</th>
+                                    <th>Statut</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for credit in derniers_credits|slice:":5" %}
+                                <tr>
+                                    <td>{{ credit.membre.get_full_name }}</td>
+                                    <td>{{ credit.montant_accorde|floatformat:0 }} FBU</td>
+                                    <td>
+                                        {% if credit.statut == 'EN_ATTENTE' %}
+                                            <span class="badge bg-warning">En attente</span>
+                                        {% elif credit.statut == 'APPROUVE' %}
+                                            <span class="badge bg-success">Approuvé</span>
+                                        {% elif credit.statut == 'EN_COURS' %}
+                                            <span class="badge bg-info">En cours</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Remboursé</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
                     </div>
-                    <div class="progress" style="height: 8px;">
-                        <div class="progress-bar bg-success" role="progressbar" style="width: {{ mes_cotisations.count|default:0 }}%"></div>
+                    {% else %}
+                    <div class="text-center py-4 text-muted">
+                        <i class="bi bi-inbox" style="font-size: 2.5rem;"></i>
+                        <p class="mb-0">Aucun crédit</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Dernières cotisations -->
+        <div class="col-lg-6 mb-4">
+            <div class="card section-card">
+                <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <h5 class="mb-0"><i class="bi bi-cash-coin"></i> Dernières cotisations</h5>
+                </div>
+                <div class="card-body p-0">
+                    {% if dernieres_cotisations %}
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Membre</th>
+                                    <th>Période</th>
+                                    <th>Montant</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for cotisation in dernieres_cotisations|slice:":5" %}
+                                <tr>
+                                    <td>{{ cotisation.membre.get_full_name }}</td>
+                                    <td>{{ cotisation.get_mois_nom }} {{ cotisation.annee }}</td>
+                                    <td>{{ cotisation.montant|floatformat:0 }} FBU</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4 text-muted">
+                        <i class="bi bi-inbox" style="font-size: 2.5rem;"></i>
+                        <p class="mb-0">Aucune cotisation</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CAPITAL DE L'ASSOCIATION -->
+    <div class="section-card mt-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+        <div class="card-body p-4">
+            <div class="text-center mb-4">
+                <i class="bi bi-bank2" style="font-size: 4rem; opacity: 0.8;"></i>
+                <h3 class="mt-3 mb-1" style="font-weight: 700; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);">
+                    CAPITAL DE L'ASSOCIATION
+                </h3>
+                <p style="opacity: 0.9; font-size: 1.1rem;">Réserve financière totale</p>
+            </div>
+            
+            <div class="row text-center">
+                <div class="col-md-4 mb-3">
+                    <div class="p-3" style="background: rgba(255,255,255,0.15); border-radius: 15px; backdrop-filter: blur(10px);">
+                        <i class="bi bi-heart-fill" style="font-size: 2.5rem; opacity: 0.7;"></i>
+                        <h6 class="mt-3 mb-2" style="opacity: 0.9; text-transform: uppercase; letter-spacing: 1px;">Imprévus Sociaux</h6>
+                        <h2 style="font-weight: 700; text-shadow: 2px 2px 4px rgba(0,0,0,0.2);">
+                            {{ total_imprevus_capital|floatformat:0 }}
+                        </h2>
+                        <small style="opacity: 0.8;">FBU</small>
                     </div>
                 </div>
                 
-                <div class="mb-3">
-                    <div class="d-flex justify-content-between mb-2">
-                        <span class="text-muted">Mes crédits</span>
-                        <strong>{{ mes_credits.count }}</strong>
+                <div class="col-md-4 mb-3">
+                    <div class="p-3" style="background: rgba(255,255,255,0.15); border-radius: 15px; backdrop-filter: blur(10px);">
+                        <i class="bi bi-arrow-repeat" style="font-size: 2.5rem; opacity: 0.7;"></i>
+                        <h6 class="mt-3 mb-2" style="opacity: 0.9; text-transform: uppercase; letter-spacing: 1px;">Remboursements</h6>
+                        <h2 style="font-weight: 700; text-shadow: 2px 2px 4px rgba(0,0,0,0.2);">
+                            {{ total_remboursements|floatformat:0 }}
+                        </h2>
+                        <small style="opacity: 0.8;">FBU</small>
                     </div>
                 </div>
                 
-                <div class="mb-3">
-                    <div class="d-flex justify-content-between mb-2">
-                        <span class="text-muted">Crédits actifs</span>
-                        <strong>{{ mes_credits_actifs.count }}</strong>
+                <div class="col-md-4 mb-3">
+                    <div class="p-4" style="background: linear-gradient(135deg, rgba(67, 233, 123, 0.3) 0%, rgba(56, 249, 215, 0.3) 100%); border-radius: 15px; border: 3px solid rgba(255,255,255,0.5); box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
+                        <i class="bi bi-piggy-bank-fill" style="font-size: 3rem; opacity: 0.9; animation: pulse 2s infinite;"></i>
+                        <h6 class="mt-3 mb-2" style="opacity: 1; text-transform: uppercase; letter-spacing: 2px; font-weight: 700;">CAPITAL TOTAL</h6>
+                        <h1 style="font-weight: 900; font-size: 2.8rem; text-shadow: 3px 3px 6px rgba(0,0,0,0.3);">
+                            {{ capital_association|floatformat:0 }}
+                        </h1>
+                        <small style="opacity: 0.9; font-weight: 600; font-size: 1.1rem;">FBU</small>
                     </div>
                 </div>
-                
-                <div class="d-grid gap-2 mt-3">
-                    <a href="{% url 'demander_credit' %}" class="btn btn-primary btn-sm">
-                        <i class="bi bi-plus-circle"></i> Demander un crédit
-                    </a>
-                    <a href="{% url 'soumettre_suggestion' %}" class="btn btn-outline-primary btn-sm">
-                        <i class="bi bi-lightbulb"></i> Faire une suggestion
-                    </a>
-                </div>
+            </div>
+            
+            <div class="text-center mt-4 p-3" style="background: rgba(255,255,255,0.1); border-radius: 10px;">
+                <small style="opacity: 0.9;">
+                    <i class="bi bi-info-circle me-2"></i>
+                    Le capital de l'association est constitué des cotisations pour imprévus sociaux et des remboursements de crédits reçus.
+                </small>
             </div>
         </div>
     </div>
 
-    <!-- Dernières cotisations -->
-    <div class="col-lg-8 mb-4">
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0"><i class="bi bi-cash-coin"></i> Dernières cotisations</h5>
-                <a href="{% url 'liste_cotisations' %}" class="btn btn-sm btn-outline-primary">Voir tout</a>
-            </div>
-            <div class="card-body p-0">
-                {% if dernieres_cotisations %}
-                <div class="table-responsive">
-                    <table class="table table-hover mb-0">
-                        <thead>
-                            <tr>
-                                <th>Membre</th>
-                                <th>Période</th>
-                                <th>Montant</th>
-                                <th>Statut</th>
-                                <th>Date</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for cotisation in dernieres_cotisations %}
-                            <tr>
-                                <td>{{ cotisation.membre.get_full_name }}</td>
-                                <td>{{ cotisation.get_mois_nom }} {{ cotisation.annee }}</td>
-                                <td>{{ cotisation.montant|floatformat:0 }} FBU</td>
-                                <td>
-                                    {% if cotisation.statut == 'PAYE' %}
-                                        <span class="badge bg-success badge-custom">Payé</span>
-                                    {% elif cotisation.statut == 'EN_ATTENTE' %}
-                                        <span class="badge bg-warning badge-custom">En attente</span>
-                                    {% else %}
-                                        <span class="badge bg-danger badge-custom">En retard</span>
-                                    {% endif %}
-                                </td>
-                                <td>{{ cotisation.date_paiement|date:"d/m/Y" }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                {% else %}
-                <div class="text-center py-4 text-muted">
-                    <i class="bi bi-inbox" style="font-size: 3rem;"></i>
-                    <p class="mb-0">Aucune cotisation enregistrée</p>
-                </div>
-                {% endif %}
-            </div>
+    <!-- Zone dangereuse (admin seulement) -->
+    {% if user.is_admin %}
+    <div class="card border-danger mt-4">
+        <div class="card-header bg-danger text-white">
+            <h5 class="mb-0"><i class="bi bi-shield-exclamation"></i> Zone Dangereuse</h5>
+        </div>
+        <div class="card-body">
+            <p class="text-danger mb-3">
+                <strong>Attention :</strong> Ces actions sont irréversibles !
+            </p>
+            <a href="{% url 'reinitialiser_base_donnees' %}" class="btn btn-danger">
+                <i class="bi bi-trash3-fill"></i> Réinitialiser la base de données
+            </a>
         </div>
     </div>
-</div>
+    {% endif %}
+    {% endif %}
 
-<!-- Derniers crédits -->
-{% if user.is_admin or user.is_gestionnaire %}
-<div class="row">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0"><i class="bi bi-wallet2"></i> Derniers crédits</h5>
-                <a href="{% url 'liste_credits' %}" class="btn btn-sm btn-outline-primary">Voir tout</a>
-            </div>
-            <div class="card-body p-0">
-                {% if derniers_credits %}
-                <div class="table-responsive">
-                    <table class="table table-hover mb-0">
-                        <thead>
-                            <tr>
-                                <th>Membre</th>
-                                <th>Montant demandé</th>
-                                <th>Montant accordé</th>
-                                <th>Statut</th>
-                                <th>Date demande</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for credit in derniers_credits %}
-                            <tr>
-                                <td>{{ credit.membre.get_full_name }}</td>
-                                <td>{{ credit.montant_demande|floatformat:0 }} FBU</td>
-                                <td>{{ credit.montant_accorde|floatformat:0 }} FBU</td>
-                                <td>
-                                    {% if credit.statut == 'EN_ATTENTE' %}
-                                        <span class="badge bg-warning badge-custom">En attente</span>
-                                    {% elif credit.statut == 'APPROUVE' %}
-                                        <span class="badge bg-success badge-custom">Approuvé</span>
-                                    {% elif credit.statut == 'REJETE' %}
-                                        <span class="badge bg-danger badge-custom">Rejeté</span>
-                                    {% elif credit.statut == 'EN_COURS' %}
-                                        <span class="badge bg-info badge-custom">En cours</span>
-                                    {% else %}
-                                        <span class="badge bg-secondary badge-custom">Remboursé</span>
-                                    {% endif %}
-                                </td>
-                                <td>{{ credit.date_demande|date:"d/m/Y" }}</td>
-                                <td>
-                                    <a href="{% url 'detail_credit' credit.pk %}" class="btn btn-sm btn-outline-primary">
-                                        <i class="bi bi-eye"></i>
-                                    </a>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                {% else %}
-                <div class="text-center py-4 text-muted">
-                    <i class="bi bi-inbox" style="font-size: 3rem;"></i>
-                    <p class="mb-0">Aucun crédit enregistré</p>
-                </div>
-                {% endif %}
-            </div>
-        </div>
-    </div>
 </div>
-{% endif %}
-
-<!-- section admin -->
-
-{% if user.is_admin %}
-<div class="card border-danger mt-4">
-    <div class="card-header bg-danger text-white">
-        <h5 class="mb-0"><i class="bi bi-shield-exclamation"></i> Zone Dangereuse</h5>
-    </div>
-    <div class="card-body">
-        <p class="text-danger mb-3">
-            <strong>Attention :</strong> Ces actions sont irréversibles !
-        </p>
-        <a href="{% url 'reinitialiser_base_donnees' %}" class="btn btn-danger">
-            <i class="bi bi-trash3-fill"></i> Réinitialiser la base de données
-        </a>
-    </div>
-</div>
-{% endif %}
 {% endblock %}

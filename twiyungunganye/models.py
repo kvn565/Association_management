@@ -196,6 +196,12 @@ class Credit(models.Model):
     
     def clean(self):
         """Validation : vérifier que le membre a suffisamment de cotisations"""
+        # ✅ CORRECTION : Vérifier d'abord si le membre existe
+        if not hasattr(self, 'membre') or self.membre is None:
+            # Si le membre n'est pas encore assigné, on ne peut pas valider
+            # Cette validation sera faite dans la vue
+            return
+        
         if self.pk is None:  # Nouvelle demande seulement
             total_cotisations = self.membre.get_total_cotisations()
             

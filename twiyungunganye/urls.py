@@ -1,5 +1,4 @@
 from django.urls import path
-from . import views, pdf_reports
 from . import views, pdf_reports, pdf_exports, admin_views
 
 
@@ -20,6 +19,12 @@ urlpatterns = [
     path('membres/ajouter/', views.ajouter_membre, name='ajouter_membre'),
     path('membres/<int:pk>/', views.detail_membre, name='detail_membre'),
     path('membres/<int:pk>/modifier/', views.modifier_membre, name='modifier_membre'),
+
+    # Gestion des cotisations imprévus (NOUVEAU)
+    path('cotisations-imprevus/', views.liste_cotisations_imprevus, name='liste_cotisations_imprevus'),
+    path('cotisations-imprevus/ajouter/', views.ajouter_cotisation_imprevu, name='ajouter_cotisation_imprevu'),
+    path('cotisations-imprevus/<int:pk>/modifier/', views.modifier_cotisation_imprevu, name='modifier_cotisation_imprevu'),
+    path('mes-cotisations-imprevus/', views.mes_cotisations_imprevus, name='mes_cotisations_imprevus'),
     
     # Gestion des cotisations
     path('cotisations/', views.liste_cotisations, name='liste_cotisations'),

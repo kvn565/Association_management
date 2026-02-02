@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}Twiyungunganye{% endblock %}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: "Segoe UI", sans-serif;
+        }
+
+        .navbar {
+            box-shadow: 0 2px 6px rgba(0,0,0,.1);
+        }
+
+        .sidebar {
+            min-height: calc(100vh - 56px);
+            background-color: #ffffff;
+            box-shadow: 2px 0 6px rgba(0,0,0,.08);
+        }
+
+        .sidebar .nav-link {
+            color: #333;
+            padding: 0.7rem 1rem;
+            border-radius: 0.4rem;
+            margin-bottom: 0.2rem;
+            display: flex;
+            align-items: center;
+            font-weight: 500;
+        }
+
+        .sidebar .nav-link i {
+            font-size: 1.1rem;
+            margin-right: 0.6rem;
+        }
+
+        .sidebar .nav-link:hover {
+            background-color: #e9ecef;
+            color: #0d6efd;
+        }
+
+        .sidebar .nav-link.active {
+            background-color: #0d6efd;
+            color: #fff;
+        }
+
+        footer {
+            background-color: #ffffff;
+            border-top: 1px solid #e9ecef;
+            padding: 1rem 0;
+            margin-top: 2rem;
+        }
+    </style>
+
+    {% block extra_css %}{% endblock %}
+</head>
+
+<body>
+
+<!-- NAVBAR -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary sticky-top">
+    <div class="container-fluid">
+        <a class="navbar-brand fw-semibold" href="{% url 'index' %}">
+            <i class="bi bi-people-fill me-1"></i> Twiyungunganye
+        </a>
+
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav ms-auto">
+                {% if user.is_authenticated %}
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'dashboard' %}">
+                        <i class="bi bi-speedometer2"></i> Tableau de bord
+                    </a>
+                </li>
+
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#">
+                        <i class="bi bi-person-circle"></i> {{ user.get_full_name }}
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li>
+                            <a class="dropdown-item" href="{% url 'detail_membre' user.pk %}">
+                                Mon profil
+                            </a>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <a class="dropdown-item" href="{% url 'logout' %}">
+                                Déconnexion
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+                {% else %}
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'login' %}">
+                        <i class="bi bi-box-arrow-in-right"></i> Connexion
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<div class="container-fluid">
+    <div class="row">
+
+        {% if user.is_authenticated %}
+        <!-- SIDEBAR -->
+        <nav class="col-md-3 col-lg-2 sidebar p-3">
+            <ul class="nav flex-column">
+
+                <li class="nav-item">
+                    <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}"
+                       href="{% url 'dashboard' %}">
+                        <i class="bi bi-speedometer2"></i>
+                        Tableau de bord
+                    </a>
+                </li>
+
+                {% if user.is_admin or user.is_gestionnaire %}
+                <li class="mt-4 text-muted fw-semibold small px-2">GESTION</li>
+
+                <li class="nav-item">
+                    <a class="nav-link {% if 'membres' in request.path %}active{% endif %}"
+                       href="{% url 'liste_membres' %}">
+                        <i class="bi bi-people-fill"></i>
+                        Membres
+                    </a>
+                </li>
+                {% endif %}
+
+                <li class="mt-4 text-muted fw-semibold small px-2">FINANCES</li>
+
+                <li class="nav-item">
+                    <a class="nav-link {% if 'cotisations/' in request.path and not 'imprevus' in request.path %}active{% endif %}"
+                       href="{% url 'liste_cotisations' %}">
+                        <i class="bi bi-cash-coin"></i>
+                        Cotisations régulières
+                    </a>
+                </li>
+
+                {% if user.is_admin or user.is_gestionnaire %}
+                <li class="nav-item">
+                    <a class="nav-link {% if 'cotisations-imprevus' in request.path %}active{% endif %}"
+                       href="{% url 'liste_cotisations_imprevus' %}">
+                        <i class="bi bi-heart-fill"></i>
+                        Cotisations imprévus
+                    </a>
+                </li>
+                {% else %}
+                <li class="nav-item">
+                    <a class="nav-link {% if 'mes-cotisations-imprevus' in request.path %}active{% endif %}"
+                       href="{% url 'mes_cotisations_imprevus' %}">
+                        <i class="bi bi-heart"></i>
+                        Mes cotisations imprévus
+                    </a>
+                </li>
+                {% endif %}
+
+                <li class="nav-item">
+                    <a class="nav-link {% if 'credits' in request.path %}active{% endif %}"
+                       href="{% url 'liste_credits' %}">
+                        <i class="bi bi-wallet2"></i>
+                        Crédits
+                    </a>
+                </li>
+
+                <li class="mt-4 text-muted fw-semibold small px-2">COMMUNICATION</li>
+
+                <li class="nav-item">
+                    <a class="nav-link {% if 'suggestions' in request.path %}active{% endif %}"
+                       href="{% url 'liste_suggestions' %}">
+                        <i class="bi bi-lightbulb-fill"></i>
+                        Suggestions
+                    </a>
+                </li>
+
+                {% if user.is_admin or user.is_gestionnaire %}
+                <li class="mt-4 text-muted fw-semibold small px-2">RAPPORTS</li>
+
+                <li class="nav-item">
+                    <a class="nav-link {% if 'rapports' in request.path %}active{% endif %}"
+                       href="{% url 'rapports' %}">
+                        <i class="bi bi-file-earmark-text-fill"></i>
+                        Rapports
+                    </a>
+                </li>
+                {% endif %}
+
+            </ul>
+        </nav>
+
+        <!-- MAIN -->
+        <main class="col-md-9 col-lg-10 px-4 py-4">
+        {% else %}
+        <main class="container py-4">
+        {% endif %}
+
+            {% if messages %}
+                {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+                    {{ message }}
+                    <button class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+                {% endfor %}
+            {% endif %}
+
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+</div>
+
+<footer class="text-center text-muted">
+    <div class="container">
+        <small>&copy; 2026 Twiyungunganye — Tous droits réservés</small>
+    </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+{% block extra_js %}{% endblock %}
+
+</body>
+</html>

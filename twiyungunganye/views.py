@@ -8,6 +8,7 @@ from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
 from datetime import datetime, date
 from decimal import Decimal
+from dateutil.relativedelta import relativedelta
 
 from .models import (
     Membre, Cotisation, CotisationImprevu, Credit, Interet, 
@@ -86,74 +87,238 @@ def logout_view(request):
     return redirect('index')
 
 
-# Dashboard
+# Dashboard - NOUVELLE VERSION AVEC 3 DERNIERS MOIS + CAPITAL
 @login_required
 def dashboard(request):
-    """Tableau de bord principal"""
-    user = request.user
-    association = Association.get_association()
-    
-    # Statistiques pour tous les utilisateurs
-    total_membres = Membre.objects.filter(est_actif=True).count()
-    
-    # Statistiques du mois en cours
-    now = timezone.now()
+    """
+    Tableau de bord avec statistiques des 3 derniers mois
+    pour cotisations, crédits et imprévus sociaux + Capital de l'association
+    """
+    # Date actuelle
+    now = datetime.now()
     mois_actuel = now.month
     annee_actuelle = now.year
     
-    cotisations_mois = Cotisation.objects.filter(mois=mois_actuel, annee=annee_actuelle)
-    total_cotisations_mois = cotisations_mois.aggregate(Sum('montant'))['montant__sum'] or 0
+    # Noms des mois en français
+    MOIS_NOMS = {
+        1: 'Janvier', 2: 'Février', 3: 'Mars', 4: 'Avril',
+        5: 'Mai', 6: 'Juin', 7: 'Juillet', 8: 'Août',
+        9: 'Septembre', 10: 'Octobre', 11: 'Novembre', 12: 'Décembre'
+    }
     
-    cotisations_imprevus_mois = CotisationImprevu.objects.filter(mois=mois_actuel, annee=annee_actuelle)
-    total_cotisations_imprevus_mois = cotisations_imprevus_mois.aggregate(Sum('montant'))['montant__sum'] or 0
+    # Calculer les 3 derniers mois
+    date_actuelle = datetime(annee_actuelle, mois_actuel, 1)
+    mois_precedent_1 = date_actuelle - relativedelta(months=1)
+    mois_precedent_2 = date_actuelle - relativedelta(months=2)
     
-    # Statistiques des crédits
-    credits_en_cours = Credit.objects.filter(statut__in=['APPROUVE', 'EN_COURS']).count()
-    total_credits = Credit.objects.filter(statut__in=['APPROUVE', 'EN_COURS']).aggregate(Sum('montant_accorde'))['montant_accorde__sum'] or 0
+    mois_liste = [mois_precedent_2, mois_precedent_1, date_actuelle]
     
-    # Statistiques personnelles pour le membre connecté
-    mes_cotisations = Cotisation.objects.filter(membre=user)
-    mes_cotisations_imprevus = CotisationImprevu.objects.filter(membre=user)
-    mes_credits = Credit.objects.filter(membre=user)
-    mes_credits_actifs = mes_credits.filter(statut__in=['APPROUVE', 'EN_COURS'])
+    # ==========================================
+    # COTISATIONS RÉGULIÈRES - 3 derniers mois
+    # ==========================================
+    cotisations_3_derniers_mois = []
+    for date_mois in mois_liste:
+        cotisations_mois = Cotisation.objects.filter(
+            mois=date_mois.month,
+            annee=date_mois.year,
+            statut='PAYE'
+        )
+        
+        total = cotisations_mois.aggregate(
+            montant_total=Sum('montant')
+        )['montant_total'] or 0
+        
+        nombre = cotisations_mois.count()
+        
+        cotisations_3_derniers_mois.append({
+            'mois_nom': MOIS_NOMS[date_mois.month],
+            'mois': date_mois.month,
+            'annee': date_mois.year,
+            'montant': total,
+            'nombre_paiements': nombre
+        })
     
-    # Total des cotisations du membre
-    total_mes_cotisations = user.get_total_cotisations()
-    total_mes_cotisations_imprevus = user.get_total_cotisations_imprevus()
+    # ==========================================
+    # CRÉDITS - 3 derniers mois
+    # ==========================================
+    credits_3_derniers_mois = []
+    for date_mois in mois_liste:
+        # Crédits approuvés durant ce mois
+        credits_mois = Credit.objects.filter(
+            date_accord__month=date_mois.month,
+            date_accord__year=date_mois.year,
+            statut__in=['APPROUVE', 'EN_COURS', 'REMBOURSE']
+        )
+        
+        total = credits_mois.aggregate(
+            montant_total=Sum('montant_accorde')
+        )['montant_total'] or 0
+        
+        nombre = credits_mois.count()
+        
+        credits_3_derniers_mois.append({
+            'mois_nom': MOIS_NOMS[date_mois.month],
+            'mois': date_mois.month,
+            'annee': date_mois.year,
+            'montant': total,
+            'nombre_credits': nombre
+        })
     
-    # Dernières activités
-    dernieres_cotisations = Cotisation.objects.all().order_by('-date_paiement')[:5]
-    dernieres_cotisations_imprevus = CotisationImprevu.objects.all().order_by('-date_paiement')[:5]
-    derniers_credits = Credit.objects.all().order_by('-date_demande')[:5]
+    # ==========================================
+    # IMPRÉVUS SOCIAUX - 3 derniers mois
+    # ==========================================
+    imprevus_3_derniers_mois = []
+    for date_mois in mois_liste:
+        # Imprévus payés durant ce mois
+        imprevus_mois = CotisationImprevu.objects.filter(
+            mois=date_mois.month,
+            annee=date_mois.year,
+            statut='PAYE'
+        )
+        
+        # Calculer le total des montants
+        total = imprevus_mois.aggregate(
+            montant_total=Sum('montant')
+        )['montant_total'] or 0
+        
+        nombre = imprevus_mois.count()
+        
+        imprevus_3_derniers_mois.append({
+            'mois_nom': MOIS_NOMS[date_mois.month],
+            'mois': date_mois.month,
+            'annee': date_mois.year,
+            'montant': total,
+            'nombre_imprevus': nombre
+        })
     
-    # Totaux généraux (pour admin/gestionnaire)
-    if user.is_admin or user.is_gestionnaire:
-        total_cotisations_disponibles = association.get_total_cotisations_disponibles() if association else 0
-        total_imprevus_disponibles = association.get_total_cotisations_imprevus_disponibles() if association else 0
-    else:
-        total_cotisations_disponibles = None
-        total_imprevus_disponibles = None
+    # ==========================================
+    # TOTAUX DU MOIS ACTUEL
+    # ==========================================
+    # Total cotisations mois actuel
+    total_cotisations_mois_actuel = Cotisation.objects.filter(
+        mois=mois_actuel,
+        annee=annee_actuelle,
+        statut='PAYE'
+    ).aggregate(Sum('montant'))['montant__sum'] or 0
+    
+    # Total crédits mois actuel
+    total_credits_mois_actuel = Credit.objects.filter(
+        date_accord__month=mois_actuel,
+        date_accord__year=annee_actuelle,
+        statut__in=['APPROUVE', 'EN_COURS', 'REMBOURSE']
+    ).aggregate(Sum('montant_accorde'))['montant_accorde__sum'] or 0
+    
+    # Total imprévus mois actuel
+    total_imprevus_mois_actuel = CotisationImprevu.objects.filter(
+        mois=mois_actuel,
+        annee=annee_actuelle,
+        statut='PAYE'
+    ).aggregate(Sum('montant'))['montant__sum'] or 0
+    
+    # Total général
+    total_general_mois_actuel = (
+        total_cotisations_mois_actuel + 
+        total_credits_mois_actuel + 
+        total_imprevus_mois_actuel
+    )
+    
+    # ==========================================
+    # CAPITAL DE L'ASSOCIATION
+    # ==========================================
+    # Total des cotisations imprévus (tous les temps)
+    total_imprevus_capital = CotisationImprevu.objects.filter(
+        statut='PAYE'
+    ).aggregate(Sum('montant'))['montant__sum'] or 0
+    
+    # Total des remboursements reçus (tous les temps)
+    total_remboursements = Remboursement.objects.all().aggregate(
+        Sum('montant_rembourse')
+    )['montant_rembourse__sum'] or 0
+    
+    # Capital total de l'association = Imprévus + Remboursements
+    capital_association = total_imprevus_capital + total_remboursements
+    
+    # ==========================================
+    # STATISTIQUES GLOBALES
+    # ==========================================
+    total_membres = Membre.objects.filter(est_actif=True).count()
+    
+    # Solde de la caisse (exemple simplifié)
+    total_entrees = Cotisation.objects.filter(
+        statut='PAYE'
+    ).aggregate(Sum('montant'))['montant__sum'] or 0
+    
+    total_sorties = Credit.objects.filter(
+        statut__in=['APPROUVE', 'EN_COURS', 'REMBOURSE']
+    ).aggregate(Sum('montant_accorde'))['montant_accorde__sum'] or 0
+    
+    solde_caisse = total_entrees - total_sorties
+    
+    # Taux de paiement du mois actuel
+    cotisations_attendues = total_membres
+    cotisations_payees = Cotisation.objects.filter(
+        mois=mois_actuel,
+        annee=annee_actuelle,
+        statut='PAYE'
+    ).count()
+    
+    taux_paiement = (cotisations_payees / cotisations_attendues * 100) if cotisations_attendues > 0 else 0
+    
+    # ==========================================
+    # DERNIÈRES ACTIVITÉS (pour admins)
+    # ==========================================
+    dernieres_cotisations = Cotisation.objects.filter(
+        statut='PAYE'
+    ).select_related('membre').order_by('-date_paiement')[:10]
+    
+    derniers_credits = Credit.objects.all().select_related('membre').order_by('-date_demande')[:10]
+    
+    # ==========================================
+    # STATISTIQUES PERSONNELLES
+    # ==========================================
+    mes_cotisations = Cotisation.objects.filter(
+        membre=request.user,
+        statut='PAYE'
+    )
+    
+    mes_credits = Credit.objects.filter(membre=request.user)
+    mes_credits_actifs = mes_credits.filter(statut='EN_COURS')
     
     context = {
-        'association': association,
-        'total_membres': total_membres,
-        'total_cotisations_mois': total_cotisations_mois,
-        'total_cotisations_imprevus_mois': total_cotisations_imprevus_mois,
-        'credits_en_cours': credits_en_cours,
-        'total_credits': total_credits,
-        'mes_cotisations': mes_cotisations,
-        'mes_cotisations_imprevus': mes_cotisations_imprevus,
-        'mes_credits': mes_credits,
-        'mes_credits_actifs': mes_credits_actifs,
-        'total_mes_cotisations': total_mes_cotisations,
-        'total_mes_cotisations_imprevus': total_mes_cotisations_imprevus,
-        'dernieres_cotisations': dernieres_cotisations,
-        'dernieres_cotisations_imprevus': dernieres_cotisations_imprevus,
-        'derniers_credits': derniers_credits,
+        # Date actuelle
         'mois_actuel': mois_actuel,
         'annee_actuelle': annee_actuelle,
-        'total_cotisations_disponibles': total_cotisations_disponibles,
-        'total_imprevus_disponibles': total_imprevus_disponibles,
+        'mois_actuel_nom': MOIS_NOMS[mois_actuel],
+        
+        # Données des 3 derniers mois
+        'cotisations_3_derniers_mois': cotisations_3_derniers_mois,
+        'credits_3_derniers_mois': credits_3_derniers_mois,
+        'imprevus_3_derniers_mois': imprevus_3_derniers_mois,
+        
+        # Totaux du mois actuel
+        'total_cotisations_mois_actuel': total_cotisations_mois_actuel,
+        'total_credits_mois_actuel': total_credits_mois_actuel,
+        'total_imprevus_mois_actuel': total_imprevus_mois_actuel,
+        'total_general_mois_actuel': total_general_mois_actuel,
+        
+        # Statistiques globales
+        'total_membres': total_membres,
+        'solde_caisse': solde_caisse,
+        'taux_paiement': taux_paiement,
+        
+        # Capital de l'association
+        'total_imprevus_capital': total_imprevus_capital,
+        'total_remboursements': total_remboursements,
+        'capital_association': capital_association,
+        
+        # Dernières activités
+        'dernieres_cotisations': dernieres_cotisations,
+        'derniers_credits': derniers_credits,
+        
+        # Statistiques personnelles
+        'mes_cotisations': mes_cotisations,
+        'mes_credits': mes_credits,
+        'mes_credits_actifs': mes_credits_actifs,
     }
     
     return render(request, 'twiyungunganye/dashboard.html', context)
@@ -273,16 +438,25 @@ def ajouter_cotisation(request):
 
 # Gestion des cotisations imprévus
 @login_required
+@user_passes_test(is_admin_or_gestionnaire)
 def liste_cotisations_imprevus(request):
-    """Liste des cotisations pour imprévus/cas sociaux"""
-    if request.user.is_admin or request.user.is_gestionnaire:
-        cotisations = CotisationImprevu.objects.all().order_by('-annee', '-mois')
-    else:
-        cotisations = CotisationImprevu.objects.filter(membre=request.user).order_by('-annee', '-mois')
+    """Liste de toutes les cotisations pour imprévus/cas sociaux"""
+    cotisations_imprevus = CotisationImprevu.objects.all().select_related('membre').order_by('-annee', '-mois')
+    
+    # Statistiques
+    stats = cotisations_imprevus.aggregate(
+        total=Sum('montant'),
+        nombre_total=Count('id_cotisation_imprevu'),
+        payees=Count('id_cotisation_imprevu', filter=Q(statut='PAYE')),
+        en_attente=Count('id_cotisation_imprevu', filter=Q(statut='EN_ATTENTE')),
+        en_retard=Count('id_cotisation_imprevu', filter=Q(statut='RETARD'))
+    )
     
     context = {
-        'cotisations_imprevus': cotisations,
+        'cotisations_imprevus': cotisations_imprevus,
+        'stats': stats,
     }
+    
     return render(request, 'twiyungunganye/cotisations_imprevus/liste.html', context)
 
 
@@ -294,15 +468,57 @@ def ajouter_cotisation_imprevu(request):
         form = CotisationImprevuForm(request.POST)
         if form.is_valid():
             cotisation = form.save()
-            messages.success(request, f'Cotisation imprévus enregistrée pour {cotisation.membre.get_full_name()}.')
+            messages.success(
+                request, 
+                f'Cotisation imprévus de {cotisation.membre.get_full_name()} enregistrée avec succès.'
+            )
             return redirect('liste_cotisations_imprevus')
     else:
         form = CotisationImprevuForm()
     
     return render(request, 'twiyungunganye/cotisations_imprevus/formulaire.html', {
-        'form': form, 
+        'form': form,
         'action': 'Ajouter'
     })
+
+
+@login_required
+@user_passes_test(is_admin_or_gestionnaire)
+def modifier_cotisation_imprevu(request, pk):
+    """Modifier une cotisation imprévus existante"""
+    cotisation = get_object_or_404(CotisationImprevu, pk=pk)
+    
+    if request.method == 'POST':
+        form = CotisationImprevuForm(request.POST, instance=cotisation)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Cotisation imprévus modifiée avec succès.')
+            return redirect('liste_cotisations_imprevus')
+    else:
+        form = CotisationImprevuForm(instance=cotisation)
+    
+    return render(request, 'twiyungunganye/cotisations_imprevus/formulaire.html', {
+        'form': form,
+        'action': 'Modifier',
+        'cotisation': cotisation
+    })
+
+
+@login_required
+def mes_cotisations_imprevus(request):
+    """Voir les cotisations imprévus du membre connecté"""
+    cotisations = CotisationImprevu.objects.filter(
+        membre=request.user
+    ).order_by('-annee', '-mois')
+    
+    total_paye = request.user.get_total_cotisations_imprevus()
+    
+    context = {
+        'cotisations_imprevus': cotisations,
+        'total_paye': total_paye,
+    }
+    
+    return render(request, 'twiyungunganye/cotisations_imprevus/mes_cotisations.html', context)
 
 
 # Gestion des crédits
@@ -363,104 +579,6 @@ def demander_credit(request):
     }
     
     return render(request, 'twiyungunganye/credits/demande.html', context)
-
-
-@login_required
-@user_passes_test(is_admin_only)
-def approuver_credit(request, pk):
-    """
-    Approuver ou rejeter un crédit avec VALIDATION STRICTE des fonds
-    
-    LOGIQUE :
-    1. Calculer le total des cotisations payées
-    2. Calculer le total des crédits déjà accordés et non remboursés
-    3. Fonds disponibles = Cotisations - Crédits en cours
-    4. BLOQUER si montant demandé > fonds disponibles
-    """
-    credit = get_object_or_404(Credit, pk=pk)
-    association = Association.get_association()
-    
-    if not association:
-        messages.error(request, "⚠️ Erreur : Association non configurée.")
-        return redirect('liste_credits')
-    
-    # ÉTAPE 1 : Calculer le total des cotisations
-    total_cotisations = association.get_total_cotisations_disponibles()
-    
-    # ÉTAPE 2 : Calculer le total des crédits en cours (sauf celui qu'on traite)
-    credits_en_cours = Credit.objects.filter(
-        statut__in=['APPROUVE', 'EN_COURS']
-    ).exclude(pk=credit.pk)
-    
-    total_credits_accordes = Decimal('0')
-    for c in credits_en_cours:
-        total_credits_accordes += c.montant_accorde
-    
-    # ÉTAPE 3 : Calculer les fonds disponibles
-    fonds_disponibles = total_cotisations - total_credits_accordes
-    
-    if request.method == 'POST':
-        form = CreditApprovalForm(request.POST, instance=credit)
-        
-        if form.is_valid():
-            # Récupérer le montant qu'on veut accorder
-            montant_accorde = form.cleaned_data['montant_accorde']
-            nouveau_statut = form.cleaned_data['statut']
-            
-            # VALIDATION STRICTE : Vérifier si on a assez de fonds
-            if nouveau_statut == 'APPROUVE' and montant_accorde > fonds_disponibles:
-                messages.error(
-                    request,
-                    f"❌ FONDS INSUFFISANTS ! "
-                    f"Vous ne pouvez pas accorder ce crédit. "
-                    f"Fonds disponibles : {fonds_disponibles:,.2f} FBU | "
-                    f"Montant demandé : {montant_accorde:,.2f} FBU | "
-                    f"Manque : {(montant_accorde - fonds_disponibles):,.2f} FBU"
-                )
-                
-                # Afficher les détails
-                messages.info(
-                    request,
-                    f"📊 Détails : "
-                    f"Total cotisations = {total_cotisations:,.2f} FBU | "
-                    f"Crédits en cours = {total_credits_accordes:,.2f} FBU"
-                )
-                
-                return redirect('approuver_credit', pk=credit.pk)
-            
-            # Si validation OK ou si c'est un rejet, sauvegarder
-            form.save()
-            
-            if nouveau_statut == 'APPROUVE':
-                # Calculer les nouveaux fonds restants
-                nouveaux_fonds = fonds_disponibles - montant_accorde
-                
-                messages.success(
-                    request,
-                    f"✅ Crédit accordé avec succès ! "
-                    f"Montant : {montant_accorde:,.2f} FBU | "
-                    f"Fonds restants : {nouveaux_fonds:,.2f} FBU"
-                )
-            elif nouveau_statut == 'REJETE':
-                messages.warning(request, f"❌ Crédit rejeté.")
-            
-            return redirect('liste_credits')
-    else:
-        form = CreditApprovalForm(instance=credit)
-    
-    # Préparer le contexte avec toutes les informations
-    context = {
-        'form': form,
-        'credit': credit,
-        'total_cotisations': total_cotisations,
-        'total_credits_accordes': total_credits_accordes,
-        'fonds_disponibles': fonds_disponibles,
-        'credits_en_cours': credits_en_cours,
-        'peut_approuver': fonds_disponibles > 0,
-        'montant_max_possible': fonds_disponibles,
-    }
-    
-    return render(request, 'twiyungunganye/credits/approbation.html', context)
 
 
 @login_required
