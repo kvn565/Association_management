@@ -15,12 +15,25 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.enums import TA_CENTER
 from datetime import datetime
 from decimal import Decimal
+from io import BytesIO
 
 from .models import Membre, Cotisation, Credit, Remboursement, Association
+from .pdf_utils import save_pdf_and_respond
 
 
 def is_admin_or_gestionnaire(user):
-    return user.is_authenticated and (user.is_admin or user.is_gestionnaire)
+    return user.is_authenticated and (user.is_admin or user.is_admin)
+
+
+def get_tenant(request):
+    return getattr(request, 'tenant', None)
+
+
+def qs_for_tenant(request, qs, field='tenant'):
+    tenant = get_tenant(request)
+    if tenant and not getattr(request, 'is_superadmin', False):
+        return qs.filter(**{field: tenant})
+    return qs
 
 
 @login_required
@@ -36,11 +49,20 @@ def export_liste_cotisations_pdf(request):
     annee = request.GET.get('annee')
     membre_id = request.GET.get('membre')
     statut = request.GET.get('statut')
+    date_debut = request.GET.get('date_debut')
+    date_fin = request.GET.get('date_fin')
     
     # Construire la requête
-    cotisations = Cotisation.objects.all().select_related('membre')
+    cotisations = qs_for_tenant(request, Cotisation.objects.all()).select_related('membre')
     
     titre_filtres = []
+    
+    if date_debut:
+        cotisations = cotisations.filter(date_paiement__gte=date_debut)
+        titre_filtres.append(f"du_{date_debut}")
+    if date_fin:
+        cotisations = cotisations.filter(date_paiement__lte=date_fin)
+        titre_filtres.append(f"au_{date_fin}")
     
     if mois:
         cotisations = cotisations.filter(mois=int(mois))
@@ -61,14 +83,13 @@ def export_liste_cotisations_pdf(request):
     cotisations = cotisations.order_by('-annee', '-mois', 'membre__nom')
     
     # Créer le PDF
-    response = HttpResponse(content_type='application/pdf')
+    buffer = BytesIO()
     filename = 'Liste_Cotisations'
     if titre_filtres:
         filename += '_' + '_'.join(titre_filtres).replace(' ', '_')
     filename += '.pdf'
-    response['Content-Disposition'] = f'attachment; filename="{filename}"'
     
-    doc = SimpleDocTemplate(response, pagesize=landscape(A4))
+    doc = SimpleDocTemplate(buffer, pagesize=landscape(A4))
     elements = []
     
     # Styles
@@ -84,9 +105,10 @@ def export_liste_cotisations_pdf(request):
     )
     
     # En-tête
-    association = Association.get_association()
+    association = Association.get_association(get_tenant(request))
     if association:
         elements.append(Paragraph(association.nom, title_style))
+    devise = association.devise if association and association.devise else "FBU"
     
     elements.append(Paragraph("LISTE DES COTISATIONS", title_style))
     elements.append(Spacer(1, 0.5*cm))
@@ -97,7 +119,7 @@ def export_liste_cotisations_pdf(request):
     
     # Tableau
     if cotisations.exists():
-        data = [['#', 'Membre', 'Carte ID', 'Période', 'Montant (FBU)', 'Statut', 'Date']]
+        data = [['#', 'Membre', 'Carte ID', 'Période', f'Montant ({devise})', 'Statut', 'Date']]
         
         mois_noms = ['', 'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
                      'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
@@ -110,14 +132,14 @@ def export_liste_cotisations_pdf(request):
                 cot.membre.get_full_name(),
                 cot.membre.carte_identite,
                 f"{mois_noms[cot.mois]} {cot.annee}",
-                f"{cot.montant:,.0f}",
+                f"{cot.montant:,.3f}",
                 cot.get_statut_display(),
                 cot.date_paiement.strftime("%d/%m/%Y") if cot.date_paiement else '-'
             ])
             if cot.statut == 'PAYE':
                 total += cot.montant
         
-        data.append(['', '', '', 'TOTAL PAYÉ', f"{total:,.0f} FBU", '', ''])
+        data.append(['', '', '', 'TOTAL PAYÉ', f"{total:,.3f} {devise}", '', ''])
         
         table = Table(data, colWidths=[1*cm, 4.5*cm, 2.5*cm, 3.5*cm, 2.5*cm, 2.5*cm, 2.5*cm])
         table.setStyle(TableStyle([
@@ -138,13 +160,13 @@ def export_liste_cotisations_pdf(request):
         elements.append(table)
         
         elements.append(Spacer(1, 0.5*cm))
-        stats = f"<b>Total :</b> {cotisations.count()} entrées | <b>Total payé :</b> {total:,.0f} FBU"
+        stats = f"<b>Total :</b> {cotisations.count()} entrées | <b>Total payé :</b> {total:,.3f} {devise}"
         elements.append(Paragraph(stats, styles['Normal']))
     else:
         elements.append(Paragraph("<i>Aucune cotisation trouvée.</i>", styles['Normal']))
     
     doc.build(elements)
-    return response
+    return save_pdf_and_respond(buffer, filename)
 
 
 @login_required
@@ -154,21 +176,26 @@ def export_liste_credits_pdf(request):
     
     statut = request.GET.get('statut')
     membre_id = request.GET.get('membre')
+    date_debut = request.GET.get('date_debut')
+    date_fin = request.GET.get('date_fin')
     
-    credits = Credit.objects.all().select_related('membre')
+    credits = qs_for_tenant(request, Credit.objects.all()).select_related('membre')
     
     if statut:
         credits = credits.filter(statut=statut)
     if membre_id:
         credits = credits.filter(membre_id=int(membre_id))
+    if date_debut:
+        credits = credits.filter(date_demande__gte=date_debut)
+    if date_fin:
+        credits = credits.filter(date_demande__lte=date_fin)
     
     credits = credits.order_by('-date_demande')
     
-    response = HttpResponse(content_type='application/pdf')
+    buffer = BytesIO()
     filename = 'Liste_Credits.pdf'
-    response['Content-Disposition'] = f'attachment; filename="{filename}"'
     
-    doc = SimpleDocTemplate(response, pagesize=landscape(A4))
+    doc = SimpleDocTemplate(buffer, pagesize=landscape(A4))
     elements = []
     
     styles = getSampleStyleSheet()
@@ -182,7 +209,7 @@ def export_liste_credits_pdf(request):
         fontName='Helvetica-Bold'
     )
     
-    association = Association.get_association()
+    association = Association.get_association(get_tenant(request))
     if association:
         elements.append(Paragraph(association.nom, title_style))
     
@@ -209,12 +236,12 @@ def export_liste_credits_pdf(request):
             data.append([
                 str(i),
                 credit.membre.get_full_name(),
-                f"{credit.montant_demande:,.0f}",
-                f"{credit.montant_accorde:,.0f}",
-                f"{interet:,.0f}",
-                f"{total_credit:,.0f}",
-                f"{rembourse:,.0f}",
-                f"{reste:,.0f}",
+                f"{credit.montant_demande:,.3f}",
+                f"{credit.montant_accorde:,.3f}",
+                f"{interet:,.3f}",
+                f"{total_credit:,.3f}",
+                f"{rembourse:,.3f}",
+                f"{reste:,.3f}",
                 credit.get_statut_display(),
                 credit.date_demande.strftime("%d/%m/%Y")
             ])
@@ -225,11 +252,11 @@ def export_liste_credits_pdf(request):
         
         data.append([
             '', 'TOTAL', '',
-            f"{total_accorde:,.0f}",
-            f"{total_interets:,.0f}",
-            f"{(total_accorde + total_interets):,.0f}",
-            f"{total_rembourse:,.0f}",
-            f"{(total_accorde + total_interets - total_rembourse):,.0f}",
+            f"{total_accorde:,.3f}",
+            f"{total_interets:,.3f}",
+            f"{(total_accorde + total_interets):,.3f}",
+            f"{total_rembourse:,.3f}",
+            f"{(total_accorde + total_interets - total_rembourse):,.3f}",
             '', ''
         ])
         
@@ -254,7 +281,7 @@ def export_liste_credits_pdf(request):
         elements.append(Paragraph("<i>Aucun crédit trouvé.</i>", styles['Normal']))
     
     doc.build(elements)
-    return response
+    return save_pdf_and_respond(buffer, filename)
 
 
 @login_required
@@ -264,21 +291,26 @@ def export_liste_remboursements_pdf(request):
     
     credit_id = request.GET.get('credit')
     membre_id = request.GET.get('membre')
+    date_debut = request.GET.get('date_debut')
+    date_fin = request.GET.get('date_fin')
     
-    remboursements = Remboursement.objects.all().select_related('credit__membre')
+    remboursements = qs_for_tenant(request, Remboursement.objects.all()).select_related('credit__membre')
     
     if credit_id:
         remboursements = remboursements.filter(credit_id=int(credit_id))
     if membre_id:
         remboursements = remboursements.filter(credit__membre_id=int(membre_id))
+    if date_debut:
+        remboursements = remboursements.filter(date_remboursement__gte=date_debut)
+    if date_fin:
+        remboursements = remboursements.filter(date_remboursement__lte=date_fin)
     
     remboursements = remboursements.order_by('-date_remboursement')
     
-    response = HttpResponse(content_type='application/pdf')
+    buffer = BytesIO()
     filename = 'Liste_Remboursements.pdf'
-    response['Content-Disposition'] = f'attachment; filename="{filename}"'
     
-    doc = SimpleDocTemplate(response, pagesize=landscape(A4))
+    doc = SimpleDocTemplate(buffer, pagesize=landscape(A4))
     elements = []
     
     styles = getSampleStyleSheet()
@@ -292,9 +324,10 @@ def export_liste_remboursements_pdf(request):
         fontName='Helvetica-Bold'
     )
     
-    association = Association.get_association()
+    association = Association.get_association(get_tenant(request))
     if association:
         elements.append(Paragraph(association.nom, title_style))
+    devise = association.devise if association and association.devise else "FBU"
     
     elements.append(Paragraph("LISTE DES REMBOURSEMENTS", title_style))
     elements.append(Spacer(1, 0.5*cm))
@@ -316,10 +349,10 @@ def export_liste_remboursements_pdf(request):
                 str(i),
                 remb.credit.membre.get_full_name(),
                 str(remb.credit.id_credit),
-                f"{remb.montant_rembourse:,.0f}",
-                f"{remb.interet_rembourse:,.0f}",
-                f"{total_remb:,.0f}",
-                f"{remb.reste_a_rembourser:,.0f}",
+                f"{remb.montant_rembourse:,.3f}",
+                f"{remb.interet_rembourse:,.3f}",
+                f"{total_remb:,.3f}",
+                f"{remb.reste_a_rembourser:,.3f}",
                 remb.get_mode_paiement_display(),
                 remb.date_remboursement.strftime("%d/%m/%Y")
             ])
@@ -329,9 +362,9 @@ def export_liste_remboursements_pdf(request):
         
         data.append([
             '', 'TOTAL', '',
-            f"{total_principal:,.0f}",
-            f"{total_interets:,.0f}",
-            f"{(total_principal + total_interets):,.0f}",
+            f"{total_principal:,.3f}",
+            f"{total_interets:,.3f}",
+            f"{(total_principal + total_interets):,.3f}",
             '', '', ''
         ])
         
@@ -354,10 +387,10 @@ def export_liste_remboursements_pdf(request):
         elements.append(table)
         
         elements.append(Spacer(1, 0.5*cm))
-        stats = f"<b>Total :</b> {remboursements.count()} remboursements | <b>Montant total :</b> {(total_principal + total_interets):,.0f} FBU"
+        stats = f"<b>Total :</b> {remboursements.count()} remboursements | <b>Montant total :</b> {(total_principal + total_interets):,.3f} {devise}"
         elements.append(Paragraph(stats, styles['Normal']))
     else:
         elements.append(Paragraph("<i>Aucun remboursement trouvé.</i>", styles['Normal']))
     
     doc.build(elements)
-    return response
+    return save_pdf_and_respond(buffer, filename)

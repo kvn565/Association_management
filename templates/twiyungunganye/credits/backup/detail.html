@@ -1,0 +1,50 @@
+{% extends 'twiyungunganye/base.html' %}
+{% block title %}Détail crédit{% endblock %}
+{% block content %}
+<h2><i class="bi bi-wallet2"></i> Détail du crédit #{{ credit.id_credit }}</h2>
+<div class="row">
+    <div class="col-md-6">
+        <div class="card mb-3">
+            <div class="card-header"><h5>Informations</h5></div>
+            <div class="card-body">
+                <p><strong>Membre:</strong> {{ credit.membre.get_full_name }}</p>
+                <p><strong>Montant demandé:</strong> {{ credit.montant_demande|floatformat:0 }} FBU</p>
+                <p><strong>Montant accordé:</strong> {{ credit.montant_accorde|floatformat:0 }} FBU</p>
+                <p><strong>Taux:</strong> {{ credit.taux_interet }}%</p>
+                <p><strong>Intérêt calculé:</strong> {{ credit.calculer_interet|floatformat:0 }} FBU</p>
+                <p><strong>Total à rembourser:</strong> {{ credit.calculer_montant_total|floatformat:0 }} FBU</p>
+                <p><strong>Statut:</strong> <span class="badge bg-info">{{ credit.get_statut_display }}</span></p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between">
+                <h5>Remboursements</h5>
+                {% if user.is_admin or user.is_gestionnaire %}<a href="{% url 'ajouter_remboursement_credit' credit.pk %}" class="btn btn-sm btn-primary">Ajouter</a>{% endif %}
+            </div>
+            <div class="card-body">
+                {% if remboursements %}
+                <table class="table table-sm">
+                    <thead><tr><th>Montant</th><th>Reste</th><th>Date</th></tr></thead>
+                    <tbody>
+                    {% for remb in remboursements %}
+                    <tr>
+                        <td>{{ remb.montant_rembourse|floatformat:0 }} FBU</td>
+                        <td>{{ remb.reste_a_rembourser|floatformat:0 }} FBU</td>
+                        <td>{{ remb.date_remboursement|date:"d/m/Y" }}</td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}<p>Aucun remboursement</p>{% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% if user.is_admin and credit.statut == 'EN_ATTENTE' %}
+<div class="mt-3">
+    <a href="{% url 'approuver_credit' credit.pk %}" class="btn btn-success"><i class="bi bi-check"></i> Approuver/Rejeter</a>
+</div>
+{% endif %}
+{% endblock %}

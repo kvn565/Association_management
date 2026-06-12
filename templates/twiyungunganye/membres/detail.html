@@ -1,44 +1,475 @@
 {% extends 'twiyungunganye/base.html' %}
+
 {% block title %}Profil de {{ membre.get_full_name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* En-tête profil */
+    .profile-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 2rem;
+        border-radius: 15px;
+        color: white;
+        margin-bottom: 2rem;
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .profile-header::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -20%;
+        width: 300px;
+        height: 300px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+    }
+
+    .profile-header h2 {
+        margin: 0;
+        font-weight: 700;
+        position: relative;
+        z-index: 1;
+    }
+
+    .profile-avatar {
+        width: 80px;
+        height: 80px;
+        background: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2.5rem;
+        color: #667eea;
+        margin-bottom: 1rem;
+        box-shadow: 0 4px 15px rgba(0,0,0,.2);
+    }
+
+    /* Cards informations */
+    .info-card {
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 5px 20px rgba(0,0,0,.1);
+        overflow: hidden;
+        margin-bottom: 1.5rem;
+        transition: all 0.3s ease;
+    }
+
+    .info-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 30px rgba(0,0,0,.15);
+    }
+
+    .info-card .card-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        font-weight: 600;
+        padding: 1rem 1.25rem;
+        border: none;
+    }
+
+    .info-card .card-header h5 {
+        margin: 0;
+        font-size: 1.1rem;
+    }
+
+    .info-card .card-body {
+        padding: 1.5rem;
+    }
+
+    .info-card .card-body p {
+        margin-bottom: 1rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid #f0f0f0;
+        display: flex;
+        justify-content: space-between;
+        align-items: start;
+        gap: 1rem;
+    }
+
+    .info-card .card-body p:last-child {
+        border-bottom: none;
+        margin-bottom: 0;
+    }
+
+    .info-card .card-body strong {
+        color: #667eea;
+        font-weight: 600;
+        min-width: 120px;
+    }
+
+    .info-card .card-body span {
+        flex: 1;
+        text-align: right;
+    }
+
+    /* Card cotisations/crédits */
+    .activity-card {
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 5px 20px rgba(0,0,0,.1);
+        overflow: hidden;
+        margin-bottom: 1.5rem;
+    }
+
+    .activity-card.cotisations .card-header {
+        background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+        color: white;
+    }
+
+    .activity-card.credits .card-header {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        color: white;
+    }
+
+    .activity-card .card-header {
+        padding: 1rem 1.25rem;
+        border: none;
+    }
+
+    .activity-card .card-header h5 {
+        margin: 0;
+        font-size: 1.1rem;
+    }
+
+    .activity-card .table {
+        margin-bottom: 0;
+    }
+
+    .activity-card .table thead {
+        background: rgba(102, 126, 234, 0.05);
+    }
+
+    /* Badge personnalisé */
+    .status-badge {
+        padding: 0.4em 0.8em;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 0.85rem;
+    }
+
+    /* Message vide */
+    .empty-state {
+        text-align: center;
+        padding: 2rem;
+        color: #6c757d;
+    }
+
+    .empty-state i {
+        font-size: 3rem;
+        opacity: 0.5;
+        margin-bottom: 1rem;
+    }
+
+    /* Responsive */
+    @media (max-width: 991px) {
+        .profile-header {
+            padding: 1.5rem;
+        }
+
+        .profile-avatar {
+            width: 60px;
+            height: 60px;
+            font-size: 2rem;
+        }
+
+        .info-card .card-body {
+            padding: 1.25rem;
+        }
+    }
+
+    @media (max-width: 767px) {
+        .profile-header {
+            padding: 1.25rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .profile-header h2 {
+            font-size: 1.3rem;
+        }
+
+        .profile-avatar {
+            width: 50px;
+            height: 50px;
+            font-size: 1.5rem;
+        }
+
+        /* Cards en pleine largeur */
+        .col-md-4, .col-md-8 {
+            margin-bottom: 1rem;
+        }
+
+        .info-card .card-body {
+            padding: 1rem;
+        }
+
+        .info-card .card-body p {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.25rem;
+        }
+
+        .info-card .card-body p strong {
+            min-width: auto;
+            font-size: 0.9rem;
+        }
+
+        .info-card .card-body p span {
+            text-align: left;
+        }
+
+        /* Tables en cards */
+        .table thead {
+            display: none;
+        }
+
+        .table tbody tr {
+            display: block;
+            margin-bottom: 1rem;
+            border: 1px solid #dee2e6;
+            border-radius: 10px;
+            padding: 1rem;
+            background: white;
+        }
+
+        .table tbody td {
+            display: block;
+            text-align: left !important;
+            padding: 0.5rem 0;
+            border: none;
+            position: relative;
+            padding-left: 45%;
+        }
+
+        .table tbody td:before {
+            content: attr(data-label);
+            position: absolute;
+            left: 0;
+            font-weight: 600;
+            color: #667eea;
+            width: 40%;
+        }
+
+        .status-badge {
+            font-size: 0.75rem;
+            padding: 0.3em 0.6em;
+        }
+
+        .empty-state {
+            padding: 1.5rem 1rem;
+        }
+
+        .empty-state i {
+            font-size: 2rem;
+        }
+    }
+
+    @media (max-width: 575px) {
+        .profile-header h2 {
+            font-size: 1.1rem;
+        }
+
+        .info-card .card-header h5 {
+            font-size: 1rem;
+        }
+
+        .activity-card .card-header h5 {
+            font-size: 1rem;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<h2><i class="bi bi-person-circle"></i> Profil de {{ membre.get_full_name }}</h2>
-<div class="row">
-    <div class="col-md-4">
-        <div class="card">
-            <div class="card-header"><h5>Informations personnelles</h5></div>
-            <div class="card-body">
-                <p><strong>Nom:</strong> {{ membre.nom }}</p>
-                <p><strong>Prénom:</strong> {{ membre.prenom }}</p>
-                <p><strong>Carte ID:</strong> {{ membre.carte_identite }}</p>
-                <p><strong>Email:</strong> {{ membre.email|default:"-" }}</p>
-                <p><strong>Téléphone:</strong> {{ membre.telephone|default:"-" }}</p>
-                <p><strong>Inscription:</strong> {{ membre.date_inscription|date:"d/m/Y" }}</p>
+<div class="container-fluid">
+    <!-- En-tête profil -->
+    <div class="profile-header">
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <div class="profile-avatar">
+                    {% if membre.photo %}
+                    <img src="{{ membre.photo.url }}" alt="Photo de {{ membre.get_full_name }}" class="rounded-circle" style="width:80px;height:80px;object-fit:cover;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.1);">
+                    {% else %}
+                    <i class="bi bi-person-circle"></i>
+                    {% endif %}
+                </div>
+                <h2>
+                    Profil de {{ membre.get_full_name }}
+                </h2>
+            </div>
+            <div class="d-flex gap-2 flex-wrap">
+                {% if request.user.is_admin %}
+                <a href="{% url 'fiche_membre_pdf' pk=membre.pk %}" class="btn btn-light btn-sm" target="_blank">
+                    <i class="bi bi-file-pdf me-1"></i> Fiche membre
+                </a>
+                {% endif %}
+                {% if request.user.pk == membre.pk or request.user.is_admin %}
+                <a href="{% if request.user.pk == membre.pk %}{% url 'fiche_paiement_pdf' %}{% else %}{% url 'fiche_paiement_pdf_pk' pk=membre.pk %}{% endif %}" class="btn btn-light btn-sm" target="_blank">
+                    <i class="bi bi-credit-card me-1"></i> Fiche paiement
+                </a>
+                {% endif %}
+                {% if request.user.pk == membre.pk or request.user.is_admin %}
+                <a href="{% url 'modifier_profil_dirigeant' %}" class="btn btn-light btn-sm">
+                    <i class="bi bi-pencil-square me-1"></i> Modifier
+                </a>
+                {% endif %}
             </div>
         </div>
     </div>
-    <div class="col-md-8">
-        <div class="card mb-3">
-            <div class="card-header"><h5>Cotisations</h5></div>
-            <div class="card-body">
-                {% if cotisations %}
-                <table class="table"><thead><tr><th>Période</th><th>Montant</th><th>Statut</th></tr></thead><tbody>
-                {% for cot in cotisations|slice:":5" %}
-                <tr><td>{{ cot.get_mois_nom }} {{ cot.annee }}</td><td>{{ cot.montant }} FBU</td><td><span class="badge bg-success">{{ cot.get_statut_display }}</span></td></tr>
-                {% endfor %}
-                </tbody></table>
-                {% else %}<p>Aucune cotisation</p>{% endif %}
+
+    <div class="row">
+        <!-- Colonne informations personnelles -->
+        <div class="col-12 col-lg-4">
+            <div class="info-card card">
+                <div class="card-header">
+                    <h5>
+                        <i class="bi bi-person-badge me-2"></i>
+                        Informations personnelles
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p>
+                        <strong>Nom :</strong>
+                        <span>{{ membre.nom }}</span>
+                    </p>
+                    <p>
+                        <strong>Prénom :</strong>
+                        <span>{{ membre.prenom }}</span>
+                    </p>
+                    <p>
+                        <strong>Carte ID :</strong>
+                        <span><code>{{ membre.carte_identite }}</code></span>
+                    </p>
+                    <p>
+                        <strong>Email :</strong>
+                        <span>
+                            {% if membre.email %}
+                                <i class="bi bi-envelope me-1"></i>{{ membre.email }}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </span>
+                    </p>
+                    <p>
+                        <strong>Téléphone :</strong>
+                        <span>
+                            {% if membre.telephone %}
+                                <i class="bi bi-phone me-1"></i>{{ membre.telephone }}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </span>
+                    </p>
+                    <p>
+                        <strong>Inscription :</strong>
+                        <span>
+                            <i class="bi bi-calendar-event me-1"></i>
+                            {{ membre.date_inscription|date:"d/m/Y" }}
+                        </span>
+                    </p>
+                </div>
             </div>
         </div>
-        <div class="card">
-            <div class="card-header"><h5>Crédits</h5></div>
-            <div class="card-body">
-                {% if credits %}
-                <table class="table"><thead><tr><th>Montant</th><th>Statut</th><th>Date</th></tr></thead><tbody>
-                {% for credit in credits|slice:":5" %}
-                <tr><td>{{ credit.montant_accorde }} FBU</td><td><span class="badge bg-info">{{ credit.get_statut_display }}</span></td><td>{{ credit.date_demande|date:"d/m/Y" }}</td></tr>
-                {% endfor %}
-                </tbody></table>
-                {% else %}<p>Aucun crédit</p>{% endif %}
+
+        <!-- Colonne activités -->
+        <div class="col-12 col-lg-8">
+            <!-- Card cotisations -->
+            <div class="activity-card cotisations card">
+                <div class="card-header">
+                    <h5>
+                        <i class="bi bi-cash-coin me-2"></i>
+                        Cotisations récentes
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    {% if cotisations %}
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Période</th>
+                                    <th>Montant</th>
+                                    <th>Statut</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for cot in cotisations|slice:":5" %}
+                                <tr>
+                                    <td data-label="Période:">
+                                        <strong>{{ cot.get_mois_nom }} {{ cot.annee }}</strong>
+                                    </td>
+                                    <td data-label="Montant:">
+                                        <strong class="text-success">{{ cot.montant|floatformat:3 }}</strong> {{ devise }}
+                                    </td>
+                                    <td data-label="Statut:">
+                                        <span class="status-badge bg-success">
+                                            <i class="bi bi-check-circle me-1"></i>
+                                            {{ cot.get_statut_display }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="empty-state">
+                        <i class="bi bi-inbox"></i>
+                        <p class="mb-0">Aucune cotisation enregistrée</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Card crédits -->
+            <div class="activity-card credits card">
+                <div class="card-header">
+                    <h5>
+                        <i class="bi bi-wallet2 me-2"></i>
+                        Crédits récents
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    {% if credits %}
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Montant</th>
+                                    <th>Statut</th>
+                                    <th>Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for credit in credits|slice:":5" %}
+                                <tr>
+                                    <td data-label="Montant:">
+                                        <strong class="text-primary">{{ credit.montant_accorde|floatformat:3 }}</strong> {{ devise }}
+                                    </td>
+                                    <td data-label="Statut:">
+                                        <span class="status-badge bg-info">
+                                            <i class="bi bi-info-circle me-1"></i>
+                                            {{ credit.get_statut_display }}
+                                        </span>
+                                    </td>
+                                    <td data-label="Date:">
+                                        {{ credit.date_demande|date:"d/m/Y" }}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="empty-state">
+                        <i class="bi bi-inbox"></i>
+                        <p class="mb-0">Aucun crédit enregistré</p>
+                    </div>
+                    {% endif %}
+                </div>
             </div>
         </div>
     </div>

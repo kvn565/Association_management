@@ -1,0 +1,165 @@
+{% extends 'twiyungunganye/base.html' %}
+{% block title %}Liste des cas d'assistance{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+
+    <!-- ===== Totaux (responsive : 1 colonne sur mobile) ===== -->
+    <div class="row mb-3 g-2">
+        <div class="col-12 col-sm-4">
+            <div class="card text-center p-3 h-100 mb-0">
+                <h5 class="fs-6">Total Cas d'Assistance</h5>
+                <strong>{{ total_assistance }}</strong>
+            </div>
+        </div>
+        <div class="col-12 col-sm-4">
+            <div class="card text-center p-3 h-100 mb-0">
+                <h5 class="fs-6">Total Cotisations Imprévues</h5>
+                <strong>{{ total_imprevus }}</strong>
+            </div>
+        </div>
+        <div class="col-12 col-sm-4">
+            <div class="card text-center p-3 h-100 mb-0">
+                <h5 class="fs-6">Reste (Imprévus - Assistance)</h5>
+                <strong>{{ reste }}</strong>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== Boutons ===== -->
+    <div class="d-flex flex-wrap gap-2 mb-3">
+        {% if user.is_admin %}
+        <a href="{% url 'cas_assistance:ajouter' %}" class="btn btn-primary">
+            <i class="bi bi-plus-circle me-1"></i> Ajouter
+        </a>
+        {% endif %}
+        {% if user.is_admin %}
+        {% now "m" as mois_actuel %}
+        {% now "Y" as annee_actuelle %}
+        <a href="{% url 'cas_assistance:rapport_pdf' mois_actuel annee_actuelle %}" class="btn btn-danger">
+            <i class="bi bi-file-earmark-pdf me-1"></i> Rapport Mensuel
+        </a>
+        <a href="{% url 'cas_assistance:rapport_pdf' 0 annee_actuelle %}" class="btn btn-success">
+            <i class="bi bi-file-earmark-pdf me-1"></i> Rapport Annuel
+        </a>
+        {% endif %}
+    </div>
+
+    <!-- ===== Recherche ===== -->
+    <form method="get" class="mb-3">
+        <div class="input-group">
+            <input type="text" name="q" value="{{ recherche }}" class="form-control" placeholder="Rechercher...">
+            <button class="btn btn-secondary" type="submit"><i class="bi bi-search"></i> Rechercher</button>
+        </div>
+    </form>
+
+    <!-- ===== Table responsive ===== -->
+    <div class="table-responsive">
+        <table class="table table-hover" id="casAssistanceTable">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Membre</th>
+                    <th>Montant</th>
+                    <th>Motif</th>
+                    <th>Date</th>
+                    <th>Créé par</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for cas in cas_list %}
+                <tr>
+                    <td data-label="#">{{ forloop.counter }}</td>
+                    <td data-label="Membre">{{ cas.membre.nom }} {{ cas.membre.prenom }}</td>
+                    <td data-label="Montant">{{ cas.montant }}</td>
+                    <td data-label="Motif">{{ cas.motif|truncatewords:10 }}</td>
+                    <td data-label="Date">{{ cas.date_creation|date:"d/m/Y" }}</td>
+                    <td data-label="Créé par">{{ cas.cree_par.get_full_name }}</td>
+                    <td data-label="Actions">
+                        {% if user.is_admin %}
+                        <a href="{% url 'cas_assistance:modifier' cas.pk %}" class="btn btn-sm btn-warning"><i class="bi bi-pencil"></i></a>
+                        <a href="{% url 'cas_assistance:supprimer' cas.pk %}" class="btn btn-sm btn-danger" onclick="return confirm('Voulez-vous supprimer ce cas ?');"><i class="bi bi-trash"></i></a>
+                        {% else %}
+                        <span class="text-muted small">—</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center">Aucun cas d'assistance trouvé.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if is_paginated %}
+    <nav>
+        <ul class="pagination justify-content-center flex-wrap">
+            {% if page_obj.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if recherche %}&q={{ recherche }}{% endif %}">&laquo; Précédent</a>
+            </li>
+            {% else %}
+            <li class="page-item disabled"><span class="page-link">&laquo; Précédent</span></li>
+            {% endif %}
+
+            {% for num in page_obj.paginator.page_range %}
+                {% if page_obj.number == num %}
+                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                    <li class="page-item"><a class="page-link" href="?page={{ num }}{% if recherche %}&q={{ recherche }}{% endif %}">{{ num }}</a></li>
+                {% endif %}
+            {% endfor %}
+
+            {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if recherche %}&q={{ recherche }}{% endif %}">Suivant &raquo;</a>
+            </li>
+            {% else %}
+            <li class="page-item disabled"><span class="page-link">Suivant &raquo;</span></li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+
+<style>
+@media (max-width: 767px) {
+    #casAssistanceTable thead { display: none; }
+    #casAssistanceTable tbody tr {
+        display: block;
+        border: 1px solid #dee2e6;
+        border-radius: .5rem;
+        padding: .75rem;
+        margin-bottom: .75rem;
+        background: #fff;
+        box-shadow: 0 2px 4px rgba(0,0,0,.05);
+    }
+    #casAssistanceTable tbody td {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: .35rem .5rem;
+        border: none;
+        border-bottom: 1px solid #f0f0f0;
+        text-align: right;
+    }
+    #casAssistanceTable tbody td:last-child { border-bottom: none; }
+    #casAssistanceTable tbody td::before {
+        content: attr(data-label);
+        font-weight: 600;
+        text-align: left;
+        padding-right: .5rem;
+        color: #555;
+    }
+    #casAssistanceTable tbody td[data-label="Actions"] {
+        justify-content: flex-start;
+        gap: .5rem;
+    }
+    #casAssistanceTable tbody td[data-label="Actions"]::before { content: "Actions"; }
+}
+</style>
+{% endblock %}

@@ -1,124 +1,339 @@
 {% extends 'twiyungunganye/base.html' %}
+{% load static %}
+{% load menu_perms %}
 
-{% block title %}Accueil - Twiyungunganye{% endblock %}
+{% block title %}Accueil - {{ config_app.nom_app|default:'Twiyungunganye' }}{% endblock %}
+
+{% block extra_head %}
+<style>
+.hero-carousel {
+    position: relative;
+    height: 85vh;
+    min-height: 500px;
+    overflow: hidden;
+}
+.hero-carousel .carousel,
+.hero-carousel .carousel-inner,
+.hero-carousel .carousel-item {
+    height: 100%;
+}
+.hero-carousel .carousel-item {
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+.hero-carousel .carousel-item::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: linear-gradient(135deg, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.3) 50%, rgba(0,0,0,0.6) 100%);
+    z-index: 1;
+}
+.hero-carousel .carousel-caption {
+    z-index: 2;
+    bottom: 0;
+    top: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 2rem;
+}
+.hero-carousel .carousel-caption h1 {
+    font-size: 3.2rem;
+    font-weight: 800;
+    text-shadow: 2px 2px 8px rgba(0,0,0,0.5);
+    margin-bottom: 1rem;
+}
+.hero-carousel .carousel-caption p {
+    font-size: 1.25rem;
+    max-width: 700px;
+    opacity: 0.95;
+    text-shadow: 1px 1px 4px rgba(0,0,0,0.5);
+}
+.hero-carousel .carousel-caption .btn {
+    padding: 0.75rem 2rem;
+    font-weight: 600;
+    border-radius: 50px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+}
+.hero-carousel .carousel-control-prev,
+.hero-carousel .carousel-control-next {
+    z-index: 3;
+}
+.hero-carousel .carousel-indicators {
+    z-index: 3;
+}
+.hero-carousel .carousel-indicators button {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin: 0 6px;
+}
+.scroll-down {
+    position: absolute;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 3;
+    animation: bounce 2s infinite;
+    color: #fff;
+    font-size: 2rem;
+    opacity: 0.8;
+    cursor: pointer;
+}
+@keyframes bounce {
+    0%, 20%, 50%, 80%, 100% { transform: translateX(-50%) translateY(0); }
+    40% { transform: translateX(-50%) translateY(-10px); }
+    60% { transform: translateX(-50%) translateY(-5px); }
+}
+.feature-icon {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1rem;
+    font-size: 2rem;
+    color: #fff;
+    transition: transform 0.3s ease;
+}
+.feature-card:hover .feature-icon {
+    transform: scale(1.15);
+}
+.feature-card {
+    border: none;
+    border-radius: 16px;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    overflow: hidden;
+}
+.feature-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 12px 35px rgba(0,0,0,0.12);
+}
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container">
-    <!-- Hero Section -->
-    <div class="row mb-5 mt-4">
-        <div class="col-lg-12 text-center">
-            <h1 class="display-4 fw-bold text-primary mb-4">
-                <i class="bi bi-people-fill"></i> Bienvenue à Twiyungunganye
-            </h1>
-            {% if association %}
-            <p class="lead text-muted mb-4">{{ association.nom }}</p>
-            {% endif %}
-            <p class="lead">Une plateforme de gestion pour notre association</p>
-            <div class="mt-4">
-                {% if user.is_authenticated %}
-                    <a href="{% url 'dashboard' %}" class="btn btn-primary btn-lg me-2">
-                        <i class="bi bi-speedometer2"></i> Tableau de bord
-                    </a>
-                {% else %}
-                    <a href="{% url 'login' %}" class="btn btn-primary btn-lg me-2">
-                        <i class="bi bi-box-arrow-in-right"></i> Se connecter
-                    </a>
-                    <a href="{% url 'create_password' %}" class="btn btn-outline-primary btn-lg">
-                        <i class="bi bi-key"></i> Créer mon mot de passe
-                    </a>
-                {% endif %}
-            </div>
-        </div>
-    </div>
+{% with slides=config_app.hero_slides_json|json_parse features=config_app.features_json|json_parse %}
 
-    <!-- Features -->
-    <div class="row g-4 mb-5">
-        <div class="col-md-4">
-            <div class="card h-100 text-center">
-                <div class="card-body">
-                    <div class="mb-3">
-                        <i class="bi bi-cash-coin text-primary" style="font-size: 3rem;"></i>
-                    </div>
-                    <h5 class="card-title">Gestion des Cotisations</h5>
-                    <p class="card-text text-muted">
-                        Suivez vos cotisations mensuelles et consultez l'historique de vos paiements.
-                    </p>
-                </div>
-            </div>
-        </div>
-        
-        <div class="col-md-4">
-            <div class="card h-100 text-center">
-                <div class="card-body">
-                    <div class="mb-3">
-                        <i class="bi bi-wallet2 text-success" style="font-size: 3rem;"></i>
-                    </div>
-                    <h5 class="card-title">Crédits & Remboursements</h5>
-                    <p class="card-text text-muted">
-                        Demandez des crédits et suivez vos remboursements en toute transparence.
-                    </p>
-                </div>
-            </div>
-        </div>
-        
-        <div class="col-md-4">
-            <div class="card h-100 text-center">
-                <div class="card-body">
-                    <div class="mb-3">
-                        <i class="bi bi-lightbulb text-warning" style="font-size: 3rem;"></i>
-                    </div>
-                    <h5 class="card-title">Suggestions</h5>
-                    <p class="card-text text-muted">
-                        Proposez vos idées pour améliorer notre association.
-                    </p>
-                </div>
-            </div>
-        </div>
+<!-- ==================== HERO CAROUSEL ==================== -->
+{% if slides|length > 0 or not slides %}
+<div id="heroCarousel" class="carousel slide hero-carousel" data-bs-ride="carousel" data-bs-interval="5000">
+    <div class="carousel-indicators">
+        {% if config_app.hero_slides_json|json_parse|length > 0 %}
+        {% for slide in config_app.hero_slides_json|json_parse %}
+        <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="{{ forloop.counter0 }}" {% if forloop.first %}class="active"{% endif %}></button>
+        {% endfor %}
+        {% else %}
+        <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="0" class="active"></button>
+        <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="1"></button>
+        <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="2"></button>
+        {% endif %}
     </div>
-
-    {% if association %}
-    <!-- Association Info -->
-    <div class="row">
-        <div class="col-lg-8 mx-auto">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0"><i class="bi bi-info-circle"></i> À propos de l'association</h5>
-                </div>
-                <div class="card-body">
-                    <table class="table table-borderless">
-                        <tr>
-                            <th width="30%">Nom :</th>
-                            <td>{{ association.nom }}</td>
-                        </tr>
-                        {% if association.sigle %}
-                        <tr>
-                            <th>Sigle :</th>
-                            <td>{{ association.sigle }}</td>
-                        </tr>
+    <div class="carousel-inner">
+        {% if config_app.hero_slides_json|json_parse|length > 0 %}
+        {% for slide in config_app.hero_slides_json|json_parse %}
+        {% with slide_num=forloop.counter %}
+        {% with slide_img=slide_num|get_slide_image:config_app %}
+        <div class="carousel-item {% if forloop.first %}active{% endif %}" style="background-image: url('{{ slide_img|default:slide.image|default:'https://images.unsplash.com/photo-1559526324-593bc073d938?q=80&w=2070&auto=format&fit=crop' }}');">
+            <div class="carousel-caption">
+                <h1>{% if slide.icone %}<i class="bi {{ slide.icone }}"></i> {% endif %}{{ slide.titre|default:config_app.nom_app }}</h1>
+                {% if slide.sous_titre %}<p>{{ slide.sous_titre }}</p>{% endif %}
+                <p>{{ slide.description|default:'' }}</p>
+                <div class="mt-3">
+                    {% if user.is_authenticated %}
+                        {% if forloop.first %}
+                        <a href="{% url 'dashboard' %}" class="btn btn-light btn-lg">
+                            <i class="bi bi-speedometer2"></i> Tableau de bord
+                        </a>
                         {% endif %}
-                        {% if association.telephone %}
-                        <tr>
-                            <th>Téléphone :</th>
-                            <td>{{ association.telephone }}</td>
-                        </tr>
+                    {% else %}
+                        {% if forloop.first %}
+                        <a href="{% url 'login' %}" class="btn btn-light btn-lg me-2">
+                            <i class="bi bi-box-arrow-in-right"></i> Se connecter
+                        </a>
+                        <a href="{% url 'create_password' %}" class="btn btn-outline-light btn-lg">
+                            <i class="bi bi-key"></i> Créer mon mot de passe
+                        </a>
+                        {% elif forloop.counter == 2 %}
+                        <a href="{% url 'login' %}" class="btn btn-light btn-lg me-2"><i class="bi bi-box-arrow-in-right"></i> Se connecter</a>
+                        <a href="{% url 'create_password' %}" class="btn btn-outline-light btn-lg"><i class="bi bi-key"></i> Créer mon mot de passe</a>
+                        {% else %}
+                        <a href="{% url 'login' %}" class="btn btn-light btn-lg me-2">
+                            <i class="bi bi-box-arrow-in-right"></i> Se connecter
+                        </a>
+                        <a href="{% url 'create_password' %}" class="btn btn-outline-light btn-lg">
+                            <i class="bi bi-key"></i> Créer mon mot de passe
+                        </a>
                         {% endif %}
-                        {% if association.email %}
-                        <tr>
-                            <th>Email :</th>
-                            <td>{{ association.email }}</td>
-                        </tr>
-                        {% endif %}
-                        {% if association.adresse %}
-                        <tr>
-                            <th>Adresse :</th>
-                            <td>{{ association.adresse }}</td>
-                        </tr>
-                        {% endif %}
-                    </table>
+                    {% endif %}
                 </div>
             </div>
         </div>
+        {% endwith %}
+        {% endwith %}
+        {% endfor %}
+        {% else %}
+        <!-- Slides par défaut si aucun JSON configuré -->
+        <div class="carousel-item active" style="background-image: url('https://images.unsplash.com/photo-1559526324-593bc073d938?q=80&w=2070&auto=format&fit=crop');">
+            <div class="carousel-caption">
+                <h1><i class="bi bi-people-fill"></i> {{ config_app.nom_app|default:'Twiyungunganye' }}</h1>
+                <p>La plateforme de gestion d'association simple et transparente</p>
+                <div class="mt-3">
+                    {% if user.is_authenticated %}
+                    <a href="{% url 'dashboard' %}" class="btn btn-light btn-lg"><i class="bi bi-speedometer2"></i> Tableau de bord</a>
+                    {% else %}
+                    <a href="{% url 'login' %}" class="btn btn-light btn-lg me-2"><i class="bi bi-box-arrow-in-right"></i> Se connecter</a>
+                    <a href="{% url 'create_password' %}" class="btn btn-outline-light btn-lg"><i class="bi bi-key"></i> Créer mon mot de passe</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="carousel-item" style="background-image: url('https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?q=80&w=2070&auto=format&fit=crop');">
+            <div class="carousel-caption">
+                <h1><i class="bi bi-graph-up-arrow"></i> Gérez vos cotisations</h1>
+                <p>Suivez les cotisations régulières et imprévues en toute simplicité</p>
+                <div class="mt-3">
+                    {% if not user.is_authenticated %}
+                    <a href="{% url 'login' %}" class="btn btn-light btn-lg me-2"><i class="bi bi-box-arrow-in-right"></i> Se connecter</a>
+                    <a href="{% url 'create_password' %}" class="btn btn-outline-light btn-lg"><i class="bi bi-key"></i> Créer mon mot de passe</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="carousel-item" style="background-image: url('https://images.unsplash.com/photo-1522202176988-66273c2b55c9?q=80&w=2070&auto=format&fit=crop');">
+            <div class="carousel-caption">
+                <h1><i class="bi bi-phone"></i> Accès mobile</h1>
+                <p>Utilisez l'application depuis votre téléphone, où que vous soyez</p>
+                <div class="mt-3">
+                    {% if not user.is_authenticated %}
+                    <a href="{% url 'login' %}" class="btn btn-light btn-lg me-2"><i class="bi bi-box-arrow-in-right"></i> Se connecter</a>
+                    <a href="{% url 'create_password' %}" class="btn btn-outline-light btn-lg"><i class="bi bi-key"></i> Créer mon mot de passe</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
     </div>
-    {% endif %}
+    <button class="carousel-control-prev" type="button" data-bs-target="#heroCarousel" data-bs-slide="prev">
+        <span class="carousel-control-prev-icon"></span>
+    </button>
+    <button class="carousel-control-next" type="button" data-bs-target="#heroCarousel" data-bs-slide="next">
+        <span class="carousel-control-next-icon"></span>
+    </button>
+    <div class="scroll-down" onclick="document.getElementById('features').scrollIntoView({behavior:'smooth'})">
+        <i class="bi bi-chevron-double-down"></i>
+    </div>
 </div>
+{% endif %}
+
+<!-- ==================== FEATURES ==================== -->
+<div id="features" class="container py-5">
+    <div class="text-center mb-5">
+        <h2 class="fw-bold">Fonctionnalités</h2>
+        <p class="text-muted lead">Tout ce dont votre association a besoin pour une gestion efficace</p>
+    </div>
+    <div class="row g-4">
+        {% for f in config_app.features_json|json_parse %}
+        <div class="col-md-4">
+            <div class="card feature-card h-100 text-center p-3 shadow-sm">
+                <div class="card-body">
+                    <div class="feature-icon" style="background: {{ f.couleur|default:'linear-gradient(135deg, #667eea, #764ba2)' }};">
+                        <i class="bi {{ f.icone|default:'bi-star' }}"></i>
+                    </div>
+                    <h5 class="card-title fw-bold mt-3">{{ f.titre|default:'Fonctionnalité' }}</h5>
+                    <p class="card-text text-muted">{{ f.description|default:'' }}</p>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12 text-center text-muted py-5">
+            <i class="bi bi-grid-3x3-gap" style="font-size:3rem;"></i>
+            <p class="mt-2">Aucune fonctionnalité configurée pour le moment.</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- ==================== CONTACT / ABOUT ==================== -->
+<div class="bg-light py-5">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-white border-bottom-0 pt-4">
+                        <h4 class="mb-0"><i class="bi bi-info-circle text-primary me-2"></i> À propos</h4>
+                    </div>
+                    <div class="card-body px-4 pb-4">
+                        {% if config_app.apropos_contenu %}
+                        <div class="mb-4">{{ config_app.apropos_contenu|safe }}</div>
+                        {% endif %}
+
+                        {% if association %}
+                        <div class="row">
+                            <div class="col-md-6">
+                                <table class="table table-borderless mb-0">
+                                    <tr><th class="ps-0" width="35%">Nom :</th><td class="ps-0">{{ association.nom }}</td></tr>
+                                    {% if association.sigle %}<tr><th class="ps-0">Sigle :</th><td class="ps-0">{{ association.sigle }}</td></tr>{% endif %}
+                                    {% if association.telephone %}<tr><th class="ps-0">Téléphone :</th><td class="ps-0">{{ association.telephone }}</td></tr>{% endif %}
+                                    {% if association.email %}<tr><th class="ps-0">Email :</th><td class="ps-0">{{ association.email }}</td></tr>{% endif %}
+                                    {% if association.adresse %}<tr><th class="ps-0">Adresse :</th><td class="ps-0">{{ association.adresse }}</td></tr>{% endif %}
+                                </table>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="p-3 rounded" style="background: linear-gradient(135deg, #667eea15, #764ba215);">
+                                    <h6 class="fw-bold"><i class="bi bi-piggy-bank me-2"></i>Notre mission</h6>
+                                    <p class="small text-muted mb-0">
+                                        {{ config_app.about_mission|default:"Offrir à chaque membre une plateforme simple et transparente pour gérer ses cotisations, accéder à des crédits et contribuer au développement de l'association." }}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% if config_app.email_contact or config_app.telephone_contact %}
+                        <hr>
+                        <div class="text-muted small">
+                            <p class="mb-1 fw-bold">Contact général :</p>
+                            {% if config_app.email_contact %}<p class="mb-0"><i class="bi bi-envelope me-1"></i> {{ config_app.email_contact }}</p>{% endif %}
+                            {% if config_app.telephone_contact %}<p class="mb-0"><i class="bi bi-telephone me-1"></i> {{ config_app.telephone_contact }}</p>{% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endwith %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function telechargerFiche(urlName) {
+    var selectEl = document.getElementById('tenant-select');
+    console.log('tenant-select element:', selectEl);
+    if (!selectEl) {
+        alert('Erreur: liste d\'associations introuvable.');
+        return;
+    }
+    var tenant = selectEl.value;
+    console.log('Selected tenant value:', tenant);
+    if (!tenant) {
+        alert('Veuillez sélectionner une association.');
+        return;
+    }
+    var urls = {
+        'fiche_inscription_pdf': '{% url "fiche_inscription_pdf" %}',
+        'demande_credit_pdf': '{% url "demande_credit_pdf" %}'
+    };
+    window.open(urls[urlName] + '?tenant=' + tenant, '_blank');
+}
+</script>
 {% endblock %}

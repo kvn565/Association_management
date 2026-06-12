@@ -1,0 +1,207 @@
+{% extends 'twiyungunganye/base.html' %}
+{% block title %}Export {{ info.label }}{% endblock %}
+{% block content %}
+<style>
+    .filter-container {
+        max-width: 800px;
+        margin: 0 auto;
+    }
+    .btn-export-action {
+        padding: 0.8rem 2rem;
+        border-radius: 10px;
+        font-weight: 600;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+        border: none;
+    }
+    .btn-export-action:hover {
+        transform: translateY(-2px);
+    }
+    .btn-pdf-action {
+        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        color: white;
+    }
+    .btn-pdf-action:hover {
+        box-shadow: 0 6px 20px rgba(220, 53, 69, 0.4);
+        color: white;
+    }
+    .btn-excel-action {
+        background: linear-gradient(135deg, #28a745 0%, #218838 100%);
+        color: white;
+    }
+    .btn-excel-action:hover {
+        box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
+        color: white;
+    }
+</style>
+
+<div class="filter-container">
+    <div class="d-flex align-items-center mb-4">
+        <a href="{% url 'rapports' %}" class="btn btn-outline-secondary btn-sm me-3">
+            <i class="bi bi-arrow-left"></i> Retour
+        </a>
+        <h3 class="mb-0"><i class="bi {{ info.icone }} me-2"></i> {{ info.label }}</h3>
+    </div>
+
+    <div class="card shadow" style="border-radius: 15px; border: none;">
+        <div class="card-header text-white text-center py-3" style="background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%); border-radius: 15px 15px 0 0;">
+            <i class="bi bi-funnel" style="font-size: 2rem;"></i>
+            <h5 class="mt-2 mb-0">Filtres</h5>
+            <small>Sélectionnez les critères puis exportez</small>
+        </div>
+        <div class="card-body p-4">
+            <form method="get" action="{% url 'page_export_filtre' export_type=export_type %}" id="filterForm">
+                <div class="row g-3">
+                    {% if 'mois' in info.filtres %}
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold"><i class="bi bi-calendar3 me-1"></i> Mois</label>
+                        <select name="mois" class="form-select">
+                            <option value="">Tous les mois</option>
+                            {% for m in mois_noms|slice:"1:" %}
+                            <option value="{{ forloop.counter }}" {% if filtres_actifs.mois == forloop.counter|stringformat:"i" %}selected{% endif %}>{{ m }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endif %}
+
+                    {% if 'annee' in info.filtres %}
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold"><i class="bi bi-calendar2-year me-1"></i> Année</label>
+                        <input type="number" name="annee" class="form-control" placeholder="Ex: 2026" value="{{ filtres_actifs.annee|default:'' }}">
+                    </div>
+                    {% endif %}
+
+                    {% if 'statut' in info.filtres %}
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold"><i class="bi bi-check-circle me-1"></i> Statut</label>
+                        <select name="statut" class="form-select">
+                            <option value="">Tous les statuts</option>
+                            <option value="PAYE" {% if filtres_actifs.statut == 'PAYE' %}selected{% endif %}>Payé</option>
+                            <option value="EN_ATTENTE" {% if filtres_actifs.statut == 'EN_ATTENTE' %}selected{% endif %}>En attente</option>
+                            <option value="RETARD" {% if filtres_actifs.statut == 'RETARD' %}selected{% endif %}>En retard</option>
+                            {% if export_type == 'credits' %}
+                            <option value="APPROUVE" {% if filtres_actifs.statut == 'APPROUVE' %}selected{% endif %}>Approuvé</option>
+                            <option value="EN_COURS" {% if filtres_actifs.statut == 'EN_COURS' %}selected{% endif %}>En cours</option>
+                            <option value="REMBOURSE" {% if filtres_actifs.statut == 'REMBOURSE' %}selected{% endif %}>Remboursé</option>
+                            {% endif %}
+                        </select>
+                    </div>
+                    {% endif %}
+
+                    {% if 'membre' in info.filtres %}
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold"><i class="bi bi-person me-1"></i> Membre</label>
+                        <select name="membre" class="form-select">
+                            <option value="">Tous les membres</option>
+                            {% for m in membres %}
+                            <option value="{{ m.pk }}" {% if filtres_actifs.membre|stringformat:"i" == m.pk|stringformat:"i" %}selected{% endif %}>{{ m.get_full_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="d-flex gap-2 mt-4">
+                    <button type="submit" class="btn btn-outline-secondary" name="filter" value="1">
+                        <i class="bi bi-funnel me-1"></i> Filtrer
+                    </button>
+                    <a href="{% url 'page_export_filtre' export_type=export_type %}" class="btn btn-outline-danger">
+                        <i class="bi bi-x-circle me-1"></i> Réinitialiser
+                    </a>
+                </div>
+            </form>
+
+            {% if filtres_actifs %}
+            <hr>
+            <div class="d-flex gap-3 justify-content-center">
+                {% if info.url_pdf %}
+                <a href="{% url info.url_pdf %}?{% for k,v in filtres_actifs.items %}{{ k }}={{ v }}&{% endfor %}" class="btn btn-pdf-action btn-export-action" target="_blank">
+                    <i class="bi bi-file-pdf me-2"></i> Exporter en PDF
+                </a>
+                {% endif %}
+                {% if info.url_excel %}
+                <a href="{% url info.url_excel %}?{% for k,v in filtres_actifs.items %}{{ k }}={{ v }}&{% endfor %}" class="btn btn-excel-action btn-export-action">
+                    <i class="bi bi-file-earmark-excel me-2"></i> Exporter en Excel
+                </a>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if apercu and filtres_actifs %}
+    <div class="card shadow mt-4" style="border-radius: 15px; border: none;">
+        <div class="card-header bg-light py-2">
+            <small class="text-muted"><i class="bi bi-eye me-1"></i> Aperçu (20 premiers)</small>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-sm mb-0">
+                    <thead>
+                        <tr>
+                        {% if export_type == 'cotisations' or export_type == 'cotisations_imprevus' %}
+                            <th>Membre</th>
+                            <th>Période</th>
+                            <th>Montant</th>
+                            <th>Statut</th>
+                        {% elif export_type == 'credits' %}
+                            <th>Membre</th>
+                            <th>Montant</th>
+                            <th>Statut</th>
+                        {% elif export_type == 'remboursements' %}
+                            <th>Membre</th>
+                            <th>Principal</th>
+                            <th>Intérêt</th>
+                        {% endif %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in apercu %}
+                        <tr>
+                            {% if export_type == 'cotisations' or export_type == 'cotisations_imprevus' %}
+                            <td>{{ item.membre.get_full_name }}</td>
+                            <td>{{ item.get_mois_nom }} {{ item.annee }}</td>
+                            <td>{{ item.montant|floatformat:3 }}</td>
+                            <td>{{ item.get_statut_display }}</td>
+                            {% elif export_type == 'credits' %}
+                            <td>{{ item.membre.get_full_name }}</td>
+                            <td>{{ item.montant_accorde|floatformat:3 }}</td>
+                            <td>{{ item.get_statut_display }}</td>
+                            {% elif export_type == 'remboursements' %}
+                            <td>{{ item.credit.membre.get_full_name }}</td>
+                            <td>{{ item.montant_rembourse|floatformat:3 }}</td>
+                            <td>{{ item.interet_rembourse|floatformat:3 }}</td>
+                            {% endif %}
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="text-center text-muted py-3">Aucun résultat pour ces filtres.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if not info.filtres %}
+    <div class="alert alert-info mt-4">
+        <i class="bi bi-info-circle me-2"></i>
+        Aucun filtre disponible pour cet export.
+        <div class="d-flex gap-3 mt-3">
+            {% if info.url_pdf %}
+            <a href="{% url info.url_pdf %}" class="btn btn-pdf-action btn-export-action" target="_blank">
+                <i class="bi bi-file-pdf me-2"></i> Exporter en PDF
+            </a>
+            {% endif %}
+            {% if info.url_excel %}
+            <a href="{% url info.url_excel %}" class="btn btn-excel-action btn-export-action">
+                <i class="bi bi-file-earmark-excel me-2"></i> Exporter en Excel
+            </a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

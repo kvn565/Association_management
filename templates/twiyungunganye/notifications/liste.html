@@ -1,0 +1,69 @@
+{% extends 'twiyungunganye/base.html' %}
+{% block title %}Notifications{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-bell me-2"></i>Notifications</h2>
+    {% if non_lues > 0 %}
+    <form method="post" action="{% url 'marquer_tout_lu' %}">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-outline-primary btn-sm">
+            <i class="bi bi-check-all me-1"></i>Tout marquer comme lu
+        </button>
+    </form>
+    {% endif %}
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        {% for notif in page_obj %}
+        <div class="notification-item p-3 border-bottom {% if not notif.est_lu %}bg-light{% endif %}">
+            <div class="d-flex justify-content-between align-items-start">
+                <div class="d-flex align-items-start gap-3 flex-grow-1">
+                    <div class="mt-1">
+                        {% if notif.type_notification == 'DEMANDE_CREDIT' %}
+                        <span class="badge bg-warning rounded-pill p-2"><i class="bi bi-cash-coin text-white"></i></span>
+                        {% elif notif.type_notification == 'APPROBATION_CREDIT' %}
+                        <span class="badge bg-success rounded-pill p-2"><i class="bi bi-check-lg text-white"></i></span>
+                        {% elif notif.type_notification == 'REJET_CREDIT' %}
+                        <span class="badge bg-danger rounded-pill p-2"><i class="bi bi-x-lg text-white"></i></span>
+                        {% else %}
+                        <span class="badge bg-info rounded-pill p-2"><i class="bi bi-info text-white"></i></span>
+                        {% endif %}
+                    </div>
+                    <div class="flex-grow-1">
+                        <div class="d-flex justify-content-between">
+                            <h6 class="mb-1 {% if not notif.est_lu %}fw-bold{% endif %}">{{ notif.titre }}</h6>
+                            <small class="text-muted ms-2">{{ notif.date_creation|date:"d/m/Y H:i" }}</small>
+                        </div>
+                        {% if notif.message %}<p class="mb-1 text-muted small">{{ notif.message }}</p>{% endif %}
+                        {% if notif.expediteur %}<small class="text-muted">De : {{ notif.expediteur.get_full_name }}</small>{% endif %}
+                    </div>
+                </div>
+                <div class="d-flex align-items-center gap-2 ms-3">
+                    {% if notif.lien %}
+                    <a href="{{ notif.lien }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a>
+                    {% endif %}
+                    {% if not notif.est_lu %}
+                    <form method="post" action="{% url 'marquer_notification_lue' notif.pk %}" class="d-inline">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-sm btn-outline-secondary"><i class="bi bi-check"></i></button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="text-center py-5">
+            <i class="bi bi-bell-slash" style="font-size:3rem;color:#ccc"></i>
+            <p class="mt-2 text-muted">Aucune notification</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% include 'includes/pagination.html' %}
+
+<style>
+.notification-item:hover { background: #f8f9fa; }
+.notification-item:last-child { border-bottom: none !important; }
+</style>
+{% endblock %}

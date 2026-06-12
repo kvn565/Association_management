@@ -1,0 +1,42 @@
+{% extends 'superadmin/base_superadmin.html' %}
+{% block title %}Associations{% endblock %}
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <h2 class="mb-0">Associations</h2>
+    <a href="{% url 'superadmin:tenant_creer' %}" class="btn btn-primary"><i class="fas fa-plus"></i> Nouvelle association</a>
+</div>
+<div class="card p-0">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0 table-responsive-card" id="tenantTable">
+            <thead><tr>
+                <th>Nom</th><th>Sous-domaine</th><th>Actif</th><th>Licence</th><th>Jours restants</th><th>Actions</th>
+            </tr></thead>
+            <tbody>
+                {% for t in page_obj %}
+                <tr>
+                    <td data-label="Nom"><a href="{% url 'superadmin:tenant_detail' t.pk %}">{{ t.nom }}</a></td>
+                    <td data-label="Sous-domaine"><code>{{ t.sous_domaine }}</code></td>
+                    <td data-label="Actif">{% if t.actif %}<span class="badge bg-success">Oui</span>{% else %}<span class="badge bg-danger">Non</span>{% endif %}</td>
+                    <td data-label="Licence">{% if t.cle_active_obj %}<span class="badge bg-success">Active</span>{% else %}<span class="badge bg-warning text-dark">Expirée</span>{% endif %}</td>
+                    <td data-label="Jours">{{ t.jours_restants }} jour(s)</td>
+                    <td data-label="Actions">
+                        <a href="{% url 'superadmin:tenant_detail' t.pk %}" class="btn btn-sm btn-info" title="Détails"><i class="fas fa-eye"></i></a>
+                        <a href="{% url 'superadmin:tenant_modifier' t.pk %}" class="btn btn-sm btn-warning" title="Modifier"><i class="fas fa-edit"></i></a>
+                        <a href="{% url 'superadmin:tenant_toggle' t.pk %}" class="btn btn-sm btn-secondary" title="{% if t.actif %}Suspendre{% else %}Réactiver{% endif %}">
+                            {% if t.actif %}<i class="fas fa-pause"></i>{% else %}<i class="fas fa-play"></i>{% endif %}
+                        </a>
+                        {% if t.nb_cles == 0 %}
+                        <a href="{% url 'superadmin:cle_generer' t.pk %}" class="btn btn-sm btn-success" title="Clé"><i class="fas fa-key"></i></a>
+                        {% endif %}
+                        <a href="{% url 'superadmin:tenant_supprimer' t.pk %}" class="btn btn-sm btn-danger" title="Supprimer"><i class="fas fa-trash"></i></a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6" class="text-muted text-center">Aucune association</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% include 'includes/pagination.html' %}
+</div>
+{% endblock %}

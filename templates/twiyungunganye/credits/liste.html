@@ -1,50 +1,243 @@
 {% extends 'twiyungunganye/base.html' %}
+
 {% block title %}Crédits{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Styles responsive pour la liste des crédits */
+    .credit-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 1.5rem;
+        border-radius: 15px;
+        color: white;
+        margin-bottom: 2rem;
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+    }
+
+    .credit-header h2 {
+        margin: 0;
+        font-weight: 700;
+    }
+
+    .btn-group-actions {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    /* Tables responsive */
+    @media (max-width: 767px) {
+        /* Cacher le titre en haut sur mobile */
+        .credit-header {
+            padding: 1rem;
+        }
+
+        .credit-header h2 {
+            font-size: 1.3rem;
+        }
+
+        /* Boutons empilés sur mobile */
+        .btn-group-actions {
+            width: 100%;
+            flex-direction: column;
+        }
+
+        .btn-group-actions .btn {
+            width: 100%;
+            margin-bottom: 0.5rem;
+        }
+
+        /* Table en cards */
+        .table thead {
+            display: none;
+        }
+
+        .table tbody tr {
+            display: block;
+            margin-bottom: 1rem;
+            border: 1px solid #dee2e6;
+            border-radius: 12px;
+            padding: 1rem;
+            background: white;
+            box-shadow: 0 2px 8px rgba(0,0,0,.08);
+        }
+
+        .table tbody td {
+            display: block;
+            text-align: left !important;
+            padding: 0.5rem 0;
+            border: none;
+            position: relative;
+            padding-left: 50%;
+        }
+
+        .table tbody td:before {
+            content: attr(data-label);
+            position: absolute;
+            left: 0;
+            font-weight: 600;
+            color: #667eea;
+            width: 45%;
+        }
+
+        .table tbody td:last-child {
+            padding-left: 0;
+            padding-top: 1rem;
+            border-top: 1px solid #dee2e6;
+            margin-top: 0.5rem;
+        }
+
+        /* Badge responsive */
+        .badge {
+            font-size: 0.8rem;
+            padding: 0.4em 0.8em;
+        }
+
+        /* Message vide */
+        .text-center.py-5 {
+            padding: 2rem 1rem !important;
+        }
+    }
+
+    /* Très petits écrans */
+    @media (max-width: 575px) {
+        .credit-header h2 {
+            font-size: 1.1rem;
+        }
+
+        .table tbody tr {
+            padding: 0.75rem;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="d-flex justify-content-between mb-4">
-    <h2><i class="bi bi-wallet2"></i> Crédits</h2>
-    {% if not user.is_admin and not user.is_gestionnaire %}<a href="{% url 'demander_credit' %}" class="btn btn-primary"><i class="bi bi-plus"></i> Demander un crédit</a>{% endif %}
-</div>
-<div class="card">
-    <div class="card-body">
-        {% if credits %}
-        <table class="table table-hover">
-            <thead><tr><th>Membre</th><th>Montant demandé</th><th>Montant accordé</th><th>Statut</th><th>Date</th><th>Action</th></tr></thead>
-            <tbody>
-            {% for credit in credits %}
-            <tr>
-                <td>{{ credit.membre.get_full_name }}</td>
-                <td>{{ credit.montant_demande|floatformat:0 }} Fbu</td>
-                <td>{{ credit.montant_accorde|floatformat:0 }} Fbu</td>
-                <td>
-                    {% if credit.statut == 'EN_ATTENTE' %}<span class="badge bg-warning">En attente</span>
-                    {% elif credit.statut == 'APPROUVE' %}<span class="badge bg-success">Approuvé</span>
-                    {% elif credit.statut == 'REJETE' %}<span class="badge bg-danger">Rejeté</span>
-                    {% elif credit.statut == 'EN_COURS' %}<span class="badge bg-info">En cours</span>
-                    {% else %}<span class="badge bg-secondary">Remboursé</span>{% endif %}
-                </td>
-                <td>{{ credit.date_demande|date:"d/m/Y" }}</td>
-                <td><a href="{% url 'detail_credit' credit.pk %}" class="btn btn-sm btn-primary"><i class="bi bi-eye"></i></a></td>
-            </tr>
-            {% endfor %}
-            </tbody>
-        </table>
-        {% else %}<div class="text-center py-5"><p>Aucun crédit</p></div>{% endif %}
+<div class="container-fluid">
+    <!-- En-tête avec dégradé -->
+    <div class="credit-header">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center">
+            <h2>
+                <i class="bi bi-wallet2 me-2"></i>
+                Crédits
+            </h2>
+            <div class="btn-group-actions mt-3 mt-md-0">
+                {% if user.is_admin %}
+                <button type="submit" form="exportCreditsForm" class="btn btn-light">
+                    <i class="bi bi-file-earmark-pdf me-1"></i> 
+                    <span class="d-none d-sm-inline">Exporter</span> PDF
+                </button>
+                {% endif %}
+                
+                {% if user.is_admin or user.is_gestionnaire %}
+                <a href="{% url 'ajouter_credit_direct' %}" class="btn btn-success">
+                    <i class="bi bi-plus-circle me-1"></i> Ajouter crédit
+                </a>
+                {% endif %}
+                
+                {% if not user.is_admin and not user.is_gestionnaire %}
+                <a href="{% url 'demander_credit' %}" class="btn btn-light">
+                    <i class="bi bi-plus-circle me-1"></i> Demander un crédit
+                </a>
+                {% endif %}
+            </div>
+        </div>
     </div>
-</div>
-<div class="d-flex justify-content-between mb-4">
-    <h2><i class="bi bi-wallet2"></i> Crédits</h2>
-    <div>
-        {% if user.is_admin or user.is_gestionnaire %}
-        <a href="{% url 'export_liste_credits_pdf' %}" class="btn btn-success me-2">
-            <i class="bi bi-file-earmark-pdf"></i> Exporter PDF
-        </a>
-        {% endif %}
-        {% if not user.is_admin and not user.is_gestionnaire %}
-        <a href="{% url 'demander_credit' %}" class="btn btn-primary">
-            <i class="bi bi-plus"></i> Demander un crédit
-        </a>
-        {% endif %}
+    
+    <div class="row justify-content-end mb-4">
+        <div class="col-12 col-md-8 col-lg-6 col-xl-5">
+            <form id="exportCreditsForm" action="{% url 'export_liste_credits_pdf' %}" method="get">
+                <div class="input-group input-group-sm shadow-sm rounded">
+                    <span class="input-group-text bg-white border-end-0 text-muted">
+                        <i class="bi bi-calendar-range me-2"></i> Demandes du :
+                    </span>
+                    <input type="date" name="date_debut" class="form-control border-start-0" title="Date de demande (début)">
+                    <span class="input-group-text bg-light text-muted border-start-0 border-end-0">au</span>
+                    <input type="date" name="date_fin" class="form-control border-start-0" title="Date de demande (fin)">
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Liste des crédits -->
+    <div class="card">
+        <div class="card-body p-0">
+            {% if page_obj %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Membre</th>
+                            <th>Montant demandé</th>
+                            <th>Montant accordé</th>
+                            <th>Statut</th>
+                            <th class="d-none d-lg-table-cell">Date</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for credit in page_obj %}
+                        <tr>
+                            <td data-label="Membre:">
+                                <strong>{{ credit.membre.get_full_name }}</strong>
+                            </td>
+                            <td data-label="Montant demandé:">
+                                <strong class="text-primary">{{ credit.montant_demande|floatformat:3 }}</strong> {{ devise }}
+                            </td>
+                            <td data-label="Montant accordé:">
+                                <strong class="text-success">{{ credit.montant_accorde|floatformat:3 }}</strong> {{ devise }}
+                            </td>
+                            <td data-label="Statut:">
+                                {% if credit.statut == 'EN_ATTENTE' %}
+                                    <span class="badge bg-warning text-dark">
+                                        <i class="bi bi-clock me-1"></i>En attente
+                                    </span>
+                                {% elif credit.statut == 'APPROUVE' %}
+                                    <span class="badge bg-success">
+                                        <i class="bi bi-check-circle me-1"></i>Approuvé
+                                    </span>
+                                {% elif credit.statut == 'REJETE' %}
+                                    <span class="badge bg-danger">
+                                        <i class="bi bi-x-circle me-1"></i>Rejeté
+                                    </span>
+                                {% elif credit.statut == 'EN_COURS' %}
+                                    <span class="badge bg-info">
+                                        <i class="bi bi-arrow-repeat me-1"></i>En cours
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-secondary">
+                                        <i class="bi bi-check-all me-1"></i>Remboursé
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td data-label="Date:" class="d-none d-lg-table-cell">
+                                {{ credit.date_demande|date:"d/m/Y" }}
+                            </td>
+                            <td data-label="Action:">
+                                <a href="{% url 'detail_credit' credit.pk %}" class="btn btn-sm btn-primary w-100 w-md-auto">
+                                    <i class="bi bi-eye me-1"></i>
+                                    <span class="d-none d-lg-inline">Détails</span>
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% include 'includes/pagination.html' %}
+            {% else %}
+            <!-- Message si aucun crédit -->
+            <div class="text-center py-5">
+                <i class="bi bi-inbox" style="font-size: 4rem; color: #ccc;"></i>
+                <p class="text-muted mt-3 mb-0">Aucun crédit enregistré</p>
+                {% if not user.is_admin and not user.is_gestionnaire %}
+                <a href="{% url 'demander_credit' %}" class="btn btn-primary mt-3">
+                    <i class="bi bi-plus-circle me-1"></i> Faire une demande
+                </a>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
     </div>
 </div>
 {% endblock %}

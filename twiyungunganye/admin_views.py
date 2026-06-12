@@ -19,6 +19,17 @@ def is_admin_only(user):
     return user.is_authenticated and user.is_admin
 
 
+def get_tenant(request):
+    return getattr(request, 'tenant', None)
+
+
+def qs_for_tenant(request, qs, field='tenant'):
+    tenant = get_tenant(request)
+    if tenant and not getattr(request, 'is_superadmin', False):
+        return qs.filter(**{field: tenant})
+    return qs
+
+
 @login_required
 @user_passes_test(is_admin_only)
 def reinitialiser_base_donnees(request):
@@ -32,43 +43,41 @@ def reinitialiser_base_donnees(request):
         
         if confirmation == 'REINITIALISER':
             try:
+                tenant = get_tenant(request)
+                
+                def tenant_qs(qs):
+                    if tenant:
+                        return qs.filter(tenant=tenant)
+                    return qs
+                
                 # Supprimer toutes les données dans l'ordre correct
                 
                 # 1. Supprimer les remboursements
-                count_remb = Remboursement.objects.count()
-                Remboursement.objects.all().delete()
+                count_remb = tenant_qs(Remboursement.objects.all()).count()
+                tenant_qs(Remboursement.objects.all()).delete()
                 
                 # 2. Supprimer les intérêts
-                count_int = Interet.objects.count()
-                Interet.objects.all().delete()
+                count_int = tenant_qs(Interet.objects.all()).count()
+                tenant_qs(Interet.objects.all()).delete()
                 
                 # 3. Supprimer les crédits
-                count_cred = Credit.objects.count()
-                Credit.objects.all().delete()
+                count_cred = tenant_qs(Credit.objects.all()).count()
+                tenant_qs(Credit.objects.all()).delete()
                 
                 # 4. Supprimer les cotisations
-                count_cot = Cotisation.objects.count()
-                Cotisation.objects.all().delete()
+                count_cot = tenant_qs(Cotisation.objects.all()).count()
+                tenant_qs(Cotisation.objects.all()).delete()
                 
                 # 5. Supprimer les suggestions
-                count_sug = Suggestion.objects.count()
-                Suggestion.objects.all().delete()
+                count_sug = tenant_qs(Suggestion.objects.all()).count()
+                tenant_qs(Suggestion.objects.all()).delete()
                 
-                # 6. Supprimer les membres (sauf superadmin)
-                count_memb = Membre.objects.filter(is_superuser=False).count()
-                Membre.objects.filter(is_superuser=False).delete()
-                
-                # 7. Réinitialiser les séquences auto-increment (SQLite)
-                try:
-                    with connection.cursor() as cursor:
-                        cursor.execute("DELETE FROM sqlite_sequence WHERE name='cotisations'")
-                        cursor.execute("DELETE FROM sqlite_sequence WHERE name='credits'")
-                        cursor.execute("DELETE FROM sqlite_sequence WHERE name='remboursements'")
-                        cursor.execute("DELETE FROM sqlite_sequence WHERE name='interets'")
-                        cursor.execute("DELETE FROM sqlite_sequence WHERE name='suggestions'")
-                        cursor.execute("DELETE FROM sqlite_sequence WHERE name='membres'")
-                except:
-                    pass  # Si ce n'est pas SQLite, ignorer
+                # 6. Supprimer les membres (sauf superadmin et l'utilisateur courant)
+                membres = Membre.objects.filter(is_superuser=False).exclude(pk=request.user.pk)
+                if tenant:
+                    membres = membres.filter(tenant=tenant)
+                count_memb = membres.count()
+                membres.delete()
                 
                 messages.success(
                     request,
@@ -92,13 +101,29 @@ def reinitialiser_base_donnees(request):
             )
     
     # Afficher les statistiques actuelles
+    tenant = get_tenant(request)
+    membres_qs = Membre.objects.filter(is_superuser=False)
+    if tenant:
+        membres_qs = membres_qs.filter(tenant=tenant)
+        cotisations_qs = Cotisation.objects.filter(tenant=tenant)
+        credits_qs = Credit.objects.filter(tenant=tenant)
+        remboursements_qs = Remboursement.objects.filter(tenant=tenant)
+        suggestions_qs = Suggestion.objects.filter(tenant=tenant)
+        interets_qs = Interet.objects.filter(tenant=tenant)
+    else:
+        cotisations_qs = Cotisation.objects.all()
+        credits_qs = Credit.objects.all()
+        remboursements_qs = Remboursement.objects.all()
+        suggestions_qs = Suggestion.objects.all()
+        interets_qs = Interet.objects.all()
+    
     stats = {
-        'membres': Membre.objects.filter(is_superuser=False).count(),
-        'cotisations': Cotisation.objects.count(),
-        'credits': Credit.objects.count(),
-        'remboursements': Remboursement.objects.count(),
-        'suggestions': Suggestion.objects.count(),
-        'interets': Interet.objects.count(),
+        'membres': membres_qs.count(),
+        'cotisations': cotisations_qs.count(),
+        'credits': credits_qs.count(),
+        'remboursements': remboursements_qs.count(),
+        'suggestions': suggestions_qs.count(),
+        'interets': interets_qs.count(),
     }
     
     context = {

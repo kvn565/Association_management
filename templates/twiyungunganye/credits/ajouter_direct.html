@@ -1,0 +1,63 @@
+{% extends 'twiyungunganye/base.html' %}
+{% block title %}Ajouter un crédit{% endblock %}
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <h2 class="mb-0"><i class="bi bi-plus-circle"></i> Ajouter un crédit</h2>
+        <a href="{% url 'liste_credits' %}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left me-1"></i> Retour
+        </a>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">{{ form.membre.label }}</label>
+                        {{ form.membre }}
+                        {% for e in form.membre.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">{{ form.montant_accorde.label }}</label>
+                        {{ form.montant_accorde }}
+                        {% for e in form.montant_accorde.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">{{ form.taux_interet.label }}</label>
+                        {{ form.taux_interet }}
+                        {% for e in form.taux_interet.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">{{ form.date_accord.label }}</label>
+                        {{ form.date_accord }}
+                        {% for e in form.date_accord.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">{{ form.statut.label }}</label>
+                    {{ form.statut }}
+                    {% for e in form.statut.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">{{ form.remarque.label }}</label>
+                    {{ form.remarque }}
+                    {% for e in form.remarque.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+                </div>
+                
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-success"><i class="bi bi-save me-1"></i> Enregistrer</button>
+                    <a href="{% url 'liste_credits' %}" class="btn btn-secondary"><i class="bi bi-x me-1"></i> Annuler</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

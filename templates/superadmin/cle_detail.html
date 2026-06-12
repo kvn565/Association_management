@@ -1,0 +1,40 @@
+{% extends 'superadmin/base_superadmin.html' %}
+{% block title %}Clé {{ cle.cle_visible }}{% endblock %}
+{% block content %}
+<h2>Détail de la clé <code>{{ cle.cle_visible }}</code></h2>
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card p-3">
+            <table class="table table-sm">
+                <tr><td>Association</td><td><a href="{% url 'superadmin:tenant_detail' cle.tenant.pk %}">{{ cle.tenant.nom }}</a></td></tr>
+                <tr><td>Plan</td><td>{{ cle.label_plan }}</td></tr>
+                <tr><td>Statut</td><td>{{ cle.get_statut_display }}</td></tr>
+                <tr><td>Début validité</td><td>{{ cle.date_debut|date:"d/m/Y H:i" }}</td></tr>
+                <tr><td>Fin validité</td><td>{{ cle.date_fin|date:"d/m/Y H:i" }}</td></tr>
+                <tr><td>Jours restants</td><td><strong>{{ cle.jours_restants }}</strong></td></tr>
+                <tr><td>Utilisée</td><td>{% if cle.utilisee %}Oui ({{ cle.date_utilisation|date:"d/m/Y H:i" }}){% else %}Non{% endif %}</td></tr>
+                <tr><td>HMAC</td><td><code>{{ cle.empreinte_hmac|default:"-" }}</code></td></tr>
+                <tr><td>Notes</td><td>{{ cle.notes|default:"-" }}</td></tr>
+            </table>
+            {% if cle.statut != 'REVOQUEE' %}
+            <a href="{% url 'superadmin:cle_revoquer' cle.pk %}" class="btn btn-danger"><i class="fas fa-ban"></i> Révoquer cette clé</a>
+            {% endif %}
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card p-3">
+            <h5>Audit</h5>
+            <table class="table table-sm">
+                <thead><tr><th>Action</th><th>Date</th></tr></thead>
+                <tbody>
+                    {% for a in audits %}
+                    <tr><td>{{ a.get_action_display }}</td><td>{{ a.date_action|date:"d/m/Y H:i" }}</td></tr>
+                    {% empty %}
+                    <tr><td colspan="2" class="text-muted">Aucun audit</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

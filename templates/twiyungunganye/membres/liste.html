@@ -1,34 +1,403 @@
 {% extends 'twiyungunganye/base.html' %}
+
 {% block title %}Liste des membres{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Styles responsive pour la liste des membres */
+    .membres-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 1.5rem;
+        border-radius: 15px;
+        color: white;
+        margin-bottom: 2rem;
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+    }
+
+    .membres-header h2 {
+        margin: 0;
+        font-weight: 700;
+    }
+
+    .btn-add {
+        background: white;
+        color: #667eea;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+
+    .btn-add:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(255,255,255,0.3);
+        color: #667eea;
+    }
+
+    /* Badges personnalisés */
+    .status-badge {
+        padding: 0.4em 0.8em;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 0.85rem;
+    }
+
+    .badge-actif {
+        background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+        color: #155724;
+    }
+
+    .badge-inactif {
+        background: linear-gradient(135deg, #e2e3e5 0%, #d6d8db 100%);
+        color: #383d41;
+    }
+
+    /* Boutons d'action */
+    .action-btn-group {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .btn-action {
+        padding: 0.4rem 0.8rem;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+    }
+
+    .btn-action:hover {
+        transform: scale(1.1);
+    }
+
+    /* Responsive */
+    @media (max-width: 767px) {
+        .membres-header {
+            padding: 1rem;
+        }
+
+        .membres-header h2 {
+            font-size: 1.3rem;
+        }
+
+        .membres-header .d-flex {
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .btn-add {
+            width: 100%;
+        }
+
+        /* Table en cards */
+        .table thead {
+            display: none;
+        }
+
+        .table tbody tr {
+            display: block;
+            margin-bottom: 1rem;
+            border: 1px solid #dee2e6;
+            border-radius: 12px;
+            padding: 1rem;
+            background: white;
+            box-shadow: 0 2px 8px rgba(0,0,0,.08);
+        }
+
+        .table tbody td {
+            display: block;
+            text-align: left !important;
+            padding: 0.5rem 0;
+            border: none;
+            position: relative;
+            padding-left: 40%;
+        }
+
+        .table tbody td:before {
+            content: attr(data-label);
+            position: absolute;
+            left: 0;
+            font-weight: 600;
+            color: #667eea;
+            width: 35%;
+        }
+
+        .table tbody td:last-child {
+            padding-left: 0;
+            padding-top: 1rem;
+            border-top: 1px solid #dee2e6;
+            margin-top: 0.5rem;
+        }
+
+        .table tbody td:last-child:before {
+            display: none;
+        }
+
+        .action-btn-group {
+            width: 100%;
+            flex-direction: column;
+        }
+
+        .action-btn-group .btn {
+            width: 100%;
+        }
+
+        .status-badge {
+            display: inline-block;
+            margin-top: 0.25rem;
+        }
+    }
+
+    @media (max-width: 575px) {
+        .membres-header h2 {
+            font-size: 1.1rem;
+        }
+
+        .table tbody tr {
+            padding: 0.75rem;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2><i class="bi bi-people"></i> Liste des membres</h2>
-    <a href="{% url 'ajouter_membre' %}" class="btn btn-primary"><i class="bi bi-plus-circle"></i> Ajouter</a>
-</div>
-<div class="card">
-    <div class="card-body">
-        {% if membres %}
-        <table class="table table-hover">
-            <thead><tr><th>Nom</th><th>Carte ID</th><th>Email</th><th>Téléphone</th><th>Statut</th><th>Actions</th></tr></thead>
-            <tbody>
-            {% for membre in membres %}
-            <tr>
-                <td><strong>{{ membre.get_full_name }}</strong></td>
-                <td>{{ membre.carte_identite }}</td>
-                <td>{{ membre.email|default:"-" }}</td>
-                <td>{{ membre.telephone|default:"-" }}</td>
-                <td>{% if membre.est_actif %}<span class="badge bg-success">Actif</span>{% else %}<span class="badge bg-secondary">Inactif</span>{% endif %}</td>
-                <td>
-                    <a href="{% url 'detail_membre' membre.pk %}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a>
-                    {% if user.is_admin %}<a href="{% url 'modifier_membre' membre.pk %}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i></a>{% endif %}
-                </td>
-            </tr>
-            {% endfor %}
-            </tbody>
-        </table>
-        {% else %}
-        <div class="text-center py-5"><p>Aucun membre</p></div>
-        {% endif %}
+<div class="container-fluid">
+    <!-- En-tête avec dégradé -->
+    <div class="membres-header">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <h2>
+                <i class="bi bi-people me-2"></i>
+                Liste des membres
+            </h2>
+            <div class="d-flex gap-2 flex-wrap">
+                <a href="#" class="btn btn-add" data-bs-toggle="modal" data-bs-target="#importExcelModal">
+                    <i class="bi bi-upload me-1"></i> Importer Excel
+                </a>
+                <button type="submit" form="exportMembresForm" class="btn btn-add">
+                    <i class="bi bi-file-earmark-excel me-1"></i> Exporter Excel
+                </button>
+                <a href="{% url 'ajouter_membre' %}" class="btn btn-add">
+                    <i class="bi bi-plus-circle me-1"></i> Ajouter un membre
+                </a>
+            </div>
+        </div>
+        <div class="row justify-content-end mt-2 mb-4">
+            <div class="col-12 col-md-8 col-lg-6 col-xl-5">
+                <form id="exportMembresForm" action="{% url 'export_membres_excel' %}" method="get">
+                    <div class="input-group input-group-sm shadow-sm rounded">
+                        <span class="input-group-text bg-white border-end-0 text-muted">
+                            <i class="bi bi-calendar-range me-2"></i> Inscription du :
+                        </span>
+                        <input type="date" name="date_debut" class="form-control border-start-0" title="Date de début d'inscription">
+                        <span class="input-group-text bg-light text-muted border-start-0 border-end-0">au</span>
+                        <input type="date" name="date_fin" class="form-control border-start-0" title="Date de fin d'inscription">
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtres crédit -->
+    <div class="d-flex flex-wrap gap-2 mb-3">
+        <a href="{% url 'liste_membres' %}" class="btn btn-sm {% if not credit_filter %}btn-primary{% else %}btn-outline-primary{% endif %}">
+            <i class="bi bi-list"></i> Tous
+        </a>
+        <a href="{% url 'liste_membres' %}?credit=avec" class="btn btn-sm {% if credit_filter == 'avec' %}btn-success{% else %}btn-outline-success{% endif %}">
+            <i class="bi bi-check-circle"></i> Avec crédit
+        </a>
+        <a href="{% url 'liste_membres' %}?credit=sans" class="btn btn-sm {% if credit_filter == 'sans' %}btn-secondary{% else %}btn-outline-secondary{% endif %}">
+            <i class="bi bi-dash-circle"></i> Sans crédit
+        </a>
+        <a href="{% url 'liste_membres' %}?credit=encours" class="btn btn-sm {% if credit_filter == 'encours' %}btn-warning{% else %}btn-outline-warning{% endif %}">
+            <i class="bi bi-arrow-repeat"></i> En cours
+        </a>
+        <a href="{% url 'liste_membres' %}?credit=rembourse" class="btn btn-sm {% if credit_filter == 'rembourse' %}btn-info{% else %}btn-outline-info{% endif %}">
+            <i class="bi bi-check-all"></i> Remboursé
+        </a>
+    </div>
+
+    <!-- Liste des membres -->
+    <div class="card">
+        <div class="card-body p-0">
+            {% if page_obj %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Nom complet</th>
+                            <th>Carte ID</th>
+                            <th class="d-none d-lg-table-cell">Email</th>
+                            <th class="d-none d-md-table-cell">Téléphone</th>
+                            <th>Statut</th>
+                            <th>Crédit</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for membre in page_obj %}
+                        {% with dernier_credit=membre.credits.all|first %}
+                        <tr>
+                            <td data-label="Nom:">
+                                <strong class="text-primary">{{ membre.get_full_name }}</strong>
+                            </td>
+                            <td data-label="Carte ID:">
+                                <code class="text-muted">{{ membre.carte_identite }}</code>
+                            </td>
+                            <td data-label="Email:" class="d-none d-lg-table-cell">
+                                {% if membre.email %}
+                                    <i class="bi bi-envelope me-1"></i>{{ membre.email }}
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td data-label="Téléphone:" class="d-none d-md-table-cell">
+                                {% if membre.telephone %}
+                                    <i class="bi bi-telephone me-1"></i>{{ membre.telephone }}
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td data-label="Statut:">
+                                {% if membre.est_actif %}
+                                    <span class="status-badge badge-actif">
+                                        <i class="bi bi-check-circle me-1"></i>Actif
+                                    </span>
+                                {% else %}
+                                    <span class="status-badge badge-inactif">
+                                        <i class="bi bi-x-circle me-1"></i>Inactif
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td data-label="Crédit:">
+                                {% if dernier_credit %}
+                                    {% if dernier_credit.statut == 'REMBOURSE' %}
+                                    <span class="status-badge" style="background: #d1ecf1; color: #0c5460;">
+                                        <i class="bi bi-check-all"></i> Remboursé
+                                    </span>
+                                    {% elif dernier_credit.statut == 'EN_COURS' %}
+                                    <span class="status-badge" style="background: #fff3cd; color: #856404;">
+                                        <i class="bi bi-arrow-repeat"></i> En cours
+                                    </span>
+                                    {% elif dernier_credit.statut == 'APPROUVE' %}
+                                    <span class="status-badge" style="background: #cce5ff; color: #004085;">
+                                        <i class="bi bi-check-circle"></i> Approuvé
+                                    </span>
+                                    {% elif dernier_credit.statut == 'EN_ATTENTE' %}
+                                    <span class="status-badge" style="background: #e2e3e5; color: #383d41;">
+                                        <i class="bi bi-hourglass"></i> En attente
+                                    </span>
+                                    {% elif dernier_credit.statut == 'REJETE' %}
+                                    <span class="status-badge" style="background: #f8d7da; color: #721c24;">
+                                        <i class="bi bi-x-circle"></i> Rejeté
+                                    </span>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                            <td data-label="Actions:">
+                                <div class="action-btn-group">
+                                    <a href="{% url 'detail_membre' membre.pk %}" 
+                                       class="btn btn-sm btn-primary btn-action"
+                                       title="Voir le profil">
+                                        <i class="bi bi-eye me-1"></i>
+                                        <span class="d-none d-xl-inline">Profil</span>
+                                    </a>
+                                    {% if user.is_admin %}
+                                    <a href="{% url 'modifier_membre' membre.pk %}" 
+                                       class="btn btn-sm btn-warning btn-action"
+                                       title="Modifier">
+                                        <i class="bi bi-pencil me-1"></i>
+                                        <span class="d-none d-xl-inline">Modifier</span>
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endwith %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% include 'includes/pagination.html' %}
+            {% else %}
+            <!-- Message si aucun membre -->
+            <div class="text-center py-5">
+                <i class="bi bi-people" style="font-size: 4rem; color: #ccc;"></i>
+                <p class="text-muted mt-3 mb-3">Aucun membre enregistré</p>
+                <a href="{% url 'ajouter_membre' %}" class="btn btn-primary">
+                    <i class="bi bi-plus-circle me-1"></i> Ajouter le premier membre
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Stats rapides -->
+    {% if page_obj %}
+    <div class="row mt-4">
+        <div class="col-md-3 mb-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <i class="bi bi-people-fill" style="font-size: 2rem; color: #667eea;"></i>
+                    <h3 class="mt-2 mb-0">{{ total_membres }}</h3>
+                    <small class="text-muted">Total membres</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <i class="bi bi-check-circle-fill" style="font-size: 2rem; color: #28a745;"></i>
+                    <h3 class="mt-2 mb-0">{{ avec_credit }}</h3>
+                    <small class="text-muted">Avec crédit</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <i class="bi bi-dash-circle-fill" style="font-size: 2rem; color: #6c757d;"></i>
+                    <h3 class="mt-2 mb-0">{{ sans_credit }}</h3>
+                    <small class="text-muted">Sans crédit</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <i class="bi bi-arrow-repeat" style="font-size: 2rem; color: #ffc107;"></i>
+                    <h3 class="mt-2 mb-0">{{ encours_credit }}</h3>
+                    <small class="text-muted">En cours de remb.</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Modal Import Excel -->
+    <div class="modal fade" id="importExcelModal" tabindex="-1" aria-labelledby="importExcelModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form action="{% url 'import_membres_excel' %}" method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="importExcelModalLabel">Importer des membres (Excel)</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="text-muted small">
+                            Le fichier doit être au format <strong>.xlsx</strong>. 
+                            La carte d'identité sera utilisée pour éviter d'importer des doublons.
+                        </p>
+                        <div class="mb-3">
+                            <label for="excel_file" class="form-label">Sélectionner un fichier Excel :</label>
+                            <input class="form-control" type="file" id="excel_file" name="excel_file" accept=".xlsx" required>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                        <button type="submit" class="btn btn-primary">Importer</button>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}

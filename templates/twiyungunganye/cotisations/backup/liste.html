@@ -1,0 +1,45 @@
+{% extends 'twiyungunganye/base.html' %}
+{% block title %}Cotisations{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between mb-4">
+    <h2><i class="bi bi-cash-coin"></i> Cotisations</h2>
+    {% if user.is_admin or user.is_gestionnaire %}<a href="{% url 'ajouter_cotisation' %}" class="btn btn-primary"><i class="bi bi-plus"></i> Ajouter</a>{% endif %}
+</div>
+<div class="card">
+    <div class="card-body">
+        {% if cotisations %}
+        <table class="table table-hover">
+            <thead><tr><th>Membre</th><th>Période</th><th>Montant</th><th>Statut</th><th>Date paiement</th></tr></thead>
+            <tbody>
+            {% for cot in cotisations %}
+            <tr>
+                <td>{{ cot.membre.get_full_name }}</td>
+                <td>{{ cot.get_mois_nom }} {{ cot.annee }}</td>
+                <td>{{ cot.montant|floatformat:0 }} Fbu</td>
+                <td>
+                    {% if cot.statut == 'PAYE' %}<span class="badge bg-success">Payé</span>
+                    {% elif cot.statut == 'EN_ATTENTE' %}<span class="badge bg-warning">En attente</span>
+                    {% else %}<span class="badge bg-danger">En retard</span>{% endif %}
+                </td>
+                <td>{{ cot.date_paiement|date:"d/m/Y" }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}<div class="text-center py-5"><p>Aucune cotisation</p></div>{% endif %}
+    </div>
+</div>
+<div class="d-flex justify-content-between mb-4">
+    <h2><i class="bi bi-cash-coin"></i> Cotisations</h2>
+    <div>
+        {% if user.is_admin or user.is_gestionnaire %}
+        <a href="{% url 'export_liste_cotisations_pdf' %}?mois=&annee=" class="btn btn-success me-2">
+            <i class="bi bi-file-earmark-pdf"></i> Exporter PDF
+        </a>
+        <a href="{% url 'ajouter_cotisation' %}" class="btn btn-primary">
+            <i class="bi bi-plus"></i> Ajouter
+        </a>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

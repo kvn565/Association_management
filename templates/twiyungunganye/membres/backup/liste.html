@@ -1,0 +1,34 @@
+{% extends 'twiyungunganye/base.html' %}
+{% block title %}Liste des membres{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-people"></i> Liste des membres</h2>
+    <a href="{% url 'ajouter_membre' %}" class="btn btn-primary"><i class="bi bi-plus-circle"></i> Ajouter</a>
+</div>
+<div class="card">
+    <div class="card-body">
+        {% if membres %}
+        <table class="table table-hover">
+            <thead><tr><th>Nom</th><th>Carte ID</th><th>Email</th><th>Téléphone</th><th>Statut</th><th>Actions</th></tr></thead>
+            <tbody>
+            {% for membre in membres %}
+            <tr>
+                <td><strong>{{ membre.get_full_name }}</strong></td>
+                <td>{{ membre.carte_identite }}</td>
+                <td>{{ membre.email|default:"-" }}</td>
+                <td>{{ membre.telephone|default:"-" }}</td>
+                <td>{% if membre.est_actif %}<span class="badge bg-success">Actif</span>{% else %}<span class="badge bg-secondary">Inactif</span>{% endif %}</td>
+                <td>
+                    <a href="{% url 'detail_membre' membre.pk %}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a>
+                    {% if user.is_admin %}<a href="{% url 'modifier_membre' membre.pk %}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i></a>{% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="text-center py-5"><p>Aucun membre</p></div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,64 @@
+{% extends 'twiyungunganye/base.html' %}
+
+{% block title %}Nouvelle dépense - {{ config_app.nom_app|default:'Twiyungunganye' }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="mb-4">
+        <a href="{% url 'liste_depenses' %}" class="text-decoration-none">
+            <i class="bi bi-arrow-left me-1"></i> Retour aux dépenses
+        </a>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-plus-circle me-2"></i> Nouvelle dépense</h5>
+                </div>
+                <div class="card-body p-4">
+                    <form method="post">
+                        {% csrf_token %}
+
+                        {% if form.non_field_errors %}
+                        <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+                        {% endif %}
+
+                        <div class="mb-3">
+                            <label for="{{ form.motif.id_for_label }}" class="form-label">{{ form.motif.label }}</label>
+                            {{ form.motif }}
+                            {% if form.motif.errors %}<div class="text-danger small mt-1">{{ form.motif.errors }}</div>{% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.description.id_for_label }}" class="form-label">{{ form.description.label }}</label>
+                            {{ form.description }}
+                            {% if form.description.errors %}<div class="text-danger small mt-1">{{ form.description.errors }}</div>{% endif %}
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.montant.id_for_label }}" class="form-label">{{ form.montant.label }}</label>
+                                {{ form.montant }}
+                                {% if form.montant.errors %}<div class="text-danger small mt-1">{{ form.montant.errors }}</div>{% endif %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.date_depense.id_for_label }}" class="form-label">{{ form.date_depense.label }}</label>
+                                {{ form.date_depense }}
+                                {% if form.date_depense.errors %}<div class="text-danger small mt-1">{{ form.date_depense.errors }}</div>{% endif %}
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                            <a href="{% url 'liste_depenses' %}" class="btn btn-secondary">Annuler</a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-lg me-1"></i> Enregistrer
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

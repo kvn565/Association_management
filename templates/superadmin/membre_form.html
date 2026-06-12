@@ -1,0 +1,35 @@
+{% extends 'superadmin/base_superadmin.html' %}
+{% block title %}{{ action }}{% endblock %}
+{% block content %}
+<h2><i class="fas fa-user-{% if membre %}edit{% else %}plus{% endif %}"></i> {{ action }}</h2>
+<div class="card p-4" style="max-width: 700px;">
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        {% for field in form %}
+        <div class="mb-3">
+            <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+            {% if field.name == 'photo' and user.photo %}
+            <div class="mb-2">
+                <img src="{{ user.photo.url }}" class="rounded" style="max-height:100px" alt="Photo">
+            </div>
+            {% endif %}
+            {% if field.name in 'is_admin,est_actif' %}
+            <div class="form-check form-switch">
+                {{ field }}
+            </div>
+            {% else %}
+            {{ field }}
+            {% endif %}
+            {% if field.help_text %}
+            <div class="form-text">{{ field.help_text }}</div>
+            {% endif %}
+            {% for err in field.errors %}
+            <div class="text-danger small">{{ err }}</div>
+            {% endfor %}
+        </div>
+        {% endfor %}
+        <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Enregistrer</button>
+        <a href="{% url 'superadmin:membre_liste' %}" class="btn btn-secondary">Annuler</a>
+    </form>
+</div>
+{% endblock %}

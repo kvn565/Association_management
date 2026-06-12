@@ -1,34 +1,102 @@
 {% extends 'twiyungunganye/base.html' %}
-{% block title %}Rapports{% endblock %}
+{% block title %}Rapports et Exportations{% endblock %}
 {% block content %}
-<h2><i class="bi bi-file-earmark-text"></i> Rapports</h2>
-<div class="row">
+<style>
+    .rapport-card {
+        border-radius: 15px;
+        box-shadow: 0 4px 15px rgba(0,0,0,.08);
+        transition: all 0.3s ease;
+        border: none;
+        overflow: hidden;
+    }
+    .rapport-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0,0,0,.15);
+    }
+    .rapport-card .card-header {
+        padding: 1.2rem 1.5rem;
+        font-weight: 600;
+        font-size: 1.1rem;
+        border-bottom: none;
+    }
+    .btn-export {
+        padding: 0.6rem 1.2rem;
+        border-radius: 10px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    .btn-export:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,.2);
+    }
+    .icon-circle {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.4rem;
+        flex-shrink: 0;
+    }
+</style>
+
+<div class="d-flex align-items-center justify-content-between mb-4">
+    <h2 class="mb-0"><i class="bi bi-file-earmark-text me-2"></i> Rapports et Exportations</h2>
+</div>
+
+<!-- Rapports financiers -->
+<h5 class="text-muted mb-3"><i class="bi bi-bar-chart-fill me-2"></i> Rapports financiers</h5>
+<div class="row g-4 mb-5">
     <div class="col-md-6">
-        <div class="card">
-            <div class="card-header"><h5>Rapport Mensuel</h5></div>
-            <div class="card-body">
-                <p>Générez un rapport détaillé pour un mois spécifique avec cotisations, crédits et remboursements.</p>
-                <form method="post" action="{% url 'generer_rapport_mensuel' %}">
-                    {% csrf_token %}
-                    {{ form_mensuel.as_p }}
-                    <button type="submit" class="btn btn-primary"><i class="bi bi-file-pdf"></i> Générer PDF</button>
-                </form>
+        <div class="card rapport-card">
+            <div class="card-header text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                <i class="bi bi-calendar-month me-2"></i> Rapport Mensuel
+            </div>
+            <div class="card-body p-4">
+                <p class="text-muted mb-3">Générez un rapport détaillé pour un mois spécifique : cotisations, crédits, remboursements, intérêts et solde.</p>
+                <a href="{% url 'page_rapport_mensuel' %}" class="btn btn-primary btn-export">
+                    <i class="bi bi-file-pdf me-2"></i> Accéder au rapport mensuel
+                </a>
             </div>
         </div>
     </div>
     <div class="col-md-6">
-        <div class="card">
-            <div class="card-header"><h5>Rapport Annuel</h5></div>
-            <div class="card-body">
-                <p>Générez un rapport annuel complet avec statistiques et bilan financier.</p>
-                <form method="post" action="{% url 'generer_rapport_annuel' %}">
-                    {% csrf_token %}
-                    {{ form_annuel.as_p }}
-                    <button type="submit" class="btn btn-primary"><i class="bi bi-file-pdf"></i> Générer PDF</button>
-                </form>
+        <div class="card rapport-card">
+            <div class="card-header text-white" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                <i class="bi bi-calendar-range me-2"></i> Rapport Annuel
+            </div>
+            <div class="card-body p-4">
+                <p class="text-muted mb-3">Générez un rapport annuel complet avec statistiques, bilan financier et répartition mensuelle.</p>
+                <a href="{% url 'page_rapport_annuel' %}" class="btn btn-danger btn-export">
+                    <i class="bi bi-file-pdf me-2"></i> Accéder au rapport annuel
+                </a>
             </div>
         </div>
     </div>
 </div>
-<style>form p {margin-bottom: 1rem;} form p label {display: block; font-weight: 600; margin-bottom: 0.5rem;} form p input, form p select {width: 100%; padding: 0.5rem; border: 1px solid #ced4da; border-radius: 0.375rem;}</style>
+
+<!-- Exportations de listes -->
+<h5 class="text-muted mb-3"><i class="bi bi-download me-2"></i> Exportations de listes</h5>
+<div class="row g-3">
+    {% for type_id, type_info in export_types.items %}
+    <div class="col-md-4 col-lg-3">
+        <a href="{% url 'page_export_filtre' export_type=type_id %}" class="text-decoration-none">
+            <div class="card rapport-card h-100">
+                <div class="card-body text-center p-4">
+                    <div class="icon-circle mx-auto mb-3" style="background: {% cycle 'linear-gradient(135deg, #667eea20, #764ba220)' 'linear-gradient(135deg, #f093fb20, #f5576c20)' 'linear-gradient(135deg, #43e97b20, #38f9d720)' 'linear-gradient(135deg, #ffd32a20, #f59f0020)' 'linear-gradient(135deg, #4facfe20, #00f2fe20)' 'linear-gradient(135deg, #17a2b820, #13849620)' %}">
+                        <i class="bi {{ type_info.icone }}" style="color: {% cycle '#667eea' '#f5576c' '#43e97b' '#f59f00' '#00f2fe' '#17a2b8' %};"></i>
+                    </div>
+                    <h6 class="fw-bold mb-1">{{ type_info.label }}</h6>
+                    <small class="text-muted d-block mb-3">{{ type_info.description|truncatewords:10 }}</small>
+                    <div class="d-flex justify-content-center gap-2">
+                        {% if type_info.url_pdf %}<span class="badge bg-primary"><i class="bi bi-file-pdf me-1"></i>PDF</span>{% endif %}
+                        {% if type_info.url_excel %}<span class="badge bg-success"><i class="bi bi-file-earmark-excel me-1"></i>Excel</span>{% endif %}
+                    </div>
+                </div>
+            </div>
+        </a>
+    </div>
+    {% endfor %}
+</div>
 {% endblock %}

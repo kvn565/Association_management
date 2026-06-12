@@ -1,0 +1,47 @@
+{% extends 'superadmin/base_superadmin.html' %}
+{% block title %}Générer une clé{% endblock %}
+{% block content %}
+<h2>{{ action }} une clé d'activation</h2>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <h5 class="card-title">{{ tenant.nom }}</h5>
+        <p class="mb-1"><strong>NIF :</strong> {{ tenant.nif|default:"—" }}</p>
+        <p class="mb-0"><strong>Sous-domaine :</strong> <code>{{ tenant.sous_domaine }}</code></p>
+    </div>
+</div>
+
+{% if deja_cle %}
+<div class="alert alert-warning">
+    <i class="fas fa-exclamation-triangle me-2"></i>
+    Cette association a déjà une ou plusieurs clés. Impossible d'en générer une nouvelle.
+</div>
+<div class="card mb-3">
+    <div class="card-header">Clés existantes</div>
+    <ul class="list-group list-group-flush">
+        {% for cle in cles_existantes %}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+            <span><code>{{ cle.cle_visible }}</code> — {{ cle.label_plan }}</span>
+            <span class="badge bg-{% if cle.statut == 'ACTIVE' or cle.statut == 'DISPONIBLE' %}success{% else %}secondary{% endif %}">{{ cle.get_statut_display }}</span>
+        </li>
+        {% endfor %}
+    </ul>
+</div>
+<a href="{% url 'superadmin:tenant_detail' tenant.pk %}" class="btn btn-secondary">Retour</a>
+{% else %}
+<div class="card p-4">
+    <form method="post">
+        {% csrf_token %}
+        {% for field in form %}
+        <div class="mb-3">
+            <label class="form-label">{{ field.label }}</label>
+            {{ field }}
+            {% for error in field.errors %}<div class="text-danger">{{ error }}</div>{% endfor %}
+        </div>
+        {% endfor %}
+        <button type="submit" class="btn btn-primary"><i class="fas fa-key"></i> {{ action }}</button>
+        <a href="{% url 'superadmin:tenant_detail' tenant.pk %}" class="btn btn-secondary">Annuler</a>
+    </form>
+</div>
+{% endif %}
+{% endblock %}

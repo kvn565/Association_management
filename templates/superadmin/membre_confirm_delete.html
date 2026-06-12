@@ -1,0 +1,18 @@
+{% extends 'superadmin/base_superadmin.html' %}
+{% block title %}Supprimer un utilisateur{% endblock %}
+{% block content %}
+<h2><i class="fas fa-trash text-danger"></i> Supprimer un utilisateur</h2>
+<div class="card p-4" style="max-width: 500px;">
+    <div class="alert alert-danger">
+        <i class="fas fa-exclamation-triangle"></i>
+        Êtes-vous sûr de vouloir supprimer <strong>{{ membre.prenom }} {{ membre.nom }}</strong> ?
+    </div>
+    <p>Carte d'identité : <code>{{ membre.carte_identite }}</code></p>
+    <p>Association : {{ membre.tenant.nom|default:"—" }}</p>
+    <form method="post">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger"><i class="fas fa-trash"></i> Confirmer la suppression</button>
+        <a href="{% url 'superadmin:membre_liste' %}" class="btn btn-secondary">Annuler</a>
+    </form>
+</div>
+{% endblock %}

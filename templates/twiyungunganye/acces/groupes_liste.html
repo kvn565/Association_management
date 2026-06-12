@@ -1,0 +1,82 @@
+{% extends 'twiyungunganye/base.html' %}
+{% load menu_perms %}
+{% block title %}Gestion des accès - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-shield-lock me-2"></i> Groupes d'accès</h2>
+    <a href="{% url 'creer_groupe' %}" class="btn btn-primary">
+        <i class="bi bi-plus-circle me-1"></i> Nouveau groupe
+    </a>
+</div>
+
+{% if page_obj %}
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Groupe</th>
+                        <th>Description</th>
+                        <th>Membres</th>
+                        <th>Menus autorisés</th>
+                        <th style="width:160px">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for groupe in page_obj %}
+                    <tr>
+                        <td><strong>{{ groupe.nom }}</strong></td>
+                        <td class="text-muted">{{ groupe.description|default:"—"|truncatewords:15 }}</td>
+                        <td>
+                            <span class="badge bg-info">{{ groupe.membres.count }}</span>
+                        </td>
+                        <td>
+                            {% with perms_list=groupe.get_permissions_list %}
+                            {% if perms_list %}
+                            {% for code in perms_list %}
+                            <span class="badge bg-secondary me-1">{{ code }}</span>
+                            {% endfor %}
+                            {% else %}
+                            <span class="text-muted">Aucun</span>
+                            {% endif %}
+                            {% endwith %}
+                        </td>
+                        <td>
+                            <a href="{% url 'modifier_groupe' groupe.pk %}" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <a href="{% url 'supprimer_groupe' groupe.pk %}" class="btn btn-sm btn-outline-danger">
+                                <i class="bi bi-trash"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        </div>
+    </div>
+    {% include 'includes/pagination.html' %}
+{% else %}
+<div class="alert alert-info">
+    <i class="bi bi-info-circle me-2"></i> Aucun groupe d'accès défini.
+    <a href="{% url 'creer_groupe' %}" class="alert-link">Créez le premier groupe</a>.
+</div>
+{% endif %}
+
+<div class="card mt-4">
+    <div class="card-header">
+        <i class="bi bi-question-circle me-1"></i> Comment ça marche ?
+    </div>
+    <div class="card-body">
+        <ol class="mb-0">
+            <li><strong>Créez des groupes</strong> avec les menus autorisés (ex: "Comptabilité", "Direction", "Secrétariat").</li>
+            <li><strong>Assignez un groupe</strong> à chaque utilisateur via la page <a href="{% url 'liste_membres' %}">Membres → Modifier</a>.</li>
+            <li>Les utilisateurs avec un groupe <strong>ne verront que les menus</strong> cochés dans leur groupe.</li>
+            <li>Les utilisateurs <strong>sans groupe</strong> conservent leur accès par défaut (admin = tout).</li>
+        </ol>
+    </div>
+</div>
+{% endblock %}

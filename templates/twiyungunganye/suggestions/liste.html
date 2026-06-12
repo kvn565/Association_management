@@ -3,36 +3,50 @@
 {% block content %}
 <div class="d-flex justify-content-between mb-4">
     <h2><i class="bi bi-lightbulb"></i> Suggestions</h2>
-    {% if not user.is_admin and not user.is_gestionnaire %}<a href="{% url 'soumettre_suggestion' %}" class="btn btn-primary"><i class="bi bi-plus"></i> Nouvelle suggestion</a>{% endif %}
+    {% if not user.is_admin  %}<a href="{% url 'soumettre_suggestion' %}" class="btn btn-primary"><i class="bi bi-plus"></i> Nouvelle suggestion</a>{% endif %}
 </div>
+{% if messages %}
+{% for message in messages %}
+<div class="alert alert-{{ message.tags }} alert-dismissible fade show">{{ message }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+{% endfor %}
+{% endif %}
 <div class="card">
     <div class="card-body">
-        {% if suggestions %}
-        {% for suggestion in suggestions %}
+        {% if page_obj %}
+        {% for suggestion in page_obj %}
         <div class="card mb-3">
-            <div class="card-header d-flex justify-content-between">
-                <h5>{{ suggestion.titre }}</h5>
-                {% if suggestion.statut == 'EN_ATTENTE' %}<span class="badge bg-warning">En attente</span>
-                {% elif suggestion.statut == 'EN_COURS' %}<span class="badge bg-info">En cours</span>
-                {% elif suggestion.statut == 'ACCEPTEE' %}<span class="badge bg-success">Acceptée</span>
-                {% else %}<span class="badge bg-danger">Rejetée</span>{% endif %}
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">{{ suggestion.titre }}</h5>
+                <div>
+                    {% if suggestion.statut == 'EN_ATTENTE' %}<span class="badge bg-warning">En attente</span>
+                    {% elif suggestion.statut == 'EN_COURS' %}<span class="badge bg-info">En cours</span>
+                    {% elif suggestion.statut == 'ACCEPTEE' %}<span class="badge bg-success">Acceptée</span>
+                    {% else %}<span class="badge bg-danger">Rejetée</span>{% endif %}
+                    {% if suggestion.membre == user and suggestion.statut == 'EN_ATTENTE' %}
+                    <a href="{% url 'modifier_suggestion' suggestion.pk %}" class="btn btn-sm btn-outline-primary ms-2" title="Modifier"><i class="bi bi-pencil"></i></a>
+                    {% endif %}
+                    {% if user.is_admin %}
+                    <a href="{% url 'repondre_suggestion' suggestion.pk %}" class="btn btn-sm btn-outline-info ms-2" title="Répondre"><i class="bi bi-chat-dots"></i></a>
+                    {% endif %}
+                </div>
             </div>
             <div class="card-body">
                 <p><strong>Par:</strong> {{ suggestion.membre.get_full_name }}</p>
                 <p><strong>Date:</strong> {{ suggestion.date_soumission|date:"d/m/Y H:i" }}</p>
-                <p>{{ suggestion.description }}</p>
+                <p>{{ suggestion.description|linebreaks }}</p>
                 {% if suggestion.reponse_admin %}
                 <hr>
                 <div class="alert alert-info">
                     <strong>Réponse admin:</strong><br>
-                    {{ suggestion.reponse_admin }}
+                    {{ suggestion.reponse_admin|linebreaks }}
                     <br><small>{{ suggestion.date_reponse|date:"d/m/Y H:i" }}</small>
                 </div>
                 {% endif %}
             </div>
         </div>
         {% endfor %}
-        {% else %}<div class="text-center py-5"><p>Aucune suggestion</p></div>{% endif %}
+        {% include 'includes/pagination.html' %}
+        {% else %}<div class="text-center py-5"><p class="text-muted">Aucune suggestion pour le moment.</p></div>{% endif %}
     </div>
 </div>
 {% endblock %}

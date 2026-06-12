@@ -1,19 +1,346 @@
 {% extends 'twiyungunganye/base.html' %}
+
 {% block title %}Approuver crédit{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* En-tête approbation */
+    .approval-header {
+        background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+        padding: 1.5rem;
+        border-radius: 15px;
+        color: white;
+        margin-bottom: 2rem;
+        box-shadow: 0 10px 30px rgba(67, 233, 123, 0.3);
+    }
+
+    .approval-header h2 {
+        margin: 0;
+        font-weight: 700;
+        font-size: 1.5rem;
+    }
+
+    /* Card principale */
+    .approval-card {
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 10px 40px rgba(0,0,0,.12);
+        overflow: hidden;
+    }
+
+    /* Info membre */
+    .member-info {
+        background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+        padding: 1.5rem;
+        border-radius: 12px;
+        margin-bottom: 1.5rem;
+        border-left: 5px solid #2196f3;
+    }
+
+    .member-info p {
+        margin-bottom: 0.75rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .member-info p:last-child {
+        margin-bottom: 0;
+    }
+
+    .member-info strong {
+        color: #1565c0;
+        font-weight: 600;
+    }
+
+    .member-info span {
+        font-weight: 700;
+        color: #0d47a1;
+    }
+
+    /* Styles du formulaire */
+    form p {
+        margin-bottom: 1.5rem;
+        background: #f8f9fa;
+        padding: 1rem;
+        border-radius: 10px;
+        border: 2px solid #e0e0e0;
+        transition: all 0.3s ease;
+    }
+
+    form p:hover {
+        border-color: #667eea;
+        background: #fff;
+    }
+
+    form p label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        color: #333;
+        font-size: 0.95rem;
+    }
+
+    form p input,
+    form p select,
+    form p textarea {
+        width: 100%;
+        padding: 0.75rem;
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+        font-size: 16px; /* Évite le zoom sur iOS */
+        transition: all 0.3s ease;
+        background: white;
+    }
+
+    form p input:focus,
+    form p select:focus,
+    form p textarea:focus {
+        border-color: #667eea;
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    form p textarea {
+        min-height: 100px;
+        resize: vertical;
+    }
+
+    /* Texte d'aide */
+    .helptext {
+        display: block;
+        font-size: 0.85rem;
+        color: #6c757d;
+        margin-top: 0.5rem;
+        font-style: italic;
+        padding: 0.5rem;
+        background: #fff3cd;
+        border-radius: 5px;
+        border-left: 3px solid #ffc107;
+    }
+
+    /* Messages d'erreur */
+    .errorlist {
+        list-style: none;
+        padding: 0;
+        margin: 0.5rem 0 0 0;
+    }
+
+    .errorlist li {
+        color: #dc3545;
+        font-size: 0.85rem;
+        padding: 0.75rem;
+        background: #f8d7da;
+        border-radius: 8px;
+        margin-bottom: 0.5rem;
+        border-left: 3px solid #dc3545;
+    }
+
+    /* Alerte d'avertissement */
+    .warning-box {
+        background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+        padding: 1rem;
+        border-radius: 10px;
+        margin-bottom: 1.5rem;
+        border-left: 4px solid #ffc107;
+    }
+
+    .warning-box i {
+        font-size: 1.5rem;
+        color: #ff6b6b;
+        margin-right: 0.5rem;
+    }
+
+    .warning-box p {
+        margin: 0;
+        color: #856404;
+        font-weight: 600;
+    }
+
+    /* Boutons d'action */
+    .action-buttons {
+        display: flex;
+        gap: 0.75rem;
+        margin-top: 2rem;
+        padding-top: 1.5rem;
+        border-top: 2px solid #f0f0f0;
+    }
+
+    .btn-validate {
+        background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+        border: none;
+        color: white;
+        font-weight: 600;
+        padding: 0.75rem 2rem;
+        transition: all 0.3s ease;
+    }
+
+    .btn-validate:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 20px rgba(67, 233, 123, 0.4);
+        color: white;
+    }
+
+    /* Responsive */
+    @media (max-width: 991px) {
+        .approval-header {
+            padding: 1.25rem;
+        }
+
+        .approval-header h2 {
+            font-size: 1.3rem;
+        }
+
+        .member-info {
+            padding: 1.25rem;
+        }
+    }
+
+    @media (max-width: 767px) {
+        .approval-header {
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .approval-header h2 {
+            font-size: 1.1rem;
+        }
+
+        .member-info {
+            padding: 1rem;
+        }
+
+        .member-info p {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.25rem;
+        }
+
+        form p {
+            padding: 0.75rem;
+            margin-bottom: 1.25rem;
+        }
+
+        form p label {
+            font-size: 0.9rem;
+        }
+
+        form p input,
+        form p select,
+        form p textarea {
+            padding: 0.6rem;
+        }
+
+        .action-buttons {
+            flex-direction: column-reverse;
+            gap: 0.5rem;
+        }
+
+        .action-buttons .btn {
+            width: 100%;
+        }
+
+        .warning-box {
+            padding: 0.75rem;
+        }
+
+        .warning-box i {
+            font-size: 1.2rem;
+        }
+    }
+
+    @media (max-width: 575px) {
+        .approval-header h2 {
+            font-size: 1rem;
+        }
+
+        form p {
+            padding: 0.6rem;
+        }
+
+        form p label {
+            font-size: 0.85rem;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<h2><i class="bi bi-check-circle"></i> Approuver/Rejeter le crédit</h2>
-<div class="card">
-    <div class="card-body">
-        <p><strong>Membre:</strong> {{ credit.membre.get_full_name }}</p>
-        <p><strong>Montant demandé:</strong> {{ credit.montant_demande|floatformat:0 }} FBU</p>
-        <hr>
-        <form method="post">
-            {% csrf_token %}
-            {{ form.as_p }}
-            <button type="submit" class="btn btn-success"><i class="bi bi-check"></i> Valider</button>
-            <a href="{% url 'liste_credits' %}" class="btn btn-secondary">Annuler</a>
-        </form>
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-12 col-md-10 col-lg-8 col-xl-7">
+            <!-- En-tête -->
+            <div class="approval-header">
+                <h2>
+                    <i class="bi bi-check-circle me-2"></i>
+                    Approuver / Rejeter le crédit
+                </h2>
+            </div>
+
+            <!-- Card principale -->
+            <div class="approval-card card">
+                <div class="card-body p-4">
+                    <!-- Informations du membre -->
+                    <div class="member-info">
+                        <p>
+                            <strong>
+                                <i class="bi bi-person-circle me-1"></i>
+                                Membre :
+                            </strong>
+                            <span>{{ credit.membre.get_full_name }}</span>
+                        </p>
+                        <p>
+                            <strong>
+                                <i class="bi bi-cash-coin me-1"></i>
+                                Montant demandé :
+                            </strong>
+                            <span>{{ credit.montant_demande|floatformat:3 }} {{ devise }}</span>
+                        </p>
+                    </div>
+
+                    <!-- Avertissement -->
+                    <div class="warning-box">
+                        <div class="d-flex align-items-start">
+                            <i class="bi bi-exclamation-triangle-fill"></i>
+                            <div>
+                                <p class="mb-1">
+                                    <strong>Attention !</strong>
+                                </p>
+                                <p class="mb-0" style="font-size: 0.9rem; font-weight: 400;">
+                                    Cette décision est importante. Vérifiez attentivement les informations avant de valider.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Formulaire d'approbation -->
+                    <form method="post">
+                        {% csrf_token %}
+                        {{ form.as_p }}
+
+                        <!-- Boutons d'action -->
+                        <div class="action-buttons">
+                            <a href="{% url 'liste_credits' %}" class="btn btn-secondary">
+                                <i class="bi bi-x-circle me-1"></i>
+                                Annuler
+                            </a>
+                            <button type="submit" class="btn btn-validate">
+                                <i class="bi bi-check-circle me-1"></i>
+                                Valider la décision
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Aide -->
+            <div class="text-center mt-3">
+                <small class="text-muted">
+                    <i class="bi bi-info-circle me-1"></i>
+                    Les champs marqués sont obligatoires
+                </small>
+            </div>
+        </div>
     </div>
 </div>
-<style>form p {margin-bottom: 1rem;} form p label {display: block; font-weight: 600; margin-bottom: 0.5rem;} form p input, form p select, form p textarea {width: 100%; padding: 0.5rem; border: 1px solid #ced4da; border-radius: 0.375rem;}</style>
 {% endblock %}

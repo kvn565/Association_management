@@ -1,0 +1,117 @@
+{% extends 'twiyungunganye/base.html' %}
+{% load static %}
+{% block title %}Intérêts mensuels{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <h2 class="mb-0"><i class="bi bi-percent"></i> Intérêts mensuels</h2>
+    <div class="d-flex flex-wrap gap-2">
+        <button type="submit" form="exportInteretsForm" class="btn btn-outline-primary">
+            <i class="bi bi-file-earmark-excel me-1"></i> Exporter Excel
+        </button>
+        {% if user.is_admin or user.is_gestionnaire %}
+        <a href="{% url 'generer_tous_interets' %}" class="btn btn-primary">
+            <i class="bi bi-calculator me-1"></i> Générer tous les intérêts
+        </a>
+        {% endif %}
+    </div>
+</div>
+<div class="row justify-content-end mb-4">
+    <div class="col-12 col-md-8 col-lg-6 col-xl-5">
+        <form id="exportInteretsForm" action="{% url 'export_interets_excel' %}" method="get">
+            <div class="input-group input-group-sm shadow-sm rounded">
+                <span class="input-group-text bg-white border-end-0 text-muted">
+                    <i class="bi bi-calendar-range me-2"></i> Période du :
+                </span>
+                <input type="date" name="date_debut" class="form-control border-start-0" title="Date de calcul (début)">
+                <span class="input-group-text bg-light text-muted border-start-0 border-end-0">au</span>
+                <input type="date" name="date_fin" class="form-control border-start-0" title="Date de calcul (fin)">
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        {% if interets_data %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0" id="interetsTable">
+                <thead>
+                    <tr>
+                        <th>Membre</th>
+                        <th>Crédit #</th>
+                        <th>Montant accordé</th>
+                        <th>Taux</th>
+                        <th>Date accord</th>
+                        <th>Mois écoulés</th>
+                        <th>Intérêt mensuel</th>
+                        <th>Intérêt cumulé</th>
+                        <th>Enregistré</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for item in interets_data %}
+                <tr>
+                    <td data-label="Membre">{{ item.membre.get_full_name }}</td>
+                    <td data-label="Crédit #">{{ item.credit.id_credit }}</td>
+                    <td data-label="Montant">{{ item.montant_accorde|floatformat:3 }} {{ devise }}</td>
+                    <td data-label="Taux">{{ item.taux_interet }}%</td>
+                    <td data-label="Date">{{ item.date_accord|date:"d/m/Y" }}</td>
+                    <td data-label="Mois">{{ item.mois_ecoules }}</td>
+                    <td data-label="Mensuel">{{ item.interet_mensuel|floatformat:3 }} {{ devise }}</td>
+                    <td data-label="Cumulé"><strong>{{ item.interet_cumule|floatformat:3 }} {{ devise }}</strong></td>
+                    <td data-label="Enregistré">{{ item.total_enregistre|floatformat:3 }} {{ devise }}</td>
+                    <td data-label="Actions">
+                        {% if item.interet_cumule > item.total_enregistre %}
+                        <a href="{% url 'generer_interets' item.credit.id_credit %}" class="btn btn-sm btn-primary" title="Générer intérêts">
+                            <i class="bi bi-calculator"></i> Générer
+                        </a>
+                        {% else %}
+                        <span class="text-success"><i class="bi bi-check-circle"></i> À jour</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <p class="text-muted mb-0">Aucun crédit avec intérêts à calculer</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+@media (max-width: 767px) {
+    #interetsTable thead { display: none; }
+    #interetsTable tbody tr {
+        display: block;
+        border: 1px solid #dee2e6;
+        border-radius: .5rem;
+        padding: .75rem;
+        margin: .75rem;
+        background: #fff;
+        box-shadow: 0 2px 4px rgba(0,0,0,.05);
+    }
+    #interetsTable tbody td {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: .35rem .5rem;
+        border: none;
+        border-bottom: 1px solid #f0f0f0;
+        text-align: right;
+    }
+    #interetsTable tbody td:last-child { border-bottom: none; }
+    #interetsTable tbody td::before {
+        content: attr(data-label);
+        font-weight: 600;
+        text-align: left;
+        padding-right: .5rem;
+        color: #555;
+    }
+}
+</style>
+{% endblock %}

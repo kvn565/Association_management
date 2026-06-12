@@ -94,7 +94,7 @@ def create_membres():
             'telephone': '+257 79 XX XX 99',
             'adresse': 'Bujumbura, Burundi',
             'est_actif': True,
-            'is_gestionnaire': True,
+            'is_admin': True,
             'is_staff': True,
         }
     )

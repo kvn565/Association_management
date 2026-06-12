@@ -1,0 +1,128 @@
+{% extends 'twiyungunganye/base.html' %}
+{% load static %}
+
+{% block title %}Cotisations Imprévus - {{ association.nom }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="mt-4">
+            <i class="fas fa-hand-holding-heart"></i> Cotisations Imprévus / Cas Sociaux
+        </h1>
+        <a href="{% url 'ajouter_cotisation_imprevu' %}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Ajouter une cotisation imprévus
+        </a>
+    </div>
+
+    <!-- Statistiques -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-primary text-white mb-4">
+                <div class="card-body">
+                    <h5>Total collecté</h5>
+                    <h3>{{ stats.total|default:0|floatformat:2 }} FBU</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-success text-white mb-4">
+                <div class="card-body">
+                    <h5>Payées</h5>
+                    <h3>{{ stats.payees|default:0 }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-warning text-white mb-4">
+                <div class="card-body">
+                    <h5>En attente</h5>
+                    <h3>{{ stats.en_attente|default:0 }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-danger text-white mb-4">
+                <div class="card-body">
+                    <h5>En retard</h5>
+                    <h3>{{ stats.en_retard|default:0 }}</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Messages -->
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <!-- Tableau des cotisations imprévus -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-table me-1"></i>
+            Liste des cotisations pour imprévus/cas sociaux
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th>Membre</th>
+                            <th>Montant</th>
+                            <th>Période</th>
+                            <th>Date de paiement</th>
+                            <th>Statut</th>
+                            <th>Remarque</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for cotisation in cotisations_imprevus %}
+                        <tr>
+                            <td>{{ cotisation.membre.get_full_name }}</td>
+                            <td><strong>{{ cotisation.montant|floatformat:2 }} FBU</strong></td>
+                            <td>{{ cotisation.get_mois_nom }} {{ cotisation.annee }}</td>
+                            <td>{{ cotisation.date_paiement|date:"d/m/Y" }}</td>
+                            <td>
+                                {% if cotisation.statut == 'PAYE' %}
+                                    <span class="badge bg-success">Payé</span>
+                                {% elif cotisation.statut == 'EN_ATTENTE' %}
+                                    <span class="badge bg-warning">En attente</span>
+                                {% else %}
+                                    <span class="badge bg-danger">En retard</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ cotisation.remarque|truncatewords:5|default:"-" }}</td>
+                            <td>
+                                <a href="{% url 'modifier_cotisation_imprevu' cotisation.pk %}" 
+                                   class="btn btn-sm btn-outline-primary" 
+                                   title="Modifier">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center text-muted">
+                                Aucune cotisation imprévus enregistrée.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bouton retour -->
+    <div class="mb-4">
+        <a href="{% url 'dashboard' %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Retour au tableau de bord
+        </a>
+    </div>
+</div>
+{% endblock %}

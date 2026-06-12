@@ -1,0 +1,131 @@
+{% extends 'superadmin/base_superadmin.html' %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<h2><i class="fas fa-tachometer-alt me-2"></i>Dashboard SuperAdmin</h2>
+
+<div class="row mt-4 g-2">
+    <div class="col-md-4 col-lg-2">
+        <div class="card stat-card tenants p-3 text-center">
+            <h3 class="mb-0">{{ total_tenants }}</h3>
+            <small class="text-muted">Associations</small>
+        </div>
+    </div>
+    <div class="col-md-4 col-lg-2">
+        <div class="card stat-card cles p-3 text-center">
+            <h3 class="mb-0">{{ total_cles }}</h3>
+            <small class="text-muted">Clés générées</small>
+        </div>
+    </div>
+    <div class="col-md-4 col-lg-2">
+        <div class="card stat-card actifs p-3 text-center">
+            <h3 class="mb-0">{{ total_cles_actives }}</h3>
+            <small class="text-muted">Clés actives</small>
+        </div>
+    </div>
+    <div class="col-md-4 col-lg-2">
+        <div class="card p-3 text-center border-info">
+            <h3 class="mb-0 text-info">{{ total_utilisateurs }}</h3>
+            <small class="text-muted">Utilisateurs</small>
+        </div>
+    </div>
+    <div class="col-md-4 col-lg-2">
+        <div class="card p-3 text-center border-success">
+            <h3 class="mb-0 text-success">{{ total_machines }}</h3>
+            <small class="text-muted">Machines connectées</small>
+        </div>
+    </div>
+    <div class="col-md-4 col-lg-2">
+        <div class="card p-3 text-center border-danger">
+            <h3 class="mb-0 text-danger">{{ total_cles_expirees }}</h3>
+            <small class="text-muted">Clés expirées</small>
+        </div>
+    </div>
+</div>
+
+<form method="get" class="row g-2 mt-3 mb-3">
+    <div class="col-auto">
+        <select name="tenant" class="form-select" onchange="this.form.submit()">
+            <option value="">Toutes les associations</option>
+            {% for t in tenants %}
+            <option value="{{ t.pk }}" {% if tenant_id == t.pk %}selected{% endif %}>{{ t.nom }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    {% if selected_tenant %}
+    <div class="col-auto">
+        <a href="{% url 'superadmin:dashboard' %}" class="btn btn-outline-secondary">Réinitialiser</a>
+    </div>
+    {% endif %}
+</form>
+
+<div class="row mt-2">
+    <div class="col-md-6">
+        <div class="card p-3">
+            <h5><i class="fas fa-chart-pie me-2"></i>Répartition des membres</h5>
+            <canvas id="chartRepartition" height="220"></canvas>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card p-3">
+            <h5><i class="fas fa-chart-bar me-2"></i>Cotisations par mois (6 mois)</h5>
+            <canvas id="chartCotisations" height="220"></canvas>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+(function() {
+    var pieData = {{ repartition_membres|safe }};
+    var pieLabels = pieData.map(function(d) { return d.label; });
+    var pieValues = pieData.map(function(d) { return d.total; });
+    var ctx1 = document.getElementById('chartRepartition');
+    if (ctx1) {
+        new Chart(ctx1, {
+            type: 'pie',
+            data: {
+                labels: pieLabels,
+                datasets: [{ data: pieValues, backgroundColor: ['#198754', '#dc3545'] }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { position: 'bottom' },
+                    tooltip: { callbacks: { label: function(c) { return c.label + ': ' + c.parsed + ' membre' + (c.parsed > 1 ? 's' : ''); } } }
+                }
+            }
+        });
+    }
+
+    var barData = {{ cotisations_par_mois|safe }};
+    var barLabels = barData.map(function(d) { return d.mois_cot || ''; });
+    var barValues = barData.map(function(d) { return parseFloat(d.total) || 0; });
+    var ctx2 = document.getElementById('chartCotisations');
+    if (ctx2) {
+        new Chart(ctx2, {
+            type: 'bar',
+            data: {
+                labels: barLabels,
+                datasets: [{
+                    label: 'Cotisations',
+                    data: barValues,
+                    backgroundColor: 'rgba(13, 110, 253, 0.6)',
+                    borderColor: '#0d6efd',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: { y: { beginAtZero: true } },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { callbacks: { label: function(c) { return c.parsed.toLocaleString() + ' FBU'; } } }
+                }
+            }
+        });
+    }
+})();
+</script>
+{% endblock %}

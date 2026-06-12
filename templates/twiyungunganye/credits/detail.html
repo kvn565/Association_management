@@ -1,50 +1,388 @@
 {% extends 'twiyungunganye/base.html' %}
+
 {% block title %}Détail crédit{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* En-tête détail crédit */
+    .detail-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 1.5rem;
+        border-radius: 15px;
+        color: white;
+        margin-bottom: 2rem;
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+    }
+
+    .detail-header h2 {
+        margin: 0;
+        font-weight: 700;
+        font-size: 1.5rem;
+    }
+
+    /* Cards informations */
+    .info-card {
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 5px 20px rgba(0,0,0,.1);
+        overflow: hidden;
+        margin-bottom: 1.5rem;
+        transition: all 0.3s ease;
+    }
+
+    .info-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 30px rgba(0,0,0,.15);
+    }
+
+    .info-card .card-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        font-weight: 600;
+        padding: 1rem 1.25rem;
+        border: none;
+    }
+
+    .info-card .card-header h5 {
+        margin: 0;
+        font-size: 1.1rem;
+    }
+
+    .info-card .card-body {
+        padding: 1.5rem;
+    }
+
+    .info-card .card-body p {
+        margin-bottom: 1rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid #f0f0f0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .info-card .card-body p:last-child {
+        border-bottom: none;
+        margin-bottom: 0;
+    }
+
+    .info-card .card-body strong {
+        color: #667eea;
+        font-weight: 600;
+    }
+
+    /* Badge personnalisé */
+    .status-badge {
+        padding: 0.5em 1em;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+
+    /* Table remboursements */
+    .remboursement-card {
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 5px 20px rgba(0,0,0,.1);
+        overflow: hidden;
+    }
+
+    .remboursement-card .card-header {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        color: white;
+        padding: 1rem 1.25rem;
+        border: none;
+    }
+
+    .remboursement-card .table {
+        margin-bottom: 0;
+    }
+
+    .remboursement-card .table thead {
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+    }
+
+    /* Boutons d'action */
+    .action-buttons {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+    }
+
+    /* Message vide */
+    .empty-state {
+        text-align: center;
+        padding: 2rem;
+        color: #6c757d;
+    }
+
+    .empty-state i {
+        font-size: 3rem;
+        opacity: 0.5;
+        margin-bottom: 1rem;
+    }
+
+    /* Responsive */
+    @media (max-width: 991px) {
+        .detail-header {
+            padding: 1.25rem;
+        }
+
+        .detail-header h2 {
+            font-size: 1.3rem;
+        }
+
+        .info-card .card-body {
+            padding: 1.25rem;
+        }
+    }
+
+    @media (max-width: 767px) {
+        .detail-header {
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .detail-header h2 {
+            font-size: 1.1rem;
+        }
+
+        /* Cards en pleine largeur */
+        .col-md-6 {
+            margin-bottom: 1rem;
+        }
+
+        .info-card .card-body {
+            padding: 1rem;
+        }
+
+        .info-card .card-body p {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.25rem;
+        }
+
+        .info-card .card-body p strong {
+            font-size: 0.9rem;
+        }
+
+        /* Table remboursements en cards */
+        .table thead {
+            display: none;
+        }
+
+        .table tbody tr {
+            display: block;
+            margin-bottom: 1rem;
+            border: 1px solid #dee2e6;
+            border-radius: 10px;
+            padding: 1rem;
+            background: white;
+        }
+
+        .table tbody td {
+            display: block;
+            text-align: left !important;
+            padding: 0.5rem 0;
+            border: none;
+            position: relative;
+            padding-left: 45%;
+        }
+
+        .table tbody td:before {
+            content: attr(data-label);
+            position: absolute;
+            left: 0;
+            font-weight: 600;
+            color: #667eea;
+            width: 40%;
+        }
+
+        /* Boutons empilés */
+        .action-buttons {
+            flex-direction: column;
+        }
+
+        .action-buttons .btn {
+            width: 100%;
+        }
+
+        .status-badge {
+            font-size: 0.8rem;
+            padding: 0.4em 0.8em;
+        }
+
+        .empty-state {
+            padding: 1.5rem 1rem;
+        }
+
+        .empty-state i {
+            font-size: 2rem;
+        }
+    }
+
+    @media (max-width: 575px) {
+        .detail-header h2 {
+            font-size: 1rem;
+        }
+
+        .info-card .card-header h5 {
+            font-size: 1rem;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<h2><i class="bi bi-wallet2"></i> Détail du crédit #{{ credit.id_credit }}</h2>
-<div class="row">
-    <div class="col-md-6">
-        <div class="card mb-3">
-            <div class="card-header"><h5>Informations</h5></div>
-            <div class="card-body">
-                <p><strong>Membre:</strong> {{ credit.membre.get_full_name }}</p>
-                <p><strong>Montant demandé:</strong> {{ credit.montant_demande|floatformat:0 }} FBU</p>
-                <p><strong>Montant accordé:</strong> {{ credit.montant_accorde|floatformat:0 }} FBU</p>
-                <p><strong>Taux:</strong> {{ credit.taux_interet }}%</p>
-                <p><strong>Intérêt calculé:</strong> {{ credit.calculer_interet|floatformat:0 }} FBU</p>
-                <p><strong>Total à rembourser:</strong> {{ credit.calculer_montant_total|floatformat:0 }} FBU</p>
-                <p><strong>Statut:</strong> <span class="badge bg-info">{{ credit.get_statut_display }}</span></p>
+<div class="container-fluid">
+    <!-- En-tête -->
+    <div class="detail-header">
+        <h2>
+            <i class="bi bi-wallet2 me-2"></i>
+            Détail du crédit #{{ credit.id_credit }}
+        </h2>
+    </div>
+
+    <div class="row">
+        <!-- Colonne informations -->
+        <div class="col-12 col-lg-6">
+            <div class="info-card card">
+                <div class="card-header">
+                    <h5>
+                        <i class="bi bi-info-circle me-2"></i>
+                        Informations
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p>
+                        <strong>Membre :</strong>
+                        <span>{{ credit.membre.get_full_name }}</span>
+                    </p>
+                    <p>
+                        <strong>Montant demandé :</strong>
+                        <span class="text-primary fw-bold">{{ credit.montant_demande|floatformat:3 }} {{ devise }}</span>
+                    </p>
+                    <p>
+                        <strong>Montant accordé :</strong>
+                        <span class="text-success fw-bold">{{ credit.montant_accorde|floatformat:3 }} {{ devise }}</span>
+                    </p>
+                    <p>
+                        <strong>Taux d'intérêt :</strong>
+                        <span>{{ credit.taux_interet }}%</span>
+                    </p>
+                    <p>
+                        <strong>Intérêt calculé :</strong>
+                        <span class="text-warning fw-bold">{{ credit.calculer_interet|floatformat:3 }} {{ devise }}</span>
+                    </p>
+                    <p>
+                        <strong>Total à rembourser :</strong>
+                        <span class="text-danger fw-bold">{{ credit.calculer_montant_total|floatformat:3 }} {{ devise }}</span>
+                    </p>
+                    <p>
+                        <strong>Statut :</strong>
+                        <span>
+                            {% if credit.statut == 'EN_ATTENTE' %}
+                                <span class="status-badge bg-warning text-dark">
+                                    <i class="bi bi-clock me-1"></i>En attente
+                                </span>
+                            {% elif credit.statut == 'APPROUVE' %}
+                                <span class="status-badge bg-success">
+                                    <i class="bi bi-check-circle me-1"></i>Approuvé
+                                </span>
+                            {% elif credit.statut == 'REJETE' %}
+                                <span class="status-badge bg-danger">
+                                    <i class="bi bi-x-circle me-1"></i>Rejeté
+                                </span>
+                            {% elif credit.statut == 'EN_COURS' %}
+                                <span class="status-badge bg-info">
+                                    <i class="bi bi-arrow-repeat me-1"></i>En cours
+                                </span>
+                            {% else %}
+                                <span class="status-badge bg-secondary">
+                                    <i class="bi bi-check-all me-1"></i>Remboursé
+                                </span>
+                            {% endif %}
+                        </span>
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Colonne remboursements -->
+        <div class="col-12 col-lg-6">
+            <div class="remboursement-card card">
+                <div class="card-header d-flex justify-content-between align-items-center flex-wrap">
+                    <h5 class="mb-0">
+                        <i class="bi bi-arrow-repeat me-2"></i>
+                        Remboursements
+                    </h5>
+                    {% if user.is_admin %}
+                    <a href="{% url 'ajouter_remboursement_credit' credit.pk %}" class="btn btn-sm btn-light mt-2 mt-md-0">
+                        <i class="bi bi-plus-circle me-1"></i>
+                        <span class="d-none d-sm-inline">Ajouter</span>
+                    </a>
+                    {% endif %}
+                </div>
+                <div class="card-body p-0">
+                    {% if remboursements %}
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Montant</th>
+                                    <th>Reste</th>
+                                    <th>Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for remb in remboursements %}
+                                <tr>
+                                    <td data-label="Montant:">
+                                        <strong class="text-success">{{ remb.montant_rembourse|floatformat:3 }}</strong> {{ devise }}
+                                    </td>
+                                    <td data-label="Reste:">
+                                        <strong class="text-warning">{{ remb.reste_a_rembourser|floatformat:3 }}</strong> {{ devise }}
+                                    </td>
+                                    <td data-label="Date:">
+                                        {{ remb.date_remboursement|date:"d/m/Y" }}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="empty-state">
+                        <i class="bi bi-inbox"></i>
+                        <p class="mb-0">Aucun remboursement enregistré</p>
+                    </div>
+                    {% endif %}
+                </div>
             </div>
         </div>
     </div>
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header d-flex justify-content-between">
-                <h5>Remboursements</h5>
-                {% if user.is_admin or user.is_gestionnaire %}<a href="{% url 'ajouter_remboursement_credit' credit.pk %}" class="btn btn-sm btn-primary">Ajouter</a>{% endif %}
-            </div>
-            <div class="card-body">
-                {% if remboursements %}
-                <table class="table table-sm">
-                    <thead><tr><th>Montant</th><th>Reste</th><th>Date</th></tr></thead>
-                    <tbody>
-                    {% for remb in remboursements %}
-                    <tr>
-                        <td>{{ remb.montant_rembourse|floatformat:0 }} FBU</td>
-                        <td>{{ remb.reste_a_rembourser|floatformat:0 }} FBU</td>
-                        <td>{{ remb.date_remboursement|date:"d/m/Y" }}</td>
-                    </tr>
-                    {% endfor %}
-                    </tbody>
-                </table>
-                {% else %}<p>Aucun remboursement</p>{% endif %}
-            </div>
+
+    <!-- Boutons d'action (admin) -->
+    {% if user.is_admin and credit.statut == 'EN_ATTENTE' %}
+    <div class="mt-4">
+        <div class="action-buttons">
+            <a href="{% url 'approuver_credit' credit.pk %}" class="btn btn-success btn-lg">
+                <i class="bi bi-check-circle me-2"></i>
+                Approuver / Rejeter
+            </a>
+            <a href="{% url 'liste_credits' %}" class="btn btn-secondary btn-lg">
+                <i class="bi bi-arrow-left me-2"></i>
+                Retour à la liste
+            </a>
         </div>
     </div>
+    {% else %}
+    <div class="mt-4 text-center text-md-start">
+        <a href="{% url 'liste_credits' %}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left me-2"></i>
+            Retour à la liste
+        </a>
+    </div>
+    {% endif %}
 </div>
-{% if user.is_admin and credit.statut == 'EN_ATTENTE' %}
-<div class="mt-3">
-    <a href="{% url 'approuver_credit' credit.pk %}" class="btn btn-success"><i class="bi bi-check"></i> Approuver/Rejeter</a>
-</div>
-{% endif %}
 {% endblock %}

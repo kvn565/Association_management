@@ -1,0 +1,41 @@
+{% extends 'superadmin/base_superadmin.html' %}
+{% block title %}{{ action }} une association{% endblock %}
+{% block content %}
+<h2>{{ action }} une association</h2>
+<div class="card p-4">
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+        <div class="alert alert-danger">{% for e in form.non_field_errors %}{{ e }}{% endfor %}</div>
+        {% endif %}
+
+        <h5 class="text-primary mb-3"><i class="bi bi-building me-2"></i>Identification</h5>
+        <div class="row">
+            <div class="col-md-4 mb-3">
+                <label class="form-label">{{ form.nif.label }}</label>
+                {{ form.nif }}
+            </div>
+            <div class="col-md-4 mb-3">
+                <label class="form-label">{{ form.nom.label }}</label>
+                {{ form.nom }}
+            </div>
+            <div class="col-md-2 mb-3">
+                <label class="form-label">{{ form.sigle.label }}</label>
+                {{ form.sigle }}
+            </div>
+            <div class="col-md-2 mb-3">
+                <label class="form-label">{{ form.sous_domaine.label }}</label>
+                {{ form.sous_domaine }}
+                <div class="form-text">{{ form.sous_domaine.help_text }}</div>
+                {% for e in form.sous_domaine.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+            </div>
+        </div>
+
+        <div class="mt-4">
+            <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> {{ action }}</button>
+            <a href="{% url 'superadmin:tenant_liste' %}" class="btn btn-secondary">Annuler</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

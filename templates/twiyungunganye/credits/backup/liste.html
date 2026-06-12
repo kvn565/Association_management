@@ -1,0 +1,50 @@
+{% extends 'twiyungunganye/base.html' %}
+{% block title %}Crédits{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between mb-4">
+    <h2><i class="bi bi-wallet2"></i> Crédits</h2>
+    {% if not user.is_admin and not user.is_gestionnaire %}<a href="{% url 'demander_credit' %}" class="btn btn-primary"><i class="bi bi-plus"></i> Demander un crédit</a>{% endif %}
+</div>
+<div class="card">
+    <div class="card-body">
+        {% if credits %}
+        <table class="table table-hover">
+            <thead><tr><th>Membre</th><th>Montant demandé</th><th>Montant accordé</th><th>Statut</th><th>Date</th><th>Action</th></tr></thead>
+            <tbody>
+            {% for credit in credits %}
+            <tr>
+                <td>{{ credit.membre.get_full_name }}</td>
+                <td>{{ credit.montant_demande|floatformat:0 }} Fbu</td>
+                <td>{{ credit.montant_accorde|floatformat:0 }} Fbu</td>
+                <td>
+                    {% if credit.statut == 'EN_ATTENTE' %}<span class="badge bg-warning">En attente</span>
+                    {% elif credit.statut == 'APPROUVE' %}<span class="badge bg-success">Approuvé</span>
+                    {% elif credit.statut == 'REJETE' %}<span class="badge bg-danger">Rejeté</span>
+                    {% elif credit.statut == 'EN_COURS' %}<span class="badge bg-info">En cours</span>
+                    {% else %}<span class="badge bg-secondary">Remboursé</span>{% endif %}
+                </td>
+                <td>{{ credit.date_demande|date:"d/m/Y" }}</td>
+                <td><a href="{% url 'detail_credit' credit.pk %}" class="btn btn-sm btn-primary"><i class="bi bi-eye"></i></a></td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}<div class="text-center py-5"><p>Aucun crédit</p></div>{% endif %}
+    </div>
+</div>
+<div class="d-flex justify-content-between mb-4">
+    <h2><i class="bi bi-wallet2"></i> Crédits</h2>
+    <div>
+        {% if user.is_admin or user.is_gestionnaire %}
+        <a href="{% url 'export_liste_credits_pdf' %}" class="btn btn-success me-2">
+            <i class="bi bi-file-earmark-pdf"></i> Exporter PDF
+        </a>
+        {% endif %}
+        {% if not user.is_admin and not user.is_gestionnaire %}
+        <a href="{% url 'demander_credit' %}" class="btn btn-primary">
+            <i class="bi bi-plus"></i> Demander un crédit
+        </a>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

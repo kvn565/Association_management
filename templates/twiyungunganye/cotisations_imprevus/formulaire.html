@@ -3,12 +3,176 @@
 
 {% block title %}{{ action }} une cotisation imprévus - {{ association.nom }}{% endblock %}
 
-{% block content %}
-<div class="container-fluid px-4">
-    <h1 class="mt-4">
-        <i class="fas fa-hand-holding-heart"></i> {{ action }} une cotisation imprévus
-    </h1>
+{% block extra_css %}
+<style>
+    /* En-tête formulaire imprévus */
+    .form-header {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        padding: 1.5rem;
+        border-radius: 15px 15px 0 0;
+        color: white;
+        margin: -1rem -1rem 1.5rem -1rem;
+        box-shadow: 0 4px 15px rgba(240, 147, 251, 0.3);
+    }
 
+    .form-header h2 {
+        margin: 0;
+        font-weight: 700;
+        font-size: 1.5rem;
+    }
+
+    /* Styles des champs */
+    .mb-3 label {
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 0.5rem;
+    }
+
+    .mb-3 input,
+    .mb-3 select,
+    .mb-3 textarea {
+        border: 2px solid #e0e0e0;
+        border-radius: 10px;
+        padding: 0.75rem;
+        font-size: 16px;
+        transition: all 0.3s ease;
+    }
+
+    .mb-3 input:focus,
+    .mb-3 select:focus,
+    .mb-3 textarea:focus {
+        border-color: #f093fb;
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(240, 147, 251, 0.1);
+    }
+
+    .invalid-feedback {
+        color: #dc3545;
+        font-size: 0.85rem;
+        padding: 0.5rem;
+        background: #f8d7da;
+        border-radius: 5px;
+        margin-top: 0.5rem;
+        border-left: 3px solid #dc3545;
+    }
+
+    /* Info card */
+    .info-card {
+        background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+        border-radius: 15px;
+        border: none;
+        box-shadow: 0 4px 15px rgba(0,0,0,.08);
+    }
+
+    .info-card .card-header {
+        background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%);
+        color: white;
+        border: none;
+        font-weight: 600;
+        border-radius: 15px 15px 0 0;
+    }
+
+    .info-card .card-body {
+        color: #1565c0;
+    }
+
+    .info-card .card-body p {
+        margin-bottom: 0.75rem;
+    }
+
+    .info-card .card-body .small {
+        font-size: 0.9rem;
+        line-height: 1.8;
+    }
+
+    /* Boutons */
+    .btn-group-form {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.75rem;
+        margin-top: 2rem;
+        padding-top: 1.5rem;
+        border-top: 2px solid #f0f0f0;
+    }
+
+    .btn-save {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        border: none;
+        color: white;
+        font-weight: 600;
+        padding: 0.75rem 2rem;
+        transition: all 0.3s ease;
+    }
+
+    .btn-save:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 20px rgba(240, 147, 251, 0.4);
+        color: white;
+    }
+
+    /* Responsive */
+    @media (max-width: 991px) {
+        .form-header {
+            padding: 1.25rem;
+        }
+
+        .form-header h2 {
+            font-size: 1.3rem;
+        }
+
+        .col-lg-8, .col-lg-4 {
+            margin-bottom: 1.5rem;
+        }
+    }
+
+    @media (max-width: 767px) {
+        .form-header {
+            padding: 1rem;
+            margin: -0.75rem -0.75rem 1rem -0.75rem;
+        }
+
+        .form-header h2 {
+            font-size: 1.1rem;
+        }
+
+        .mb-3 label {
+            font-size: 0.9rem;
+        }
+
+        .mb-3 input,
+        .mb-3 select,
+        .mb-3 textarea {
+            padding: 0.6rem;
+        }
+
+        .btn-group-form {
+            flex-direction: column-reverse;
+            gap: 0.5rem;
+        }
+
+        .btn-group-form .btn {
+            width: 100%;
+        }
+
+        .info-card .card-body .small {
+            font-size: 0.85rem;
+        }
+    }
+
+    @media (max-width: 575px) {
+        .form-header h2 {
+            font-size: 1rem;
+        }
+
+        .mb-3 label {
+            font-size: 0.85rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
     <!-- Messages -->
     {% if messages %}
         {% for message in messages %}
@@ -20,13 +184,18 @@
     {% endif %}
 
     <div class="row">
-        <div class="col-lg-8">
-            <div class="card mb-4">
-                <div class="card-header">
-                    <i class="fas fa-file-invoice me-1"></i>
-                    Informations de la cotisation
-                </div>
-                <div class="card-body">
+        <div class="col-12 col-lg-8">
+            <div class="card shadow-lg border-0">
+                <div class="card-body p-4">
+                    <!-- En-tête -->
+                    <div class="form-header">
+                        <h2>
+                            <i class="bi bi-heart-fill me-2"></i>
+                            {{ action }} une cotisation imprévus
+                        </h2>
+                    </div>
+
+                    <!-- Formulaire -->
                     <form method="post">
                         {% csrf_token %}
                         
@@ -118,23 +287,23 @@
                             {% endif %}
                         </div>
 
-                        <div class="d-flex justify-content-between">
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-save"></i> Enregistrer
-                            </button>
+                        <div class="btn-group-form">
                             <a href="{% url 'liste_cotisations_imprevus' %}" class="btn btn-secondary">
-                                <i class="fas fa-times"></i> Annuler
+                                <i class="bi bi-x-circle me-1"></i> Annuler
                             </a>
+                            <button type="submit" class="btn btn-save">
+                                <i class="bi bi-check-circle me-1"></i> Enregistrer
+                            </button>
                         </div>
                     </form>
                 </div>
             </div>
         </div>
 
-        <div class="col-lg-4">
-            <div class="card mb-4">
-                <div class="card-header bg-info text-white">
-                    <i class="fas fa-info-circle"></i> Information
+        <div class="col-12 col-lg-4">
+            <div class="info-card card">
+                <div class="card-header">
+                    <i class="bi bi-info-circle me-1"></i> Information
                 </div>
                 <div class="card-body">
                     <p><strong>Cotisations imprévus / Cas sociaux</strong></p>
@@ -143,10 +312,10 @@
                         Elles servent à constituer un fonds de solidarité pour aider les membres en cas de besoin.
                     </p>
                     <hr>
-                    <p class="small">
-                        <i class="fas fa-check-circle text-success"></i> <strong>Payé</strong> : Cotisation reçue<br>
-                        <i class="fas fa-clock text-warning"></i> <strong>En attente</strong> : Non encore reçue<br>
-                        <i class="fas fa-exclamation-triangle text-danger"></i> <strong>En retard</strong> : Paiement en retard
+                    <p class="small mb-0">
+                        <i class="bi bi-check-circle text-success me-1"></i> <strong>Payé</strong> : Cotisation reçue<br>
+                        <i class="bi bi-clock text-warning me-1"></i> <strong>En attente</strong> : Non encore reçue<br>
+                        <i class="bi bi-exclamation-triangle text-danger me-1"></i> <strong>En retard</strong> : Paiement en retard
                     </p>
                 </div>
             </div>

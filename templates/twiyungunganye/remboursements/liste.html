@@ -1,47 +1,102 @@
 {% extends 'twiyungunganye/base.html' %}
 {% block title %}Remboursements{% endblock %}
 {% block content %}
-<div class="d-flex justify-content-between mb-4">
-    <h2><i class="bi bi-credit-card"></i> Remboursements</h2>
-    <a href="{% url 'export_liste_remboursements_pdf' %}" class="btn btn-success">
-        <i class="bi bi-file-earmark-pdf"></i> Exporter PDF
-    </a>
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <h2 class="mb-0"><i class="bi bi-credit-card"></i> Remboursements</h2>
+    <div class="d-flex flex-wrap gap-2">
+        {% if user.is_admin or user.is_gestionnaire %}
+        <a href="{% url 'ajouter_remboursement' %}" class="btn btn-primary">
+            <i class="bi bi-plus-circle me-1"></i> Ajouter remboursement
+        </a>
+        {% endif %}
+        <button type="submit" form="exportRemboursementsForm" class="btn btn-success">
+            <i class="bi bi-file-earmark-pdf"></i> Exporter PDF
+        </button>
+    </div>
+</div>
+<div class="row justify-content-end mb-4">
+    <div class="col-12 col-md-8 col-lg-6 col-xl-5">
+        <form id="exportRemboursementsForm" action="{% url 'export_liste_remboursements_pdf' %}" method="get">
+            <div class="input-group input-group-sm shadow-sm rounded">
+                <span class="input-group-text bg-white border-end-0 text-muted">
+                    <i class="bi bi-calendar-range me-2"></i> Période du :
+                </span>
+                <input type="date" name="date_debut" class="form-control border-start-0" title="Date de remboursement (début)">
+                <span class="input-group-text bg-light text-muted border-start-0 border-end-0">au</span>
+                <input type="date" name="date_fin" class="form-control border-start-0" title="Date de remboursement (fin)">
+            </div>
+        </form>
+    </div>
 </div>
 
 <div class="card">
-    <div class="card-body">
+    <div class="card-body p-0">
         {% if remboursements %}
-        <table class="table table-hover">
-            <thead>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0" id="rembTable">
+                <thead>
+                    <tr>
+                        <th>Membre</th>
+                        <th>Crédit #</th>
+                        <th>Montant</th>
+                        <th>Intérêt</th>
+                        <th>Total</th>
+                        <th>Reste</th>
+                        <th>Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for remb in remboursements %}
                 <tr>
-                    <th>Membre</th>
-                    <th>Crédit #</th>
-                    <th>Montant</th>
-                    <th>Intérêt</th>
-                    <th>Total</th>
-                    <th>Reste</th>
-                    <th>Date</th>
+                    <td data-label="Membre">{{ remb.credit.membre.get_full_name }}</td>
+                    <td data-label="Crédit #">{{ remb.credit.id_credit }}</td>
+                    <td data-label="Montant">{{ remb.montant_rembourse|floatformat:3 }} {{ devise }}</td>
+                    <td data-label="Intérêt">{{ remb.interet_rembourse|floatformat:3 }} {{ devise }}</td>
+                    <td data-label="Total">{{ remb.montant_rembourse|add:remb.interet_rembourse|floatformat:3 }} {{ devise }}</td>
+                    <td data-label="Reste">{{ remb.reste_a_rembourser|floatformat:3 }} {{ devise }}</td>
+                    <td data-label="Date">{{ remb.date_remboursement|date:"d/m/Y" }}</td>
                 </tr>
-            </thead>
-            <tbody>
-            {% for remb in remboursements %}
-            <tr>
-                <td>{{ remb.credit.membre.get_full_name }}</td>
-                <td>{{ remb.credit.id_credit }}</td>
-                <td>{{ remb.montant_rembourse|floatformat:0 }} FBU</td>
-                <td>{{ remb.interet_rembourse|floatformat:0 }} FBU</td>
-                <td>{{ remb.montant_rembourse|add:remb.interet_rembourse|floatformat:0 }} FBU</td>
-                <td>{{ remb.reste_a_rembourser|floatformat:0 }} FBU</td>
-                <td>{{ remb.date_remboursement|date:"d/m/Y" }}</td>
-            </tr>
-            {% endfor %}
-            </tbody>
-        </table>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
         {% else %}
         <div class="text-center py-5">
-            <p>Aucun remboursement</p>
+            <p class="text-muted mb-0">Aucun remboursement</p>
         </div>
         {% endif %}
     </div>
 </div>
+
+<style>
+@media (max-width: 767px) {
+    #rembTable thead { display: none; }
+    #rembTable tbody tr {
+        display: block;
+        border: 1px solid #dee2e6;
+        border-radius: .5rem;
+        padding: .75rem;
+        margin: .75rem;
+        background: #fff;
+        box-shadow: 0 2px 4px rgba(0,0,0,.05);
+    }
+    #rembTable tbody td {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: .35rem .5rem;
+        border: none;
+        border-bottom: 1px solid #f0f0f0;
+        text-align: right;
+    }
+    #rembTable tbody td:last-child { border-bottom: none; }
+    #rembTable tbody td::before {
+        content: attr(data-label);
+        font-weight: 600;
+        text-align: left;
+        padding-right: .5rem;
+        color: #555;
+    }
+}
+</style>
 {% endblock %}

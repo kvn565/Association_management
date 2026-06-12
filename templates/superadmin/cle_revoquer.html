@@ -1,0 +1,16 @@
+{% extends 'superadmin/base_superadmin.html' %}
+{% block title %}Révoquer une clé{% endblock %}
+{% block content %}
+<h2>Révoquer la clé <code>{{ cle.cle_visible }}</code></h2>
+<div class="card p-4">
+    <form method="post">
+        {% csrf_token %}
+        <div class="mb-3">
+            <label class="form-label">Motif de la révocation</label>
+            <textarea name="motif" class="form-control" rows="4" placeholder="Expliquez la raison..." required></textarea>
+        </div>
+        <button type="submit" class="btn btn-danger"><i class="fas fa-ban"></i> Confirmer la révocation</button>
+        <a href="{% url 'superadmin:cle_detail' cle.pk %}" class="btn btn-secondary">Annuler</a>
+    </form>
+</div>
+{% endblock %}

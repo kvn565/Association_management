@@ -18,10 +18,15 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from django.shortcuts import redirect
+from superadmin import views as superadmin_views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('superadmin/', include('superadmin.urls', namespace='superadmin')),
+    path('setup/', superadmin_views.inscription_chef, name='inscription_chef'),
     path('', include('twiyungunganye.urls')),
+    path('cas-assistance/', include('cas_assistance.urls', namespace='cas_assistance')),
 ]
 
 # Servir les fichiers media en développement

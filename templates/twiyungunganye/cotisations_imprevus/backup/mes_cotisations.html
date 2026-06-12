@@ -1,0 +1,101 @@
+{% extends 'twiyungunganye/base.html' %}
+{% load static %}
+
+{% block title %}Mes Cotisations Imprévus{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4 mb-4">
+        <i class="fas fa-hand-holding-heart"></i> Mes Cotisations Imprévus
+    </h1>
+
+    <!-- Total payé -->
+    <div class="row mb-4">
+        <div class="col-xl-4 col-md-6">
+            <div class="card text-white bg-info mb-4">
+                <div class="card-body">
+                    <h5>Total payé</h5>
+                    <h3>{{ total_paye|floatformat:2 }} FBU</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Messages -->
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <!-- Tableau des cotisations imprévus -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-table me-1"></i> Historique de mes cotisations imprévus
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped table-bordered">
+                    <thead>
+                        <tr>
+                            <th>Période</th>
+                            <th>Montant</th>
+                            <th>Date de paiement</th>
+                            <th>Statut</th>
+                            <th>Remarque</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for cotisation in cotisations_imprevus %}
+                        <tr>
+                            <td>{{ cotisation.get_mois_nom }} {{ cotisation.annee }}</td>
+                            <td><strong>{{ cotisation.montant|floatformat:2 }} FBU</strong></td>
+                            <td>
+                                {% if cotisation.date_paiement %}
+                                    {{ cotisation.date_paiement|date:"d/m/Y" }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if cotisation.statut == 'PAYE' %}
+                                    <span class="badge bg-success">Payé</span>
+                                {% elif cotisation.statut == 'EN_ATTENTE' %}
+                                    <span class="badge bg-warning text-dark">En attente</span>
+                                {% else %}
+                                    <span class="badge bg-danger">En retard</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ cotisation.remarque|default:"-" }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center text-muted">
+                                Vous n'avez aucune cotisation imprévus enregistrée.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Information -->
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle"></i>
+        <strong>À propos des cotisations imprévus :</strong><br>
+        Ces cotisations constituent un fonds de solidarité pour aider les membres en cas de besoin (maladie, décès, événements imprévus, etc.).
+    </div>
+
+    <!-- Bouton retour -->
+    <div class="mb-4">
+        <a href="{% url 'dashboard' %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Retour au tableau de bord
+        </a>
+    </div>
+</div>
+{% endblock %}

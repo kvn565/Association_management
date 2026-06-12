@@ -1,16 +1,235 @@
 {% extends 'twiyungunganye/base.html' %}
+
 {% block title %}{{ action }} cotisation{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Styles pour le formulaire cotisation */
+    .form-header {
+        background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+        padding: 1.5rem;
+        border-radius: 15px 15px 0 0;
+        color: white;
+        margin: -1rem -1rem 1.5rem -1rem;
+        box-shadow: 0 4px 15px rgba(67, 233, 123, 0.3);
+    }
+
+    .form-header h2 {
+        margin: 0;
+        font-weight: 700;
+        font-size: 1.5rem;
+    }
+
+    /* Styles des champs de formulaire */
+    form p {
+        margin-bottom: 1.5rem;
+    }
+
+    form p label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        color: #333;
+        font-size: 0.95rem;
+    }
+
+    form p input,
+    form p select {
+        width: 100%;
+        padding: 0.75rem;
+        border: 2px solid #e0e0e0;
+        border-radius: 10px;
+        font-size: 16px;
+        transition: all 0.3s ease;
+        background: white;
+    }
+
+    form p input:focus,
+    form p select:focus {
+        border-color: #43e97b;
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(67, 233, 123, 0.1);
+    }
+
+    .helptext {
+        display: block;
+        font-size: 0.85rem;
+        color: #6c757d;
+        margin-top: 0.25rem;
+        font-style: italic;
+    }
+
+    .errorlist {
+        list-style: none;
+        padding: 0;
+        margin: 0.5rem 0 0 0;
+    }
+
+    .errorlist li {
+        color: #dc3545;
+        font-size: 0.85rem;
+        padding: 0.5rem;
+        background: #f8d7da;
+        border-radius: 5px;
+        margin-bottom: 0.5rem;
+        border-left: 3px solid #dc3545;
+    }
+
+    .info-box {
+        background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+        padding: 1rem;
+        border-radius: 10px;
+        margin-bottom: 1.5rem;
+        border-left: 4px solid #28a745;
+    }
+
+    .info-box i {
+        font-size: 1.5rem;
+        color: #28a745;
+        margin-right: 0.5rem;
+    }
+
+    .info-box p {
+        margin: 0;
+        color: #155724;
+        font-weight: 500;
+        font-size: 0.9rem;
+    }
+
+    .btn-group-form {
+        display: flex;
+        gap: 0.75rem;
+        margin-top: 2rem;
+        padding-top: 1.5rem;
+        border-top: 2px solid #f0f0f0;
+    }
+
+    .btn-save {
+        background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+        border: none;
+        color: white;
+        font-weight: 600;
+        padding: 0.75rem 2rem;
+        transition: all 0.3s ease;
+    }
+
+    .btn-save:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 20px rgba(67, 233, 123, 0.4);
+        color: white;
+    }
+
+    /* Responsive */
+    @media (max-width: 767px) {
+        .form-header {
+            padding: 1rem;
+            margin: -0.75rem -0.75rem 1rem -0.75rem;
+        }
+
+        .form-header h2 {
+            font-size: 1.2rem;
+        }
+
+        form p {
+            margin-bottom: 1.25rem;
+        }
+
+        form p label {
+            font-size: 0.9rem;
+        }
+
+        form p input,
+        form p select {
+            padding: 0.6rem;
+        }
+
+        .btn-group-form {
+            flex-direction: column-reverse;
+            gap: 0.5rem;
+        }
+
+        .btn-group-form .btn {
+            width: 100%;
+        }
+
+        .info-box {
+            padding: 0.75rem;
+        }
+
+        .info-box i {
+            font-size: 1.2rem;
+        }
+    }
+
+    @media (max-width: 575px) {
+        .form-header h2 {
+            font-size: 1.1rem;
+        }
+
+        form p label {
+            font-size: 0.85rem;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<h2><i class="bi bi-cash-coin"></i> {{ action }} une cotisation</h2>
-<div class="card">
-    <div class="card-body">
-        <form method="post">
-            {% csrf_token %}
-            {{ form.as_p }}
-            <button type="submit" class="btn btn-primary"><i class="bi bi-check"></i> Enregistrer</button>
-            <a href="{% url 'liste_cotisations' %}" class="btn btn-secondary">Annuler</a>
-        </form>
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-12 col-md-10 col-lg-8">
+            <div class="card shadow-lg border-0">
+                <div class="card-body p-4">
+                    <!-- En-tête avec dégradé -->
+                    <div class="form-header">
+                        <h2>
+                            <i class="bi bi-cash-coin me-2"></i>
+                            {{ action }} une cotisation
+                        </h2>
+                    </div>
+
+                    <!-- Info box -->
+                    <div class="info-box">
+                        <div class="d-flex align-items-start">
+                            <i class="bi bi-info-circle-fill"></i>
+                            <div>
+                                <p class="mb-1">
+                                    <strong>Information :</strong>
+                                </p>
+                                <p class="mb-0">
+                                    Enregistrez la cotisation mensuelle du membre. Assurez-vous que les informations sont correctes.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Formulaire -->
+                    <form method="post">
+                        {% csrf_token %}
+                        {{ form.as_p }}
+
+                        <!-- Groupe de boutons -->
+                        <div class="btn-group-form">
+                            <a href="{% url 'liste_cotisations' %}" class="btn btn-secondary">
+                                <i class="bi bi-x-circle me-1"></i>
+                                Annuler
+                            </a>
+                            <button type="submit" class="btn btn-save">
+                                <i class="bi bi-check-circle me-1"></i>
+                                Enregistrer
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Aide supplémentaire -->
+            <div class="text-center mt-3">
+                <small class="text-muted">
+                    <i class="bi bi-question-circle me-1"></i>
+                    Besoin d'aide ? Contactez l'administration
+                </small>
+            </div>
+        </div>
     </div>
 </div>
-<style>form p {margin-bottom: 1rem;} form p label {display: block; font-weight: 600; margin-bottom: 0.5rem;} form p input, form p select {width: 100%; padding: 0.5rem; border: 1px solid #ced4da; border-radius: 0.375rem;}</style>
 {% endblock %}

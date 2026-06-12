@@ -1,0 +1,189 @@
+{% extends 'twiyungunganye/base.html' %}
+{% block title %}Mon tableau de bord{% endblock %}
+{% block content %}
+<style>
+    .stat-card-member {
+        border-radius: 15px;
+        padding: 1.5rem;
+        color: white;
+        box-shadow: 0 4px 15px rgba(0,0,0,.1);
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: block;
+    }
+    .stat-card-member:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0,0,0,.2);
+        color: white;
+    }
+    .stat-card-member h6 {
+        font-size: 0.85rem;
+        opacity: 0.9;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+    }
+    .stat-card-member h3 {
+        font-size: 1.8rem;
+        font-weight: 700;
+        margin: 0;
+    }
+    .stat-card-member small { opacity: 0.8; }
+    .bg-card-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+    .bg-card-success { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
+    .bg-card-warning { background: linear-gradient(135deg, #ffd32a 0%, #f59f00 100%); }
+    .bg-card-danger { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+    .bg-card-info { background: linear-gradient(135deg, #17a2b8 0%, #138496 100%); }
+    .bg-card-dark { background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%); }
+    .header-member {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 15px;
+        padding: 2rem;
+        color: white;
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+        margin-bottom: 2rem;
+    }
+</style>
+
+<div class="header-member">
+    <div class="d-flex align-items-center">
+        <i class="bi bi-person-circle" style="font-size: 3rem; margin-right: 1rem;"></i>
+        <div>
+            <h2 class="mb-1">Bienvenue, {{ user.get_full_name }}</h2>
+            <p class="mb-0 opacity-75">
+                <i class="bi bi-people me-1"></i> {{ total_membres }} membre(s) actif(s)
+                <span class="mx-2">|</span>
+                <i class="bi bi-calendar-month me-1"></i> {{ mois_actuel_nom }} {{ annee_actuelle }}
+            </p>
+        </div>
+    </div>
+</div>
+
+<!-- Statut cotisation du mois -->
+<div class="alert {% if statut_cotisation_mois == 'PAYE' %}alert-success{% elif statut_cotisation_mois == 'RETARD' %}alert-danger{% else %}alert-warning{% endif %} d-flex align-items-center">
+    <i class="bi {% if statut_cotisation_mois == 'PAYE' %}bi-check-circle-fill{% elif statut_cotisation_mois == 'RETARD' %}bi-exclamation-triangle-fill{% else %}bi-clock{% endif %} me-3" style="font-size: 1.5rem;"></i>
+    <div>
+        <strong>Cotisation du mois :</strong>
+        {% if statut_cotisation_mois == 'PAYE' %}
+            Payée ✓
+        {% elif statut_cotisation_mois == 'RETARD' %}
+            En retard !
+        {% else %}
+            Non encore effectuée
+        {% endif %}
+    </div>
+</div>
+
+<!-- Mes stats personnelles -->
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <a href="{% url 'liste_cotisations' %}" class="stat-card-member bg-card-primary">
+            <h6><i class="bi bi-cash-coin me-1"></i> Mes cotisations</h6>
+            <h3>{{ total_mes_cotisations|floatformat:3 }} {{ devise }}</h3>
+            <small>Total cumulé</small>
+        </a>
+    </div>
+    <div class="col-md-4">
+        <a href="{% url 'liste_credits' %}" class="stat-card-member bg-card-danger">
+            <h6><i class="bi bi-credit-card me-1"></i> Crédits actifs</h6>
+            <h3>{{ total_mes_credits_actifs|floatformat:3 }} {{ devise }}</h3>
+            <small>{{ nombre_credits_actifs }} crédit(s) en cours</small>
+        </a>
+    </div>
+    <div class="col-md-4">
+        <a href="{% url 'mes_remboursements' %}" class="stat-card-member bg-card-success">
+            <h6><i class="bi bi-arrow-return-left me-1"></i> Remboursé</h6>
+            <h3>{{ total_mes_remboursements|floatformat:3 }} {{ devise }}</h3>
+            <small>Intérêts: {{ total_mes_interets_rembourses|floatformat:3 }} {{ devise }}</small>
+        </a>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    {% if mes_cotisations_en_retard > 0 %}
+    <div class="col-md-4">
+        <a href="{% url 'mes_penalites' %}" class="stat-card-member bg-card-danger">
+            <h6><i class="bi bi-exclamation-triangle me-1"></i> Cotisations en retard</h6>
+            <h3>{{ mes_cotisations_en_retard }}</h3>
+            <small>Pénalités: {{ mes_penalites_impayees|floatformat:3 }} {{ devise }}</small>
+        </a>
+    </div>
+    {% endif %}
+    <div class="col-md-4">
+        <a href="{% url 'mes_interets' %}" class="stat-card-member bg-card-warning">
+            <h6><i class="bi bi-graph-up me-1"></i> Intérêts</h6>
+            <h3><i class="bi bi-eye"></i></h3>
+            <small>Voir mes intérêts</small>
+        </a>
+    </div>
+    <div class="col-md-4">
+        <a href="{% url 'mes_penalites' %}" class="stat-card-member bg-card-dark">
+            <h6><i class="bi bi-shield-exclamation me-1"></i> Pénalités</h6>
+            <h3><i class="bi bi-eye"></i></h3>
+            <small>Voir mes pénalités</small>
+        </a>
+    </div>
+</div>
+
+<!-- Actions rapides -->
+<div class="card" style="border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,.08);">
+    <div class="card-body p-4">
+        <h5 class="mb-3"><i class="bi bi-lightning me-2"></i> Actions rapides</h5>
+        <div class="row g-2">
+            <div class="col-6 col-md-3">
+                <a href="{% url 'liste_cotisations' %}" class="btn btn-outline-primary w-100">
+                    <i class="bi bi-cash-coin"></i><br><small>Cotisations</small>
+                </a>
+            </div>
+            <div class="col-6 col-md-3">
+                <a href="{% url 'demander_credit' %}" class="btn btn-outline-danger w-100">
+                    <i class="bi bi-credit-card"></i><br><small>Demander crédit</small>
+                </a>
+            </div>
+            <div class="col-6 col-md-3">
+                <a href="{% url 'soumettre_suggestion' %}" class="btn btn-outline-warning w-100">
+                    <i class="bi bi-lightbulb"></i><br><small>Suggestion</small>
+                </a>
+            </div>
+            <div class="col-6 col-md-3">
+                <a href="{% url 'modifier_profil_dirigeant' %}" class="btn btn-outline-info w-100">
+                    <i class="bi bi-person-gear"></i><br><small>Mon profil</small>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if mes_credits_actifs_liste %}
+<div class="card mt-4" style="border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,.08);">
+    <div class="card-header bg-light">
+        <h6 class="mb-0"><i class="bi bi-credit-card me-2"></i> Mes crédits en cours</h6>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-sm mb-0">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Montant</th>
+                        <th>Date</th>
+                        <th>Statut</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for c in mes_credits_actifs_liste %}
+                    <tr>
+                        <td>{{ c.id_credit }}</td>
+                        <td>{{ c.montant_accorde|floatformat:3 }} {{ devise }}</td>
+                        <td>{{ c.date_accord|date:"d/m/Y" }}</td>
+                        <td><span class="badge bg-info">{{ c.get_statut_display }}</span></td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="4" class="text-center text-muted py-3">Aucun crédit en cours</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

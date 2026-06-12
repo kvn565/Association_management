@@ -1,0 +1,138 @@
+{% extends 'twiyungunganye/base.html' %}
+{% load static %}
+
+{% block title %}Mon association - {{ tenant.nom }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h4 class="mb-0"><i class="bi bi-building me-2"></i>{{ tenant.nom }}</h4>
+                <div class="d-flex gap-2">
+                    <a href="{% url 'qr_code_association' %}" class="btn btn-sm btn-light"><i class="bi bi-qr-code me-1"></i> QR Code</a>
+                    <a href="{% url 'modifier_association' %}" class="btn btn-sm btn-light"><i class="bi bi-pencil-square me-1"></i> Modifier</a>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4 text-center mb-4">
+                        {% if tenant.logo %}
+                        <img src="{{ tenant.logo.url }}" class="img-fluid rounded mb-3" style="max-height:150px" alt="Logo">
+                        {% else %}
+                        <div class="bg-light rounded d-flex align-items-center justify-content-center mb-3" style="height:150px">
+                            <i class="bi bi-building" style="font-size:4rem;color:#ccc"></i>
+                        </div>
+                        {% endif %}
+                        <h5>{{ tenant.nom }}</h5>
+                        {% if tenant.sigle %}<span class="badge bg-secondary">{{ tenant.sigle }}</span>{% endif %}
+                    </div>
+                    <div class="col-md-8">
+                        <h5 class="text-primary mb-3">Informations</h5>
+                        <table class="table table-borderless">
+                            <tr>
+                                <td><strong>NIF :</strong></td>
+                                <td>{{ tenant.nif|default:"Non renseigné" }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Sous-domaine :</strong></td>
+                                <td><code>{{ tenant.sous_domaine }}</code></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Province :</strong></td>
+                                <td>{{ tenant.province|default:"-" }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Commune :</strong></td>
+                                <td>{{ tenant.commune|default:"-" }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Quartier :</strong></td>
+                                <td>{{ tenant.quartier|default:"-" }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Avenue :</strong></td>
+                                <td>{{ tenant.avenue|default:"-" }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Numéro :</strong></td>
+                                <td>{{ tenant.numero|default:"-" }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Téléphone :</strong></td>
+                                <td>{{ tenant.telephone|default:"Non renseigné" }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Email :</strong></td>
+                                <td>{{ tenant.email|default:"Non renseigné" }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Date création :</strong></td>
+                                <td>{{ tenant.date_creation|date:"d/m/Y" }}</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+
+                <hr>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <h5 class="text-primary mb-3"><i class="bi bi-cash-coin me-2"></i>Montants des cotisations</h5>
+                        <table class="table table-borderless">
+                            <tr>
+                                <td>Cotisation mensuelle :</td>
+                                <td><strong>{{ tenant.montant_cotisation_mensuelle|floatformat:3 }} {{ devise }}</strong></td>
+                            </tr>
+                            <tr>
+                                <td>Cotisation imprévu :</td>
+                                <td><strong>{{ tenant.montant_cotisation_imprevu_mensuelle|floatformat:3 }} {{ devise }}</strong></td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <h5 class="text-primary mb-3"><i class="bi bi-bar-chart me-2"></i>Statistiques</h5>
+                        <table class="table table-borderless">
+                            <tr>
+                                <td>Membres actifs :</td>
+                                <td><strong>{{ total_membres }}</strong></td>
+                            </tr>
+                            <tr>
+                                <td>Total cotisations :</td>
+                                <td><strong>{{ total_cotisations|floatformat:3 }} {{ devise }}</strong></td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+
+                <hr>
+
+                <div class="row">
+                    <div class="col-md-12">
+                        <h5 class="text-primary mb-3"><i class="bi bi-key me-2"></i>Licence</h5>
+                        {% if cle_active %}
+                        <div class="alert alert-{% if jours_restants <= 7 %}warning{% else %}info{% endif %}">
+                            <strong>
+                                {% if cle_active.est_essai %}Essai gratuit{% else %}{{ cle_active.label_plan }}{% endif %}
+                            </strong>
+                            — expire dans <strong>{{ jours_restants }} jour(s)</strong>
+                            ({{ cle_active.date_fin|date:"d/m/Y" }})
+                            <a href="{% url 'superadmin:saisir_cle_payante' %}" class="btn btn-sm btn-outline-primary ms-3">
+                                <i class="bi bi-arrow-up-circle"></i> Renouveler
+                            </a>
+                        </div>
+                        {% else %}
+                        <div class="alert alert-danger">
+                            <i class="bi bi-exclamation-triangle me-2"></i>Aucune licence active.
+                            <a href="{% url 'superadmin:saisir_cle_payante' %}" class="btn btn-sm btn-danger ms-3">
+                                <i class="bi bi-key"></i> Activer une licence
+                            </a>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

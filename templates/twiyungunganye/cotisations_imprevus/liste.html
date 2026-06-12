@@ -3,49 +3,212 @@
 
 {% block title %}Cotisations Imprévus - {{ association.nom }}{% endblock %}
 
+{% block extra_css %}
+<style>
+    /* En-tête imprévus */
+    .imprevus-header {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        padding: 1.5rem;
+        border-radius: 15px;
+        color: white;
+        margin-bottom: 2rem;
+        box-shadow: 0 10px 30px rgba(240, 147, 251, 0.3);
+    }
+
+    .imprevus-header h2 {
+        margin: 0;
+        font-weight: 700;
+    }
+
+    /* Cards stats */
+    .stat-card {
+        border-radius: 12px;
+        padding: 1.5rem;
+        color: white;
+        box-shadow: 0 4px 15px rgba(0,0,0,.15);
+        transition: all 0.3s ease;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0,0,0,.2);
+    }
+
+    .stat-card h5 {
+        font-size: 0.9rem;
+        opacity: 0.9;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+    }
+
+    .stat-card h3 {
+        font-size: 1.8rem;
+        font-weight: 700;
+        margin: 0;
+    }
+
+    .stat-card.primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .stat-card.success {
+        background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+    }
+
+    .stat-card.warning {
+        background: linear-gradient(135deg, #ffd32a 0%, #f59f00 100%);
+    }
+
+    .stat-card.danger {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    }
+
+    /* Responsive */
+    @media (max-width: 991px) {
+        .imprevus-header {
+            padding: 1.25rem;
+        }
+
+        .imprevus-header h2 {
+            font-size: 1.3rem;
+        }
+
+        .stat-card {
+            padding: 1.25rem;
+            margin-bottom: 1rem;
+        }
+
+        .stat-card h3 {
+            font-size: 1.5rem;
+        }
+    }
+
+    @media (max-width: 767px) {
+        .imprevus-header {
+            padding: 1rem;
+        }
+
+        .imprevus-header h2 {
+            font-size: 1.1rem;
+        }
+
+        .imprevus-header .d-flex {
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .imprevus-header .btn {
+            width: 100%;
+        }
+
+        .stat-card {
+            padding: 1rem;
+        }
+
+        .stat-card h5 {
+            font-size: 0.85rem;
+        }
+
+        .stat-card h3 {
+            font-size: 1.3rem;
+        }
+
+        /* Table en cards */
+        .table thead {
+            display: none;
+        }
+
+        .table tbody tr {
+            display: block;
+            margin-bottom: 1rem;
+            border: 1px solid #dee2e6;
+            border-radius: 12px;
+            padding: 1rem;
+            background: white;
+            box-shadow: 0 2px 8px rgba(0,0,0,.08);
+        }
+
+        .table tbody td {
+            display: block;
+            text-align: left !important;
+            padding: 0.5rem 0;
+            border: none;
+            position: relative;
+            padding-left: 45%;
+        }
+
+        .table tbody td:before {
+            content: attr(data-label);
+            position: absolute;
+            left: 0;
+            font-weight: 600;
+            color: #f093fb;
+            width: 40%;
+        }
+
+        .table tbody td:last-child {
+            padding-left: 0;
+            padding-top: 1rem;
+            border-top: 1px solid #dee2e6;
+            margin-top: 0.5rem;
+        }
+
+        .table tbody td:last-child:before {
+            display: none;
+        }
+    }
+
+    @media (max-width: 575px) {
+        .imprevus-header h2 {
+            font-size: 1rem;
+        }
+
+        .stat-card h3 {
+            font-size: 1.2rem;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container-fluid px-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1 class="mt-4">
-            <i class="fas fa-hand-holding-heart"></i> Cotisations Imprévus / Cas Sociaux
-        </h1>
-        <a href="{% url 'ajouter_cotisation_imprevu' %}" class="btn btn-primary">
-            <i class="fas fa-plus"></i> Ajouter une cotisation imprévus
-        </a>
+<div class="container-fluid">
+    <!-- En-tête -->
+    <div class="imprevus-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <h2>
+                <i class="bi bi-heart-fill me-2"></i>
+                Cotisations Imprévus / Cas Sociaux
+            </h2>
+            <a href="{% url 'ajouter_cotisation_imprevu' %}" class="btn btn-light">
+                <i class="bi bi-plus-circle me-1"></i> Ajouter
+            </a>
+        </div>
     </div>
 
     <!-- Statistiques -->
     <div class="row mb-4">
-        <div class="col-xl-3 col-md-6">
-            <div class="card bg-primary text-white mb-4">
-                <div class="card-body">
-                    <h5>Total collecté</h5>
-                    <h3>{{ stats.total|default:0|floatformat:2 }} FBU</h3>
-                </div>
+        <div class="col-12 col-sm-6 col-xl-3 mb-3">
+            <div class="stat-card primary">
+                <h5>Total collecté</h5>
+                <h3>{{ stats.total|default:0|floatformat:3 }} {{ devise }}</h3>
             </div>
         </div>
-        <div class="col-xl-3 col-md-6">
-            <div class="card bg-success text-white mb-4">
-                <div class="card-body">
-                    <h5>Payées</h5>
-                    <h3>{{ stats.payees|default:0 }}</h3>
-                </div>
+        <div class="col-12 col-sm-6 col-xl-3 mb-3">
+            <div class="stat-card success">
+                <h5>Payées</h5>
+                <h3>{{ stats.payees|default:0 }}</h3>
             </div>
         </div>
-        <div class="col-xl-3 col-md-6">
-            <div class="card bg-warning text-white mb-4">
-                <div class="card-body">
-                    <h5>En attente</h5>
-                    <h3>{{ stats.en_attente|default:0 }}</h3>
-                </div>
+        <div class="col-12 col-sm-6 col-xl-3 mb-3">
+            <div class="stat-card warning">
+                <h5>En attente</h5>
+                <h3>{{ stats.en_attente|default:0 }}</h3>
             </div>
         </div>
-        <div class="col-xl-3 col-md-6">
-            <div class="card bg-danger text-white mb-4">
-                <div class="card-body">
-                    <h5>En retard</h5>
-                    <h3>{{ stats.en_retard|default:0 }}</h3>
-                </div>
+        <div class="col-12 col-sm-6 col-xl-3 mb-3">
+            <div class="stat-card danger">
+                <h5>En retard</h5>
+                <h3>{{ stats.en_retard|default:0 }}</h3>
             </div>
         </div>
     </div>
@@ -61,54 +224,74 @@
     {% endif %}
 
     <!-- Tableau des cotisations imprévus -->
-    <div class="card mb-4">
-        <div class="card-header">
-            <i class="fas fa-table me-1"></i>
-            Liste des cotisations pour imprévus/cas sociaux
+    <div class="card">
+        <div class="card-header bg-white">
+            <h5 class="mb-0">
+                <i class="bi bi-table me-1"></i>
+                Liste des cotisations pour imprévus/cas sociaux
+            </h5>
         </div>
-        <div class="card-body">
+        <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-striped table-hover">
-                    <thead>
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
                         <tr>
                             <th>Membre</th>
                             <th>Montant</th>
                             <th>Période</th>
-                            <th>Date de paiement</th>
+                            <th class="d-none d-lg-table-cell">Date paiement</th>
                             <th>Statut</th>
-                            <th>Remarque</th>
+                            <th class="d-none d-md-table-cell">Remarque</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for cotisation in cotisations_imprevus %}
+                        {% for cotisation in page_obj %}
                         <tr>
-                            <td>{{ cotisation.membre.get_full_name }}</td>
-                            <td><strong>{{ cotisation.montant|floatformat:2 }} FBU</strong></td>
-                            <td>{{ cotisation.get_mois_nom }} {{ cotisation.annee }}</td>
-                            <td>{{ cotisation.date_paiement|date:"d/m/Y" }}</td>
-                            <td>
+                            <td data-label="Membre:">
+                                <strong>{{ cotisation.membre.get_full_name }}</strong>
+                            </td>
+                            <td data-label="Montant:">
+                                <strong class="text-primary">{{ cotisation.montant|floatformat:3 }}</strong> {{ devise }}
+                            </td>
+                            <td data-label="Période:">
+                                {{ cotisation.get_mois_nom }} {{ cotisation.annee }}
+                            </td>
+                            <td data-label="Date paiement:" class="d-none d-lg-table-cell">
+                                {{ cotisation.date_paiement|date:"d/m/Y" }}
+                            </td>
+                            <td data-label="Statut:">
                                 {% if cotisation.statut == 'PAYE' %}
-                                    <span class="badge bg-success">Payé</span>
+                                    <span class="badge bg-success">
+                                        <i class="bi bi-check-circle me-1"></i>Payé
+                                    </span>
                                 {% elif cotisation.statut == 'EN_ATTENTE' %}
-                                    <span class="badge bg-warning">En attente</span>
+                                    <span class="badge bg-warning text-dark">
+                                        <i class="bi bi-clock me-1"></i>En attente
+                                    </span>
                                 {% else %}
-                                    <span class="badge bg-danger">En retard</span>
+                                    <span class="badge bg-danger">
+                                        <i class="bi bi-exclamation-triangle me-1"></i>En retard
+                                    </span>
                                 {% endif %}
                             </td>
-                            <td>{{ cotisation.remarque|truncatewords:5|default:"-" }}</td>
-                            <td>
+                            <td data-label="Remarque:" class="d-none d-md-table-cell">
+                                {{ cotisation.remarque|truncatewords:5|default:"-" }}
+                            </td>
+                            <td data-label="Actions:">
                                 <a href="{% url 'modifier_cotisation_imprevu' cotisation.pk %}" 
-                                   class="btn btn-sm btn-outline-primary" 
+                                   class="btn btn-sm btn-primary"
                                    title="Modifier">
-                                    <i class="fas fa-edit"></i>
+                                    <i class="bi bi-pencil me-1"></i>
+                                    <span class="d-none d-lg-inline">Modifier</span>
                                 </a>
                             </td>
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="7" class="text-center text-muted">
-                                Aucune cotisation imprévus enregistrée.
+                            <td colspan="7" class="text-center py-5">
+                                <i class="bi bi-inbox" style="font-size: 3rem; color: #ccc;"></i>
+                                <p class="text-muted mt-3 mb-0">Aucune cotisation imprévus enregistrée.</p>
                             </td>
                         </tr>
                         {% endfor %}
@@ -117,11 +300,12 @@
             </div>
         </div>
     </div>
+    {% include 'includes/pagination.html' %}
 
     <!-- Bouton retour -->
-    <div class="mb-4">
+    <div class="mt-4">
         <a href="{% url 'dashboard' %}" class="btn btn-secondary">
-            <i class="fas fa-arrow-left"></i> Retour au tableau de bord
+            <i class="bi bi-arrow-left me-1"></i> Retour au tableau de bord
         </a>
     </div>
 </div>

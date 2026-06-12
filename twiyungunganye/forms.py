@@ -1,12 +1,29 @@
 from django import forms
 from django.contrib.auth.forms import AuthenticationForm, PasswordChangeForm
 from django.core.exceptions import ValidationError
-from .models import Membre, Cotisation, CotisationImprevu, Credit, Remboursement, Suggestion
+from .models import Membre, Cotisation, CotisationImprevu, Credit, Remboursement, Suggestion, Depense, DEVISE_CHOICES
 from decimal import Decimal
 
 
+def get_tenant_from_request():
+    import inspect
+    for frame in inspect.stack():
+        request = frame.frame.f_locals.get('request')
+        if request and hasattr(request, 'tenant'):
+            return request.tenant
+    return None
+
+
 class LoginForm(AuthenticationForm):
-    """Formulaire de connexion personnalisé"""
+    """Formulaire de connexion personnalisé avec sélection d'association"""
+
+    tenant = forms.ModelChoiceField(
+        queryset=None,
+        label="Association",
+        required=False,
+        empty_label="Sélectionnez votre association",
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
     
     username = forms.CharField(
         label="Carte d'identité",
@@ -23,10 +40,24 @@ class LoginForm(AuthenticationForm):
         })
     )
 
+    def __init__(self, *args, **kwargs):
+        tenant_queryset = kwargs.pop('tenant_queryset', None)
+        super().__init__(*args, **kwargs)
+        if tenant_queryset is not None:
+            self.fields['tenant'].queryset = tenant_queryset
+
 
 class MembrePasswordCreationForm(forms.Form):
-    """Formulaire pour créer le premier mot de passe d'un membre"""
-    
+    """Formulaire pour créer le premier mot de passe d'un membre avec sélection d'association"""
+
+    tenant = forms.ModelChoiceField(
+        queryset=None,
+        label="Association",
+        required=False,
+        empty_label="Sélectionnez votre association",
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+
     carte_identite = forms.CharField(
         label="Carte d'identité",
         widget=forms.TextInput(attrs={
@@ -48,15 +79,25 @@ class MembrePasswordCreationForm(forms.Form):
             'placeholder': 'Confirmez votre mot de passe'
         })
     )
+
+    def __init__(self, *args, **kwargs):
+        tenant_queryset = kwargs.pop('tenant_queryset', None)
+        super().__init__(*args, **kwargs)
+        if tenant_queryset is not None:
+            self.fields['tenant'].queryset = tenant_queryset
     
     def clean_carte_identite(self):
         carte_identite = self.cleaned_data.get('carte_identite')
+        tenant = self.cleaned_data.get('tenant') or get_tenant_from_request()
         try:
-            membre = Membre.objects.get(carte_identite=carte_identite)
-            if membre.has_usable_password():
+            qs = Membre.objects.all()
+            if tenant:
+                qs = qs.filter(tenant=tenant)
+            membre = qs.get(carte_identite=carte_identite)
+            if membre.password and membre.has_usable_password():
                 raise ValidationError("Ce membre a déjà un mot de passe. Utilisez la connexion normale.")
         except Membre.DoesNotExist:
-            raise ValidationError("Aucun membre trouvé avec cette carte d'identité.")
+            raise ValidationError("Aucun membre trouvé avec cette carte d'identité dans cette association.")
         return carte_identite
     
     def clean(self):
@@ -73,9 +114,15 @@ class MembrePasswordCreationForm(forms.Form):
 class MembreForm(forms.ModelForm):
     """Formulaire pour créer/modifier un membre"""
     
+    photo = forms.ImageField(
+        label="Photo",
+        required=True,
+        widget=forms.FileInput(attrs={'class': 'form-control', 'accept': 'image/*'})
+    )
+    
     class Meta:
         model = Membre
-        fields = ['nom', 'prenom', 'carte_identite', 'email', 'telephone', 'adresse', 'est_actif']
+        fields = ['nom', 'prenom', 'carte_identite', 'email', 'telephone', 'adresse', 'photo', 'est_actif']
         widgets = {
             'nom': forms.TextInput(attrs={'class': 'form-control'}),
             'prenom': forms.TextInput(attrs={'class': 'form-control'}),
@@ -87,8 +134,137 @@ class MembreForm(forms.ModelForm):
         }
 
 
+class ModifierProfilForm(forms.ModelForm):
+    """Formulaire pour qu'un dirigeant modifie son propre profil"""
+
+    photo = forms.ImageField(
+        label="Photo",
+        required=False,
+        widget=forms.FileInput(attrs={'class': 'form-control', 'accept': 'image/*'})
+    )
+
+    class Meta:
+        model = Membre
+        fields = ['nom', 'prenom', 'email', 'telephone', 'adresse', 'photo']
+        widgets = {
+            'nom': forms.TextInput(attrs={'class': 'form-control'}),
+            'prenom': forms.TextInput(attrs={'class': 'form-control'}),
+            'email': forms.EmailInput(attrs={'class': 'form-control'}),
+            'telephone': forms.TextInput(attrs={'class': 'form-control'}),
+            'adresse': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+        }
+
+
+class AssociationForm(forms.Form):
+    """Formulaire pour modifier les informations de l'association (Tenant)"""
+
+    nom = forms.CharField(
+        label="Nom de l'association", max_length=200,
+        widget=forms.TextInput(attrs={'class': 'form-control'})
+    )
+    sigle = forms.CharField(
+        label="Sigle", max_length=50, required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control'})
+    )
+    telephone = forms.CharField(
+        label="Téléphone", max_length=20, required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control'})
+    )
+    email = forms.EmailField(
+        label="Email", required=False,
+        widget=forms.EmailInput(attrs={'class': 'form-control'})
+    )
+    province = forms.CharField(
+        label="Province", max_length=100, required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control'})
+    )
+    commune = forms.CharField(
+        label="Commune", max_length=100, required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control'})
+    )
+    quartier = forms.CharField(
+        label="Quartier", max_length=100, required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control'})
+    )
+    avenue = forms.CharField(
+        label="Avenue", max_length=150, required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control'})
+    )
+    numero = forms.CharField(
+        label="Numéro", max_length=20, required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control'})
+    )
+    boite_postale = forms.CharField(
+        label="Boîte postale", max_length=50, required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control'})
+    )
+    logo = forms.ImageField(
+        label="Logo", required=False,
+        widget=forms.FileInput(attrs={'class': 'form-control'})
+    )
+    montant_cotisation_mensuelle = forms.DecimalField(
+        label="Montant cotisation mensuelle", max_digits=10, decimal_places=3,
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.001'})
+    )
+    montant_cotisation_imprevu_mensuelle = forms.DecimalField(
+        label="Montant cotisation imprévu", max_digits=10, decimal_places=3,
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.001'})
+    )
+    montant_max_credit = forms.DecimalField(
+        label="Montant maximal de crédit autorisé", max_digits=12, decimal_places=3,
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.001'})
+    )
+    devise = forms.ChoiceField(
+        label="Monnaie (devise)", choices=DEVISE_CHOICES, required=False,
+        widget=forms.Select(attrs={'class': 'form-control'})
+    )
+    mois_minimum_cotisation_credit = forms.IntegerField(
+        label="Mois minimum de cotisation pour crédit", min_value=0, required=False,
+        widget=forms.NumberInput(attrs={'class': 'form-control'}),
+        help_text="Nombre de mois de cotisation requis. 0 = pas de condition."
+    )
+    duree_remboursement_mois = forms.IntegerField(
+        label="Durée de remboursement (mois)", min_value=0, required=False,
+        widget=forms.NumberInput(attrs={'class': 'form-control'}),
+        help_text="Nombre de mois max pour rembourser. 0 = pas de limite."
+    )
+    taux_interet_defaut = forms.DecimalField(
+        label="Taux d'intérêt mensuel par défaut (%)", max_digits=5, decimal_places=2,
+        required=False,
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+        help_text="Taux appliqué aux nouveaux crédits (ex: 5.00 pour 5%)"
+    )
+    taux_penalite_cotisation = forms.DecimalField(
+        label="Taux de pénalité mensuel (%)", max_digits=5, decimal_places=2,
+        required=False,
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+        help_text="Taux de pénalité pour cotisations impayées (ex: 2.00 pour 2%)"
+    )
+
+    def __init__(self, *args, **kwargs):
+        self.tenant_instance = kwargs.pop('instance', None)
+        super().__init__(*args, **kwargs)
+        if self.tenant_instance:
+            for field in self.fields:
+                val = getattr(self.tenant_instance, field, None)
+                if val is not None:
+                    self.fields[field].initial = val
+            from .models import Association
+            assoc = Association.get_association(self.tenant_instance)
+            if assoc and assoc.devise:
+                self.fields['devise'].initial = assoc.devise
+
+
 class CotisationForm(forms.ModelForm):
     """Formulaire pour enregistrer une cotisation régulière"""
+    
+    def __init__(self, *args, **kwargs):
+        self.tenant = kwargs.pop('tenant', None)
+        super().__init__(*args, **kwargs)
+        if self.tenant:
+            self.fields['membre'].queryset = Membre.objects.filter(
+                tenant=self.tenant, est_actif=True
+            )
     
     class Meta:
         model = Cotisation
@@ -110,6 +286,14 @@ class CotisationForm(forms.ModelForm):
 
 class CotisationImprevuForm(forms.ModelForm):
     """Formulaire pour enregistrer une cotisation pour imprévus/cas sociaux"""
+    
+    def __init__(self, *args, **kwargs):
+        self.tenant = kwargs.pop('tenant', None)
+        super().__init__(*args, **kwargs)
+        if self.tenant:
+            self.fields['membre'].queryset = Membre.objects.filter(
+                tenant=self.tenant, est_actif=True
+            )
     
     class Meta:
         model = CotisationImprevu
@@ -163,6 +347,7 @@ class CreditDemandeForm(forms.ModelForm):
     
     def __init__(self, *args, **kwargs):
         self.membre = kwargs.pop('membre', None)
+        self.tenant = kwargs.pop('tenant', None)
         super().__init__(*args, **kwargs)
     
     def clean_montant_demande(self):
@@ -176,16 +361,18 @@ class CreditDemandeForm(forms.ModelForm):
                     "Vous ne pouvez pas demander un crédit car vous n'avez aucune cotisation payée."
                 )
             
-            # Vérifier qu'il y a au moins 3 mois de cotisations
+            # Vérifier le nombre de mois minimum configurable
             from .models import Association
-            association = Association.get_association()
+            association = Association.get_association(self.tenant)
             if association:
-                montant_minimum = association.montant_cotisation_mensuelle * 3
-                if total_cotisations < montant_minimum:
-                    raise ValidationError(
-                        f"Vous devez avoir au moins {montant_minimum} FBU de cotisations payées "
-                        f"(équivalent à 3 mois). Vous avez actuellement {total_cotisations} FBU."
-                    )
+                mois_min = association.mois_minimum_cotisation_credit
+                if mois_min > 0:
+                    montant_minimum = association.montant_cotisation_mensuelle * mois_min
+                    if total_cotisations < montant_minimum:
+                        raise ValidationError(
+                            f"Vous devez avoir au moins {montant_minimum} {association.devise} de cotisations payées "
+                            f"(équivalent à {mois_min} mois). Vous avez actuellement {total_cotisations} {association.devise}."
+                        )
         
         return montant
 
@@ -195,8 +382,9 @@ class CreditApprovalForm(forms.ModelForm):
     
     class Meta:
         model = Credit
-        fields = ['montant_accorde', 'taux_interet', 'statut', 'date_accord', 'remarque']
+        fields = ['membre', 'montant_accorde', 'taux_interet', 'statut', 'date_accord', 'remarque']
         widgets = {
+            'membre': forms.Select(attrs={'class': 'form-select'}),
             'montant_accorde': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
             'taux_interet': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
             'statut': forms.Select(attrs={'class': 'form-select'}),
@@ -204,12 +392,23 @@ class CreditApprovalForm(forms.ModelForm):
             'remarque': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
         }
         labels = {
+            'membre': 'Membre bénéficiaire',
             'montant_accorde': 'Montant accordé (FBU)',
-            'taux_interet': 'Taux d\'intérêt (%)',
+            'taux_interet': "Taux d'intérêt mensuel (%)",
             'statut': 'Statut',
-            'date_accord': 'Date d\'accord',
+            'date_accord': "Date d'accord",
             'remarque': 'Remarque'
         }
+    
+    def __init__(self, *args, **kwargs):
+        tenant = kwargs.pop('tenant', None)
+        super().__init__(*args, **kwargs)
+        if tenant:
+            self.fields['membre'].queryset = Membre.objects.filter(tenant=tenant, est_actif=True).order_by('nom', 'prenom')
+        else:
+            self.fields['membre'].queryset = Membre.objects.none()
+        if tenant and not self.instance.pk:
+            self.fields['taux_interet'].initial = tenant.taux_interet_defaut
 
 
 class RemboursementForm(forms.ModelForm):
@@ -236,11 +435,12 @@ class RemboursementForm(forms.ModelForm):
         }
     
     def __init__(self, *args, **kwargs):
+        self.tenant = kwargs.pop('tenant', None)
         super().__init__(*args, **kwargs)
-        # Filtrer uniquement les crédits en cours
-        self.fields['credit'].queryset = Credit.objects.filter(
-            statut__in=['APPROUVE', 'EN_COURS']
-        )
+        qs = Credit.objects.filter(statut__in=['APPROUVE', 'EN_COURS'])
+        if self.tenant:
+            qs = qs.filter(tenant=self.tenant)
+        self.fields['credit'].queryset = qs
 
 
 class SuggestionForm(forms.ModelForm):
@@ -259,6 +459,26 @@ class SuggestionForm(forms.ModelForm):
                 'rows': 5,
                 'placeholder': 'Décrivez votre suggestion en détail'
             }),
+        }
+
+
+class ReponseSuggestionForm(forms.ModelForm):
+    """Formulaire pour que l'admin réponde à une suggestion"""
+
+    class Meta:
+        model = Suggestion
+        fields = ['statut', 'reponse_admin']
+        widgets = {
+            'statut': forms.Select(attrs={'class': 'form-select'}),
+            'reponse_admin': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 5,
+                'placeholder': 'Votre réponse au membre...'
+            }),
+        }
+        labels = {
+            'statut': 'Statut',
+            'reponse_admin': 'Réponse',
         }
 
 
@@ -304,3 +524,21 @@ class MembrePasswordChangeForm(PasswordChangeForm):
         label="Confirmer le nouveau mot de passe",
         widget=forms.PasswordInput(attrs={'class': 'form-control'})
     )
+
+
+class DepenseForm(forms.ModelForm):
+    class Meta:
+        model = Depense
+        fields = ['motif', 'description', 'montant', 'date_depense']
+        widgets = {
+            'motif': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ex: Fête de fin d\'année'}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Description de la dépense...'}),
+            'montant': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'date_depense': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+        }
+        labels = {
+            'motif': 'Motif de la dépense',
+            'description': 'Description',
+            'montant': 'Montant',
+            'date_depense': 'Date de la dépense',
+        }

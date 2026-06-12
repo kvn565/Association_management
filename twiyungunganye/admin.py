@@ -10,10 +10,18 @@ from .models import (
 class MembreAdmin(BaseUserAdmin):
     """Configuration de l'admin pour le modèle Membre"""
     
-    list_display = ['carte_identite', 'nom', 'prenom', 'email', 'telephone', 'est_actif', 'is_admin', 'is_gestionnaire']
-    list_filter = ['est_actif', 'is_admin', 'is_gestionnaire', 'date_inscription']
+    list_display = ['carte_identite', 'nom', 'prenom', 'email', 'telephone', 'est_actif', 'is_admin']
+    list_filter = ['tenant', 'est_actif', 'is_admin', 'date_inscription']
     search_fields = ['carte_identite', 'nom', 'prenom', 'email']
     ordering = ['nom', 'prenom']
+    
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        if not request.user.is_superuser:
+            tenant = getattr(request, 'tenant', None)
+            if tenant:
+                qs = qs.filter(tenant=tenant)
+        return qs
     
     fieldsets = (
         ('Informations personnelles', {
@@ -23,7 +31,7 @@ class MembreAdmin(BaseUserAdmin):
             'fields': ('est_actif', 'date_inscription')
         }),
         ('Permissions', {
-            'fields': ('is_active', 'is_staff', 'is_admin', 'is_gestionnaire', 'is_superuser', 'groups', 'user_permissions')
+            'fields': ('is_active', 'is_staff', 'is_admin', 'is_superuser', 'groups', 'user_permissions')
         }),
         ('Mot de passe', {
             'fields': ('password',)
@@ -33,7 +41,7 @@ class MembreAdmin(BaseUserAdmin):
     add_fieldsets = (
         (None, {
             'classes': ('wide',),
-            'fields': ('carte_identite', 'nom', 'prenom', 'email', 'password1', 'password2', 'is_admin', 'is_gestionnaire'),
+            'fields': ('carte_identite', 'nom', 'prenom', 'email', 'password1', 'password2', 'is_admin'),
         }),
     )
     
@@ -44,8 +52,16 @@ class CotisationAdmin(admin.ModelAdmin):
     """Configuration de l'admin pour le modèle Cotisation"""
     
     list_display = ['get_membre_name', 'montant_fbu', 'get_mois_display', 'annee', 'statut', 'date_paiement']
-    list_filter = ['statut', 'annee', 'mois']
+    list_filter = ['tenant', 'statut', 'annee', 'mois']
     search_fields = ['membre__nom', 'membre__prenom', 'membre__carte_identite']
+    
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        if not request.user.is_superuser:
+            tenant = getattr(request, 'tenant', None)
+            if tenant:
+                qs = qs.filter(tenant=tenant)
+        return qs
     date_hierarchy = 'date_paiement'
     
     fieldsets = (
@@ -74,8 +90,16 @@ class CotisationImprevuAdmin(admin.ModelAdmin):
     """Configuration de l'admin pour le modèle CotisationImprevu"""
     
     list_display = ['get_membre_name', 'montant_fbu', 'get_mois_display', 'annee', 'statut', 'date_paiement']
-    list_filter = ['statut', 'annee', 'mois']
+    list_filter = ['tenant', 'statut', 'annee', 'mois']
     search_fields = ['membre__nom', 'membre__prenom', 'membre__carte_identite']
+    
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        if not request.user.is_superuser:
+            tenant = getattr(request, 'tenant', None)
+            if tenant:
+                qs = qs.filter(tenant=tenant)
+        return qs
     date_hierarchy = 'date_paiement'
     
     fieldsets = (
@@ -111,8 +135,16 @@ class CreditAdmin(admin.ModelAdmin):
     """Configuration de l'admin pour le modèle Credit"""
     
     list_display = ['id_credit', 'get_membre_name', 'montant_accorde_fbu', 'get_interet', 'get_total', 'statut', 'date_demande']
-    list_filter = ['statut', 'date_demande', 'date_accord']
+    list_filter = ['tenant', 'statut', 'date_demande', 'date_accord']
     search_fields = ['membre__nom', 'membre__prenom', 'membre__carte_identite']
+    
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        if not request.user.is_superuser:
+            tenant = getattr(request, 'tenant', None)
+            if tenant:
+                qs = qs.filter(tenant=tenant)
+        return qs
     date_hierarchy = 'date_demande'
     inlines = [RemboursementInline]
     
@@ -153,8 +185,16 @@ class InteretAdmin(admin.ModelAdmin):
     """Configuration de l'admin pour le modèle Interet"""
     
     list_display = ['get_membre_name', 'get_credit_id', 'get_mois_display', 'annee', 'interet_mensuel_fbu', 'interet_cumule_fbu', 'date_calcul']
-    list_filter = ['annee', 'mois', 'date_calcul']
+    list_filter = ['tenant', 'annee', 'mois', 'date_calcul']
     search_fields = ['credit__membre__nom', 'credit__membre__prenom']
+    
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        if not request.user.is_superuser:
+            tenant = getattr(request, 'tenant', None)
+            if tenant:
+                qs = qs.filter(tenant=tenant)
+        return qs
     date_hierarchy = 'date_calcul'
     
     def get_membre_name(self, obj):
@@ -184,8 +224,16 @@ class RemboursementAdmin(admin.ModelAdmin):
     """Configuration de l'admin pour le modèle Remboursement"""
     
     list_display = ['id_rembourse', 'get_membre_name', 'get_credit_id', 'montant_rembourse_fbu', 'interet_rembourse_fbu', 'reste_a_rembourser_fbu', 'date_remboursement', 'mode_paiement']
-    list_filter = ['mode_paiement', 'date_remboursement']
+    list_filter = ['tenant', 'mode_paiement', 'date_remboursement']
     search_fields = ['credit__membre__nom', 'credit__membre__prenom']
+    
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        if not request.user.is_superuser:
+            tenant = getattr(request, 'tenant', None)
+            if tenant:
+                qs = qs.filter(tenant=tenant)
+        return qs
     date_hierarchy = 'date_remboursement'
     
     fieldsets = (
@@ -224,6 +272,15 @@ class AssociationAdmin(admin.ModelAdmin):
     """Configuration de l'admin pour le modèle Association"""
     
     list_display = ['nom', 'sigle', 'telephone', 'email', 'montant_cotisation_mensuelle_fbu', 'montant_cotisation_imprevu_fbu']
+    list_filter = ['tenant']
+    
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        if not request.user.is_superuser:
+            tenant = getattr(request, 'tenant', None)
+            if tenant:
+                qs = qs.filter(tenant=tenant)
+        return qs
     
     fieldsets = (
         ('Informations générales', {
@@ -260,8 +317,16 @@ class SuggestionAdmin(admin.ModelAdmin):
     """Configuration de l'admin pour le modèle Suggestion"""
     
     list_display = ['titre', 'get_membre_name', 'date_soumission', 'statut']
-    list_filter = ['statut', 'date_soumission']
+    list_filter = ['tenant', 'statut', 'date_soumission']
     search_fields = ['titre', 'description', 'membre__nom', 'membre__prenom']
+    
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        if not request.user.is_superuser:
+            tenant = getattr(request, 'tenant', None)
+            if tenant:
+                qs = qs.filter(tenant=tenant)
+        return qs
     date_hierarchy = 'date_soumission'
     
     fieldsets = (

@@ -1,0 +1,91 @@
+{% extends 'superadmin/base_superadmin.html' %}
+{% block title %}Mon Profil{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <!-- Informations du profil -->
+        <div class="card mb-4">
+            <div class="card-header"><h5 class="mb-0"><i class="fas fa-user me-2"></i>Informations du profil</h5></div>
+            <div class="card-body">
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <input type="hidden" name="profile_submit" value="1">
+                    
+                    <div class="row">
+                        <div class="col-md-3 text-center mb-3">
+                            {% if user.photo %}
+                            <img src="{{ user.photo.url }}" class="rounded-circle mb-2" style="width:100px;height:100px;object-fit:cover" alt="Photo">
+                            {% else %}
+                            <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center mx-auto mb-2" style="width:100px;height:100px">
+                                <i class="fas fa-user fa-3x text-white"></i>
+                            </div>
+                            {% endif %}
+                            <div class="mb-2">
+                                <label class="form-label">Photo</label>
+                                {{ profile_form.photo }}
+                                {% for e in profile_form.photo.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+                            </div>
+                        </div>
+                        <div class="col-md-9">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">{{ profile_form.nom.label }}</label>
+                                    {{ profile_form.nom }}
+                                    {% for e in profile_form.nom.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">{{ profile_form.prenom.label }}</label>
+                                    {{ profile_form.prenom }}
+                                    {% for e in profile_form.prenom.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">{{ profile_form.carte_identite.label }}</label>
+                                {{ profile_form.carte_identite }}
+                                {% for e in profile_form.carte_identite.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">{{ profile_form.email.label }}</label>
+                                    {{ profile_form.email }}
+                                    {% for e in profile_form.email.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">{{ profile_form.telephone.label }}</label>
+                                    {{ profile_form.telephone }}
+                                    {% for e in profile_form.telephone.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">{{ profile_form.adresse.label }}</label>
+                                {{ profile_form.adresse }}
+                                {% for e in profile_form.adresse.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+                            </div>
+                            <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i>Enregistrer les modifications</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Changer le mot de passe -->
+        <div class="card">
+            <div class="card-header"><h5 class="mb-0"><i class="fas fa-key me-2"></i>Changer le mot de passe</h5></div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="password_submit" value="1">
+                    {% for field in password_form %}
+                    <div class="mb-3">
+                        <label class="form-label">{{ field.label }}</label>
+                        {{ field }}
+                        {% for e in field.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+                    </div>
+                    {% endfor %}
+                    <button type="submit" class="btn btn-warning"><i class="fas fa-save me-1"></i>Modifier le mot de passe</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

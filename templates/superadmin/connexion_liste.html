@@ -1,0 +1,88 @@
+{% extends 'superadmin/base_superadmin.html' %}
+{% block title %}Audit des connexions{% endblock %}
+{% block content %}
+<h2><i class="fas fa-network-wired"></i> Audit des connexions</h2>
+
+<div class="row mb-3 g-2">
+    <div class="col-6 col-md-3">
+        <div class="card stat-card tenants p-3 text-center">
+            <h3 class="mb-0">{{ stats.total }}</h3>
+            <small class="text-muted">Total</small>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card stat-card actifs p-3 text-center">
+            <h3 class="mb-0">{{ stats.mobiles }}</h3>
+            <small class="text-muted">Mobile</small>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card stat-card cles p-3 text-center">
+            <h3 class="mb-0">{{ stats.tablettes }}</h3>
+            <small class="text-muted">Tablette</small>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card stat-card expirees p-3 text-center">
+            <h3 class="mb-0">{{ stats.desktops }}</h3>
+            <small class="text-muted">Desktop</small>
+        </div>
+    </div>
+</div>
+
+<form method="get" class="row g-2 mb-3">
+    <div class="col-auto">
+        <select name="tenant" class="form-select" onchange="this.form.submit()">
+            <option value="">Toutes les associations</option>
+            {% for t in tenants %}
+            <option value="{{ t.pk }}" {% if tenant_id_selected == t.pk %}selected{% endif %}>{{ t.nom }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-auto">
+        <select name="appareil" class="form-select" onchange="this.form.submit()">
+            <option value="">Tous les appareils</option>
+            <option value="Mobile" {% if appareil_selected == 'Mobile' %}selected{% endif %}>Mobile</option>
+            <option value="Tablette" {% if appareil_selected == 'Tablette' %}selected{% endif %}>Tablette</option>
+            <option value="Desktop" {% if appareil_selected == 'Desktop' %}selected{% endif %}>Desktop</option>
+            <option value="Inconnu" {% if appareil_selected == 'Inconnu' %}selected{% endif %}>Inconnu</option>
+        </select>
+    </div>
+</form>
+
+<div class="card p-0">
+    <div class="table-responsive">
+        <table class="table table-sm table-hover align-middle mb-0 table-responsive-card" id="connexionTable">
+            <thead>
+                <tr>
+                    <th>Date</th><th>Utilisateur</th><th>Association</th><th>IP</th>
+                    <th>Appareil</th><th>Marque</th><th>Navigateur</th><th>OS</th><th>Chemin</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in page_obj %}
+                <tr>
+                    <td data-label="Date"><small>{{ c.date_connexion|date:"d/m/Y H:i" }}</small></td>
+                    <td data-label="Utilisateur"><small>{{ c.utilisateur_nom }}</small></td>
+                    <td data-label="Association"><small>{% if c.tenant %}{{ c.tenant.nom }}{% else %}<span class="text-muted">—</span>{% endif %}</small></td>
+                    <td data-label="IP"><code><small>{{ c.ip_address|default:"—" }}</small></code></td>
+                    <td data-label="Appareil">
+                        {% if c.appareil == 'Mobile' %}<span class="badge bg-primary"><i class="fas fa-mobile-alt"></i> Mobile</span>
+                        {% elif c.appareil == 'Tablette' %}<span class="badge bg-info"><i class="fas fa-tablet-alt"></i> Tablette</span>
+                        {% elif c.appareil == 'Desktop' %}<span class="badge bg-secondary"><i class="fas fa-desktop"></i> Desktop</span>
+                        {% else %}<span class="badge bg-dark">{{ c.appareil }}</span>{% endif %}
+                    </td>
+                    <td data-label="Marque"><small>{% if c.marque %}{{ c.marque }}{% else %}<span class="text-muted">—</span>{% endif %}</small></td>
+                    <td data-label="Navigateur"><small>{{ c.navigateur|default:"—" }}</small></td>
+                    <td data-label="OS"><small>{{ c.systeme|default:"—" }}</small></td>
+                    <td data-label="Chemin"><small><code>{{ c.chemin|truncatechars:30 }}</code></small></td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="9" class="text-muted text-center">Aucune connexion enregistrée</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% include 'includes/pagination.html' %}
+</div>
+{% endblock %}

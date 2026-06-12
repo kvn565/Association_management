@@ -26,7 +26,7 @@ SECRET_KEY = 'django-insecure-hr2yzi=wfk$qjoz$@nq_ca4#k45uy#(x1a3q%v$-=ou#39dqfo
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -38,8 +38,9 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'adminlte3',
+    'superadmin',  # Multi-tenant & activation keys
     'twiyungunganye',  # Notre application
+    'cas_assistance',
 ]
 
 MIDDLEWARE = [
@@ -48,6 +49,9 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'superadmin.middleware.TenantMiddleware',  # Détection du sous-domaine
+    'superadmin.middleware.LicenceMiddleware',  # Vérification de licence
+    'superadmin.middleware.ConnexionAuditMiddleware',  # Audit des connexions
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -59,7 +63,6 @@ TEMPLATES = [
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
         'DIRS': [
             os.path.join(BASE_DIR, 'templates'),
-            os.path.join(BASE_DIR, 'templates_adminlte'),  # ← AJOUTER
         ],
         'APP_DIRS': True,
         'OPTIONS': {
@@ -69,6 +72,8 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'django.template.context_processors.media',
+                'superadmin.context_processors.tenant_context',
+                'twiyungunganye.context_processors.menu_permissions_context',
             ],
         },
     },
@@ -159,3 +164,8 @@ MESSAGE_TAGS = {
     messages.WARNING: 'alert-warning',
     messages.ERROR: 'alert-danger',
 }
+
+# ─── Multi-Tenant Configuration ──────────────────────────────
+SUPERADMIN_DOMAIN = 'superadmin'
+LICENCE_EXPIRED_URL = '/superadmin/licence-expiree/'
+SITE_DOMAIN = 'localhost:8000'  # À changer en production

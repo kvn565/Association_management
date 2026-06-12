@@ -3,20 +3,197 @@
 
 {% block title %}Mes Cotisations Imprévus{% endblock %}
 
+{% block extra_css %}
+<style>
+    /* En-tête mes cotisations */
+    .mes-cotisations-header {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        padding: 2rem;
+        border-radius: 15px;
+        color: white;
+        margin-bottom: 2rem;
+        box-shadow: 0 10px 30px rgba(79, 172, 254, 0.3);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .mes-cotisations-header::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -20%;
+        width: 300px;
+        height: 300px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+    }
+
+    .mes-cotisations-header h2 {
+        margin: 0;
+        font-weight: 700;
+        position: relative;
+        z-index: 1;
+    }
+
+    /* Card total */
+    .total-card {
+        border-radius: 15px;
+        padding: 1.5rem;
+        color: white;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        text-align: center;
+        transition: all 0.3s ease;
+    }
+
+    .total-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+    }
+
+    .total-card h5 {
+        font-size: 0.9rem;
+        opacity: 0.9;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+    }
+
+    .total-card h3 {
+        font-size: 2rem;
+        font-weight: 700;
+        margin: 0;
+    }
+
+    /* Info alert */
+    .info-alert {
+        background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+        border: none;
+        border-left: 4px solid #2196f3;
+        border-radius: 10px;
+        color: #1565c0;
+        padding: 1rem;
+    }
+
+    .info-alert i {
+        color: #2196f3;
+        font-size: 1.2rem;
+    }
+
+    .info-alert strong {
+        color: #0d47a1;
+    }
+
+    /* Responsive */
+    @media (max-width: 991px) {
+        .mes-cotisations-header {
+            padding: 1.5rem;
+        }
+
+        .mes-cotisations-header h2 {
+            font-size: 1.3rem;
+        }
+
+        .total-card {
+            padding: 1.25rem;
+        }
+
+        .total-card h3 {
+            font-size: 1.8rem;
+        }
+    }
+
+    @media (max-width: 767px) {
+        .mes-cotisations-header {
+            padding: 1.25rem;
+        }
+
+        .mes-cotisations-header h2 {
+            font-size: 1.1rem;
+        }
+
+        .total-card {
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .total-card h3 {
+            font-size: 1.5rem;
+        }
+
+        .total-card h5 {
+            font-size: 0.85rem;
+        }
+
+        /* Table en cards */
+        .table thead {
+            display: none;
+        }
+
+        .table tbody tr {
+            display: block;
+            margin-bottom: 1rem;
+            border: 1px solid #dee2e6;
+            border-radius: 12px;
+            padding: 1rem;
+            background: white;
+            box-shadow: 0 2px 8px rgba(0,0,0,.08);
+        }
+
+        .table tbody td {
+            display: block;
+            text-align: left !important;
+            padding: 0.5rem 0;
+            border: none;
+            position: relative;
+            padding-left: 45%;
+        }
+
+        .table tbody td:before {
+            content: attr(data-label);
+            position: absolute;
+            left: 0;
+            font-weight: 600;
+            color: #4facfe;
+            width: 40%;
+        }
+
+        .info-alert {
+            padding: 0.75rem;
+        }
+
+        .info-alert i {
+            font-size: 1rem;
+        }
+    }
+
+    @media (max-width: 575px) {
+        .mes-cotisations-header h2 {
+            font-size: 1rem;
+        }
+
+        .total-card h3 {
+            font-size: 1.3rem;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container-fluid px-4">
-    <h1 class="mt-4 mb-4">
-        <i class="fas fa-hand-holding-heart"></i> Mes Cotisations Imprévus
-    </h1>
+<div class="container-fluid">
+    <!-- En-tête -->
+    <div class="mes-cotisations-header">
+        <h2>
+            <i class="bi bi-heart-fill me-2"></i>
+            Mes Cotisations Imprévus
+        </h2>
+    </div>
 
     <!-- Total payé -->
     <div class="row mb-4">
-        <div class="col-xl-4 col-md-6">
-            <div class="card text-white bg-info mb-4">
-                <div class="card-body">
-                    <h5>Total payé</h5>
-                    <h3>{{ total_paye|floatformat:2 }} FBU</h3>
-                </div>
+        <div class="col-12 col-sm-6 col-lg-4">
+            <div class="total-card">
+                <h5>Total payé</h5>
+                <h3>{{ total_paye|floatformat:3 }} {{ devise }}</h3>
             </div>
         </div>
     </div>
@@ -32,49 +209,67 @@
     {% endif %}
 
     <!-- Tableau des cotisations imprévus -->
-    <div class="card mb-4">
-        <div class="card-header">
-            <i class="fas fa-table me-1"></i> Historique de mes cotisations imprévus
+    <div class="card">
+        <div class="card-header bg-white">
+            <h5 class="mb-0">
+                <i class="bi bi-table me-1"></i>
+                Historique de mes cotisations imprévus
+            </h5>
         </div>
-        <div class="card-body">
+        <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-striped table-bordered">
-                    <thead>
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
                         <tr>
                             <th>Période</th>
                             <th>Montant</th>
-                            <th>Date de paiement</th>
+                            <th class="d-none d-md-table-cell">Date de paiement</th>
                             <th>Statut</th>
-                            <th>Remarque</th>
+                            <th class="d-none d-lg-table-cell">Remarque</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for cotisation in cotisations_imprevus %}
+                        {% for cotisation in page_obj %}
                         <tr>
-                            <td>{{ cotisation.get_mois_nom }} {{ cotisation.annee }}</td>
-                            <td><strong>{{ cotisation.montant|floatformat:2 }} FBU</strong></td>
-                            <td>
+                            <td data-label="Période:">
+                                <strong>{{ cotisation.get_mois_nom }} {{ cotisation.annee }}</strong>
+                            </td>
+                            <td data-label="Montant:">
+                                <strong class="text-primary">{{ cotisation.montant|floatformat:3 }}</strong> {{ devise }}
+                            </td>
+                            <td data-label="Date paiement:" class="d-none d-md-table-cell">
                                 {% if cotisation.date_paiement %}
                                     {{ cotisation.date_paiement|date:"d/m/Y" }}
                                 {% else %}
-                                    -
+                                    <span class="text-muted">-</span>
                                 {% endif %}
                             </td>
-                            <td>
+                            <td data-label="Statut:">
                                 {% if cotisation.statut == 'PAYE' %}
-                                    <span class="badge bg-success">Payé</span>
+                                    <span class="badge bg-success">
+                                        <i class="bi bi-check-circle me-1"></i>Payé
+                                    </span>
                                 {% elif cotisation.statut == 'EN_ATTENTE' %}
-                                    <span class="badge bg-warning text-dark">En attente</span>
+                                    <span class="badge bg-warning text-dark">
+                                        <i class="bi bi-clock me-1"></i>En attente
+                                    </span>
                                 {% else %}
-                                    <span class="badge bg-danger">En retard</span>
+                                    <span class="badge bg-danger">
+                                        <i class="bi bi-exclamation-triangle me-1"></i>En retard
+                                    </span>
                                 {% endif %}
                             </td>
-                            <td>{{ cotisation.remarque|default:"-" }}</td>
+                            <td data-label="Remarque:" class="d-none d-lg-table-cell">
+                                {{ cotisation.remarque|default:"-" }}
+                            </td>
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="5" class="text-center text-muted">
-                                Vous n'avez aucune cotisation imprévus enregistrée.
+                            <td colspan="5" class="text-center py-5">
+                                <i class="bi bi-inbox" style="font-size: 3rem; color: #ccc;"></i>
+                                <p class="text-muted mt-3 mb-0">
+                                    Vous n'avez aucune cotisation imprévus enregistrée.
+                                </p>
                             </td>
                         </tr>
                         {% endfor %}
@@ -83,18 +278,26 @@
             </div>
         </div>
     </div>
+    {% include 'includes/pagination.html' %}
 
     <!-- Information -->
-    <div class="alert alert-info">
-        <i class="fas fa-info-circle"></i>
-        <strong>À propos des cotisations imprévus :</strong><br>
-        Ces cotisations constituent un fonds de solidarité pour aider les membres en cas de besoin (maladie, décès, événements imprévus, etc.).
+    <div class="info-alert alert mt-4">
+        <div class="d-flex align-items-start">
+            <i class="bi bi-info-circle-fill me-2"></i>
+            <div>
+                <strong>À propos des cotisations imprévus :</strong><br>
+                <span class="small">
+                    Ces cotisations constituent un fonds de solidarité pour aider les membres en cas de besoin 
+                    (maladie, décès, événements imprévus, etc.).
+                </span>
+            </div>
+        </div>
     </div>
 
     <!-- Bouton retour -->
-    <div class="mb-4">
+    <div class="mt-4">
         <a href="{% url 'dashboard' %}" class="btn btn-secondary">
-            <i class="fas fa-arrow-left"></i> Retour au tableau de bord
+            <i class="bi bi-arrow-left me-1"></i> Retour au tableau de bord
         </a>
     </div>
 </div>

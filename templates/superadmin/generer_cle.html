@@ -1,0 +1,140 @@
+{% extends 'superadmin/base_superadmin.html' %}
+{% block title %}Générer une clé d'activation{% endblock %}
+{% block content %}
+<h2><i class="fas fa-key me-2"></i>Générer une clé d'activation</h2>
+<p class="text-muted">Sélectionnez une association et un plan pour générer une clé.</p>
+
+<div class="card p-4">
+    <form method="post" id="genererCleForm">
+        {% csrf_token %}
+        {% if form.non_field_errors %}
+        <div class="alert alert-danger">{% for e in form.non_field_errors %}{{ e }}{% endfor %}</div>
+        {% endif %}
+
+        <div id="tenantInfo" class="alert alert-info d-none">
+            <strong id="tenantNom"></strong><br>
+            <strong>NIF :</strong> <span id="tenantNif"></span>
+        </div>
+
+        <div id="tenantWarning" class="alert alert-warning d-none">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            Cette association a déjà une ou plusieurs clés. Impossible d'en générer une nouvelle.
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">{{ form.tenant.label }}</label>
+            {{ form.tenant }}
+            {% for e in form.tenant.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">{{ form.type_plan.label }}</label>
+            {{ form.type_plan }}
+            {% for e in form.type_plan.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+            <div class="form-text">
+                <ul class="mb-0 mt-1 small">
+                    <li><strong>Essai 14j</strong> — Gratuit, durée limitée</li>
+                    <li><strong>1 Mois</strong> — 30 jours</li>
+                    <li><strong>Starter 6m</strong> — 6 mois (182 jours)</li>
+                    <li><strong>Business 12m</strong> — 12 mois (365 jours)</li>
+                    <li><strong>Enterprise 24m</strong> — 24 mois (730 jours)</li>
+                    <li><strong>Personnalisé</strong> — Choisissez vos propres dates</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="row" id="datesSection">
+            <div class="col-md-6 mb-3">
+                <label class="form-label">{{ form.date_debut.label }}</label>
+                {{ form.date_debut }}
+                {% for e in form.date_debut.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+            </div>
+            <div class="col-md-6 mb-3">
+                <label class="form-label">{{ form.date_fin.label }}</label>
+                {{ form.date_fin }}
+                {% for e in form.date_fin.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">{{ form.notes.label }}</label>
+            {{ form.notes }}
+            {% for e in form.notes.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+        </div>
+
+        <button type="submit" class="btn btn-primary" id="submitBtn"><i class="fas fa-key me-1"></i> {{ action }}</button>
+        <a href="{% url 'superadmin:cle_liste' %}" class="btn btn-secondary">Annuler</a>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    var tenantsData = {{ tenants_json|safe }};
+    var tenantSelect = document.getElementById('id_tenant');
+    var tenantInfo = document.getElementById('tenantInfo');
+    var tenantNom = document.getElementById('tenantNom');
+    var tenantNif = document.getElementById('tenantNif');
+    var tenantWarning = document.getElementById('tenantWarning');
+    var submitBtn = document.getElementById('submitBtn');
+
+    function onTenantChange() {
+        var selectedId = parseInt(tenantSelect.value);
+        if (!selectedId) {
+            tenantInfo.classList.add('d-none');
+            tenantWarning.classList.add('d-none');
+            submitBtn.disabled = false;
+            return;
+        }
+        var tenant = tenantsData.find(function(t) { return t.id === selectedId; });
+        if (tenant) {
+            tenantNom.textContent = tenant.nom;
+            tenantNif.textContent = tenant.nif || '—';
+            tenantInfo.classList.remove('d-none');
+
+            fetch('/superadmin/api/tenant-keys/' + selectedId + '/')
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (data.a_des_cles) {
+                        tenantWarning.classList.remove('d-none');
+                        submitBtn.disabled = true;
+                    } else {
+                        tenantWarning.classList.add('d-none');
+                        submitBtn.disabled = false;
+                    }
+                });
+        }
+    }
+
+    if (tenantSelect) {
+        tenantSelect.addEventListener('change', onTenantChange);
+        if (tenantSelect.value) {
+            onTenantChange();
+        }
+    }
+
+    var planSelect = document.getElementById('id_type_plan');
+    var datesSection = document.getElementById('datesSection');
+    var dateDebut = document.getElementById('id_date_debut');
+    var dateFin = document.getElementById('id_date_fin');
+
+    function toggleDates() {
+        if (planSelect.value === 'PERSONNALISE') {
+            datesSection.style.display = 'flex';
+            dateDebut.required = true;
+            dateFin.required = true;
+        } else {
+            datesSection.style.display = 'none';
+            dateDebut.required = false;
+            dateFin.required = false;
+        }
+    }
+
+    if (planSelect) {
+        planSelect.addEventListener('change', toggleDates);
+        toggleDates();
+    }
+})();
+</script>
+{% endblock %}

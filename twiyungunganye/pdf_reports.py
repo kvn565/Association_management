@@ -1,3 +1,4 @@
+from io import BytesIO
 from django.http import HttpResponse
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.db.models import Sum, Count
@@ -10,11 +11,23 @@ from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 from datetime import datetime
 from decimal import Decimal
 
-from .models import Membre, Cotisation, Credit, Remboursement, Association
+from .models import Membre, Cotisation, CotisationImprevu, Credit, Remboursement, Association
+from .pdf_utils import save_pdf_and_respond
+
+
+def get_tenant(request):
+    return getattr(request, 'tenant', None)
+
+
+def qs_for_tenant(request, qs, field='tenant'):
+    tenant = get_tenant(request)
+    if tenant and not getattr(request, 'is_superadmin', False):
+        return qs.filter(**{field: tenant})
+    return qs
 
 
 def is_admin_or_gestionnaire(user):
-    return user.is_authenticated and (user.is_admin or user.is_gestionnaire)
+    return user.is_authenticated and (user.is_admin or user.is_admin)
 
 
 @login_required
@@ -22,16 +35,14 @@ def is_admin_or_gestionnaire(user):
 def rapport_mensuel_pdf(request, mois, annee):
     """Génère un rapport mensuel en PDF"""
     
-    # Créer le document PDF
-    response = HttpResponse(content_type='application/pdf')
     mois_noms = ['', 'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
                  'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
     
     filename = f"Rapport_Mensuel_{mois_noms[mois]}_{annee}.pdf"
-    response['Content-Disposition'] = f'attachment; filename="{filename}"'
     
-    # Créer le document
-    doc = SimpleDocTemplate(response, pagesize=landscape(A4))
+    # Créer le document en mémoire
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=landscape(A4))
     elements = []
     
     # Styles
@@ -56,8 +67,11 @@ def rapport_mensuel_pdf(request, mois, annee):
         fontName='Helvetica-Bold'
     )
     
+    tenant = get_tenant(request)
+    
     # Récupérer les informations de l'association
-    association = Association.get_association()
+    association = Association.get_association(tenant)
+    devise = association.devise if association and association.devise else "FBU"
     
     # Titre du rapport
     if association:
@@ -77,24 +91,28 @@ def rapport_mensuel_pdf(request, mois, annee):
     elements.append(Paragraph("<b>1. COTISATIONS DU MOIS</b>", styles['Heading2']))
     elements.append(Spacer(1, 0.3*cm))
     
-    cotisations = Cotisation.objects.filter(mois=mois, annee=annee).select_related('membre')
+    base_cotisations = qs_for_tenant(request, Cotisation.objects.all())
+    base_credits = qs_for_tenant(request, Credit.objects.all())
+    base_remboursements = qs_for_tenant(request, Remboursement.objects.all())
+    
+    cotisations = base_cotisations.filter(mois=mois, annee=annee).select_related('membre')
     
     if cotisations.exists():
-        data_cotisations = [['#', 'Nom Complet', 'N° Carte ID', 'Montant (FBU)', 'Statut', 'Date Paiement']]
+        data_cotisations = [['#', 'Nom Complet', 'N° Carte ID', 'Montant ({devise})', 'Statut', 'Date Paiement']]
         
         for i, cot in enumerate(cotisations, 1):
             data_cotisations.append([
                 str(i),
                 cot.membre.get_full_name(),
                 cot.membre.carte_identite,
-                f"{cot.montant:,.2f}",
+                f"{cot.montant:,.3f}",
                 cot.get_statut_display(),
                 cot.date_paiement.strftime("%d/%m/%Y")
             ])
         
         # Total des cotisations
         total_cotisations = cotisations.aggregate(Sum('montant'))['montant__sum'] or 0
-        data_cotisations.append(['', '', 'TOTAL', f"{total_cotisations:,.2f} FBU", '', ''])
+        data_cotisations.append(['', '', 'TOTAL', f"{total_cotisations:,.3f} {devise}", '', ''])
         
         table_cotisations = Table(data_cotisations, colWidths=[1.5*cm, 5*cm, 3.5*cm, 3*cm, 3*cm, 3*cm])
         table_cotisations.setStyle(TableStyle([
@@ -122,7 +140,7 @@ def rapport_mensuel_pdf(request, mois, annee):
     elements.append(Spacer(1, 0.3*cm))
     
     # Filtrer les crédits approuvés ou en cours (peu importe leur date d'accord)
-    credits = Credit.objects.filter(
+    credits = base_credits.filter(
         statut__in=['APPROUVE', 'EN_COURS']
     ).select_related('membre')
     
@@ -144,11 +162,11 @@ def rapport_mensuel_pdf(request, mois, annee):
             data_credits.append([
                 str(i),
                 credit.membre.get_full_name(),
-                f"{credit.montant_accorde:,.2f}",
-                f"{interet:,.2f}",
-                f"{montant_total:,.2f}",
-                f"{deja_rembourse:,.2f}",
-                f"{reste:,.2f}"
+                f"{credit.montant_accorde:,.3f}",
+                f"{interet:,.3f}",
+                f"{montant_total:,.3f}",
+                f"{deja_rembourse:,.3f}",
+                f"{reste:,.3f}"
             ])
             
             total_credits_montant += credit.montant_accorde
@@ -159,11 +177,11 @@ def rapport_mensuel_pdf(request, mois, annee):
         
         data_credits.append([
             '', 'TOTAL',
-            f"{total_credits_montant:,.2f}",
-            f"{total_interets:,.2f}",
-            f"{total_a_rembourser:,.2f}",
-            f"{total_rembourse:,.2f}",
-            f"{total_reste:,.2f}"
+            f"{total_credits_montant:,.3f}",
+            f"{total_interets:,.3f}",
+            f"{total_a_rembourser:,.3f}",
+            f"{total_rembourse:,.3f}",
+            f"{total_reste:,.3f}"
         ])
         
         table_credits = Table(data_credits, colWidths=[1.5*cm, 4*cm, 3*cm, 3*cm, 3.5*cm, 3.5*cm, 3*cm])
@@ -194,25 +212,30 @@ def rapport_mensuel_pdf(request, mois, annee):
     # ========== CALCULS DÉTAILLÉS ==========
     
     # 1. Cotisations du mois
-    total_cotisations_mois = cotisations.aggregate(Sum('montant'))['montant__sum'] or Decimal('0')
+    total_cotisations_mois = cotisations.aggregate(Sum('montant'))['montant__sum'] or Decimal('0.000')
+    
+    # 1b. Cotisations Imprévus du mois
+    total_imprevus_mois = qs_for_tenant(request, CotisationImprevu.objects.all()).filter(
+        mois=mois, annee=annee, statut='PAYE'
+    ).aggregate(Sum('montant'))['montant__sum'] or Decimal('0.000')
     
     # 2. Remboursements du mois (principal + intérêts séparés)
-    remboursements_mois = Remboursement.objects.filter(
+    remboursements_mois = base_remboursements.filter(
         date_remboursement__month=mois,
         date_remboursement__year=annee
     )
     total_remb_principal = remboursements_mois.aggregate(
         Sum('montant_rembourse')
-    )['montant_rembourse__sum'] or Decimal('0')
+    )['montant_rembourse__sum'] or Decimal('0.000')
     
     total_remb_interets = remboursements_mois.aggregate(
         Sum('interet_rembourse')
-    )['interet_rembourse__sum'] or Decimal('0')
+    )['interet_rembourse__sum'] or Decimal('0.000')
     
     total_remboursements = total_remb_principal + total_remb_interets
     
     # 3. Crédits approuvés dans le mois
-    credits_approuves_mois = Credit.objects.filter(
+    credits_approuves_mois = base_credits.filter(
         statut='APPROUVE',
         date_accord__month=mois,
         date_accord__year=annee
@@ -222,7 +245,7 @@ def rapport_mensuel_pdf(request, mois, annee):
     )['montant_accorde__sum'] or Decimal('0')
     
     # 4. Intérêts générés sur les crédits en cours (à percevoir)
-    credits_en_cours = Credit.objects.filter(
+    credits_en_cours = base_credits.filter(
         statut__in=['APPROUVE', 'EN_COURS']
     )
     total_interets_a_percevoir = Decimal('0')
@@ -234,10 +257,17 @@ def rapport_mensuel_pdf(request, mois, annee):
         interets_restants = interets_credit - interets_deja_percus
         total_interets_a_percevoir += interets_restants
     
-    # 5. SOLDE EN CAISSE
-    # = Cotisations + Remboursements reçus - Crédits accordés
-    entrees_totales = total_cotisations_mois + total_remboursements
-    sorties_totales = total_credits_accordes
+    # 5. Dépenses du mois
+    from .models import Depense
+    depenses_mois = qs_for_tenant(request, Depense.objects.filter(
+        date_depense__month=mois, date_depense__year=annee
+    )) if hasattr(request, 'tenant') else Depense.objects.none()
+    total_depenses_mois = depenses_mois.aggregate(Sum('montant'))['montant__sum'] or Decimal('0.000')
+
+    # 6. SOLDE EN CAISSE
+    # = (Cotisations + Imprévus + Remboursements) - (Dépenses + Crédits accordés)
+    entrees_totales = total_cotisations_mois + total_imprevus_mois + total_remboursements
+    sorties_totales = total_depenses_mois + total_credits_accordes
     solde_caisse = entrees_totales - sorties_totales
     
     # ========== TABLEAU RÉCAPITULATIF ==========
@@ -245,21 +275,23 @@ def rapport_mensuel_pdf(request, mois, annee):
     data_resume = [
         ['', ''],
         ['📥 ENTRÉES DU MOIS', ''],
-        ['  Cotisations reçues', f"{total_cotisations_mois:,.0f} FBU"],
-        ['  Remboursements reçus (principal)', f"{total_remb_principal:,.0f} FBU"],
-        ['  Intérêts perçus', f"{total_remb_interets:,.0f} FBU"],
-        ['  TOTAL ENTRÉES', f"{entrees_totales:,.0f} FBU"],
+        ['  Cotisations reçues', f"{total_cotisations_mois:,.3f} {devise}"],
+        ['  Cotisations imprévus reçues', f"{total_imprevus_mois:,.3f} {devise}"],
+        ['  Remboursements reçus (principal)', f"{total_remb_principal:,.3f} {devise}"],
+        ['  Intérêts perçus', f"{total_remb_interets:,.3f} {devise}"],
+        ['  TOTAL ENTRÉES', f"{entrees_totales:,.3f} {devise}"],
         ['', ''],
         ['📤 SORTIES DU MOIS', ''],
-        ['  Crédits accordés', f"{total_credits_accordes:,.0f} FBU"],
-        ['  TOTAL SORTIES', f"{sorties_totales:,.0f} FBU"],
+        ['  Dépenses', f"{total_depenses_mois:,.3f} {devise}"],
+        ['  Crédits accordés', f"{total_credits_accordes:,.3f} {devise}"],
+        ['  TOTAL SORTIES', f"{sorties_totales:,.3f} {devise}"],
         ['', ''],
         ['📊 INFORMATIONS COMPLÉMENTAIRES', ''],
-        ['  Intérêts à percevoir (crédits en cours)', f"{total_interets_a_percevoir:,.0f} FBU"],
+        ['  Intérêts à percevoir (crédits en cours)', f"{total_interets_a_percevoir:,.3f} {devise}"],
         ['  Nombre de remboursements', f"{remboursements_mois.count()}"],
         ['  Nombre de crédits accordés', f"{credits_approuves_mois.count()}"],
         ['', ''],
-        ['💰 SOLDE EN CAISSE', f"{solde_caisse:,.0f} FBU"],
+        ['💰 SOLDE EN CAISSE', f"{solde_caisse:,.3f} {devise}"],
     ]
     
     table_resume = Table(data_resume, colWidths=[12*cm, 4*cm])
@@ -341,7 +373,7 @@ def rapport_mensuel_pdf(request, mois, annee):
     # Construire le PDF
     doc.build(elements)
     
-    return response
+    return save_pdf_and_respond(buffer, filename)
 
 
 @login_required
@@ -349,13 +381,11 @@ def rapport_mensuel_pdf(request, mois, annee):
 def rapport_annuel_pdf(request, annee):
     """Génère un rapport annuel en PDF"""
     
-    # Créer le document PDF
-    response = HttpResponse(content_type='application/pdf')
     filename = f"Rapport_Annuel_{annee}.pdf"
-    response['Content-Disposition'] = f'attachment; filename="{filename}"'
     
-    # Créer le document
-    doc = SimpleDocTemplate(response, pagesize=landscape(A4))
+    # Créer le document en mémoire
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=landscape(A4))
     elements = []
     
     # Styles
@@ -380,8 +410,11 @@ def rapport_annuel_pdf(request, annee):
         fontName='Helvetica-Bold'
     )
     
+    tenant = get_tenant(request)
+    
     # Récupérer les informations de l'association
-    association = Association.get_association()
+    association = Association.get_association(tenant)
+    devise = association.devise if association and association.devise else "FBU"
     
     # Titre du rapport
     if association:
@@ -401,23 +434,27 @@ def rapport_annuel_pdf(request, annee):
     elements.append(Paragraph("<b>1. COTISATIONS PAR MOIS</b>", styles['Heading2']))
     elements.append(Spacer(1, 0.3*cm))
     
+    base_cotisations = qs_for_tenant(request, Cotisation.objects.all())
+    base_credits = qs_for_tenant(request, Credit.objects.all())
+    base_remboursements = qs_for_tenant(request, Remboursement.objects.all())
+    
     mois_noms = ['', 'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
                  'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
     
-    data_cotisations_annuel = [['Mois', 'Nombre de cotisations', 'Total (FBU)']]
+    data_cotisations_annuel = [['Mois', 'Nombre de cotisations', 'Total ({devise})']]
     
     total_annuel_cotisations = Decimal('0')
     total_nombre_cotisations = 0
     
     for mois in range(1, 13):
-        cotisations_mois = Cotisation.objects.filter(mois=mois, annee=annee)
+        cotisations_mois = base_cotisations.filter(mois=mois, annee=annee)
         nombre = cotisations_mois.count()
         total = cotisations_mois.aggregate(Sum('montant'))['montant__sum'] or 0
         
         data_cotisations_annuel.append([
             mois_noms[mois],
             str(nombre),
-            f"{total:,.2f}"
+            f"{total:,.3f}"
         ])
         
         total_annuel_cotisations += total
@@ -426,7 +463,7 @@ def rapport_annuel_pdf(request, annee):
     data_cotisations_annuel.append([
         'TOTAL ANNUEL',
         str(total_nombre_cotisations),
-        f"{total_annuel_cotisations:,.2f} FBU"
+        f"{total_annuel_cotisations:,.3f} {devise}"
     ])
     
     table_cotisations_annuel = Table(data_cotisations_annuel, colWidths=[6*cm, 5*cm, 5*cm])
@@ -451,13 +488,13 @@ def rapport_annuel_pdf(request, annee):
     elements.append(Paragraph("<b>2. STATISTIQUES DES CRÉDITS</b>", styles['Heading2']))
     elements.append(Spacer(1, 0.3*cm))
     
-    credits_annee = Credit.objects.filter(date_accord__year=annee)
+    credits_annee = base_credits.filter(date_accord__year=annee)
     nombre_credits = credits_annee.count()
-    total_credits_accordes = credits_annee.aggregate(Sum('montant_accorde'))['montant_accorde__sum'] or Decimal('0')
+    total_credits_accordes = credits_annee.aggregate(Sum('montant_accorde'))['montant_accorde__sum'] or Decimal('0.000')
     
     data_credits_stats = [
         ['Nombre de crédits accordés', str(nombre_credits)],
-        ['Montant total des crédits', f"{total_credits_accordes:,.2f} FBU"],
+        ['Montant total des crédits', f"{total_credits_accordes:,.3f} {devise}"],
     ]
     
     table_credits_stats = Table(data_credits_stats, colWidths=[10*cm, 5*cm])
@@ -482,32 +519,43 @@ def rapport_annuel_pdf(request, annee):
     # 1. Cotisations de l'année (déjà calculé)
     # total_annuel_cotisations
     
+    # 1b. Cotisations Imprévus de l'année
+    total_imprevus_annee = qs_for_tenant(request, CotisationImprevu.objects.filter(statut='PAYE', annee=annee)).aggregate(
+        Sum('montant')
+    )['montant__sum'] or Decimal('0.000')
+    
     # 2. Remboursements de l'année (principal + intérêts)
-    remboursements_annee = Remboursement.objects.filter(date_remboursement__year=annee)
+    remboursements_annee = base_remboursements.filter(date_remboursement__year=annee)
     total_remb_principal = remboursements_annee.aggregate(
         Sum('montant_rembourse')
-    )['montant_rembourse__sum'] or Decimal('0')
+    )['montant_rembourse__sum'] or Decimal('0.000')
     
     total_remb_interets = remboursements_annee.aggregate(
         Sum('interet_rembourse')
-    )['interet_rembourse__sum'] or Decimal('0')
+    )['interet_rembourse__sum'] or Decimal('0.000')
     
     total_remboursements_annee = total_remb_principal + total_remb_interets
     
-    # 3. Crédits accordés dans l'année (déjà calculé)
+    # 3. Dépenses de l'année
+    from .models import Depense
+    depenses_annee = qs_for_tenant(request, Depense.objects.filter(date_depense__year=annee)) if hasattr(request, 'tenant') else Depense.objects.none()
+    total_depenses_annee = depenses_annee.aggregate(Sum('montant'))['montant__sum'] or Decimal('0.000')
+
+    # 4. Crédits accordés dans l'année (déjà calculé)
     # total_credits_accordes
     
-    # 4. Intérêts générés sur TOUS les crédits de l'année
+    # 5. Intérêts générés sur TOUS les crédits de l'année
     total_interets_generes = Decimal('0')
     for credit in credits_annee:
         total_interets_generes += credit.calculer_interet()
     
-    # 5. Intérêts restants à percevoir
+    # 6. Intérêts restants à percevoir
     interets_restants = total_interets_generes - total_remb_interets
     
-    # 6. SOLDE EN CAISSE
-    entrees_totales = total_annuel_cotisations + total_remboursements_annee
-    sorties_totales = total_credits_accordes
+    # 7. SOLDE EN CAISSE
+    # = (Cotisations + Imprévus + Remboursements) - (Dépenses + Crédits accordés)
+    entrees_totales = total_annuel_cotisations + total_imprevus_annee + total_remboursements_annee
+    sorties_totales = total_depenses_annee + total_credits_accordes
     solde_caisse = entrees_totales - sorties_totales
     
     # ========== TABLEAU RÉCAPITULATIF ==========
@@ -515,22 +563,24 @@ def rapport_annuel_pdf(request, annee):
     data_bilan = [
         ['', ''],
         ['📥 ENTRÉES DE L\'ANNÉE', ''],
-        ['  Cotisations annuelles', f"{total_annuel_cotisations:,.0f} FBU"],
-        ['  Remboursements reçus (principal)', f"{total_remb_principal:,.0f} FBU"],
-        ['  Intérêts perçus', f"{total_remb_interets:,.0f} FBU"],
-        ['  TOTAL ENTRÉES', f"{entrees_totales:,.0f} FBU"],
+        ['  Cotisations annuelles', f"{total_annuel_cotisations:,.3f} {devise}"],
+        ['  Cotisations imprévus annuelles', f"{total_imprevus_annee:,.3f} {devise}"],
+        ['  Remboursements reçus (principal)', f"{total_remb_principal:,.3f} {devise}"],
+        ['  Intérêts perçus', f"{total_remb_interets:,.3f} {devise}"],
+        ['  TOTAL ENTRÉES', f"{entrees_totales:,.3f} {devise}"],
         ['', ''],
         ['📤 SORTIES DE L\'ANNÉE', ''],
-        ['  Crédits accordés', f"{total_credits_accordes:,.0f} FBU"],
-        ['  TOTAL SORTIES', f"{sorties_totales:,.0f} FBU"],
+        ['  Dépenses', f"{total_depenses_annee:,.3f} {devise}"],
+        ['  Crédits accordés', f"{total_credits_accordes:,.3f} {devise}"],
+        ['  TOTAL SORTIES', f"{sorties_totales:,.3f} {devise}"],
         ['', ''],
         ['📊 INFORMATIONS COMPLÉMENTAIRES', ''],
-        ['  Intérêts générés (total)', f"{total_interets_generes:,.0f} FBU"],
-        ['  Intérêts restants à percevoir', f"{interets_restants:,.0f} FBU"],
+        ['  Intérêts générés (total)', f"{total_interets_generes:,.3f} {devise}"],
+        ['  Intérêts restants à percevoir', f"{interets_restants:,.3f} {devise}"],
         ['  Nombre de remboursements', f"{remboursements_annee.count()}"],
         ['  Nombre de crédits accordés', f"{nombre_credits}"],
         ['', ''],
-        ['💰 SOLDE EN CAISSE', f"{solde_caisse:,.0f} FBU"],
+        ['💰 SOLDE EN CAISSE', f"{solde_caisse:,.3f} {devise}"],
     ]
     
     table_bilan = Table(data_bilan, colWidths=[12*cm, 4*cm])
@@ -613,4 +663,4 @@ def rapport_annuel_pdf(request, annee):
     # Construire le PDF
     doc.build(elements)
     
-    return response
+    return save_pdf_and_respond(buffer, filename)

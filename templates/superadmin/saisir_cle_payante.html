@@ -1,0 +1,70 @@
+{% extends 'twiyungunganye/base.html' %}
+{% load static %}
+{% block title %}Renouveler la licence{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-6">
+
+        {% if cle_active %}
+        <div class="alert alert-success d-flex align-items-center">
+            <i class="bi bi-check-circle-fill fs-4 me-3"></i>
+            <div>
+                <strong>Licence active</strong><br>
+                Plan : <strong>{{ cle_active.label_plan }}</strong> —
+                <strong>{{ cle_active.jours_restants }} jour(s)</strong> restants
+                (expire le {{ cle_active.date_fin|date:"d/m/Y" }})
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="card shadow">
+            <div class="card-header text-center">
+                <h4 class="mb-0"><i class="bi bi-key me-2"></i>Renouveler la licence</h4>
+            </div>
+            <div class="card-body p-4">
+
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle me-2"></i>
+                    Saisissez la <strong>clé de licence</strong> que vous avez reçue de l'administrateur
+                    pour prolonger votre abonnement.
+                </div>
+
+                <form method="post">
+                    {% csrf_token %}
+
+                    {% if form.non_field_errors %}
+                    <div class="alert alert-danger">
+                        {% for err in form.non_field_errors %}{{ err }}{% endfor %}
+                    </div>
+                    {% endif %}
+
+                    <div class="mb-4">
+                        <label class="form-label fw-bold fs-5">{{ form.cle_activation.label }}</label>
+                        {{ form.cle_activation }}
+                        {% if form.cle_activation.errors %}
+                        <div class="text-danger small mt-1">{{ form.cle_activation.errors.0 }}</div>
+                        {% endif %}
+                        <div class="form-text">
+                            Exemple : <code>ASS-XXXX-12M-AB3D4E</code> — respectez la casse et les tirets.
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-lg w-100">
+                        <i class="bi bi-check-lg me-2"></i> Activer la licence
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <div class="text-center mt-3">
+            <small class="text-muted">
+                <i class="bi bi-envelope me-1"></i>
+                Vous n'avez pas de clé ? Contactez l'administrateur :
+                <strong>kevin.ngenda@gmail.com</strong> — <strong>+257 71 56 57 46</strong>
+            </small>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

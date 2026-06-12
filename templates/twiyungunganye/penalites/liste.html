@@ -1,0 +1,164 @@
+{% extends 'twiyungunganye/base.html' %}
+{% load static %}
+{% block title %}Pénalités cotisations impayées{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <h2 class="mb-0"><i class="bi bi-exclamation-triangle"></i> Pénalités cotisations impayées</h2>
+    <div class="d-flex flex-wrap gap-2">
+        <button type="submit" form="exportPenalitesForm" class="btn btn-outline-primary">
+            <i class="bi bi-file-earmark-excel me-1"></i> Exporter Excel
+        </button>
+        {% if user.is_admin or user.is_gestionnaire %}
+        <a href="{% url 'generer_penalites' %}" class="btn btn-primary">
+            <i class="bi bi-calculator me-1"></i> Générer pénalités
+        </a>
+        {% endif %}
+    </div>
+</div>
+<div class="row justify-content-end mb-4">
+    <div class="col-12 col-md-8 col-lg-6 col-xl-5">
+        <form id="exportPenalitesForm" action="{% url 'export_penalites_excel' %}" method="get">
+            <div class="input-group input-group-sm shadow-sm rounded">
+                <span class="input-group-text bg-white border-end-0 text-muted">
+                    <i class="bi bi-calendar-range me-2"></i> Paiements du :
+                </span>
+                <input type="date" name="date_debut" class="form-control border-start-0" title="Date de paiement (début)">
+                <span class="input-group-text bg-light text-muted border-start-0 border-end-0">au</span>
+                <input type="date" name="date_fin" class="form-control border-start-0" title="Date de paiement (fin)">
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Statistiques -->
+<div class="row mb-4">
+    <div class="col-12 col-sm-6 col-xl-3 mb-3">
+        <div class="card stat-card primary h-100">
+            <h5>Total pénalités</h5>
+            <h3>{{ stats.total_penalites|default:0|floatformat:3 }} {{ devise }}</h3>
+        </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3 mb-3">
+        <div class="card stat-card success h-100">
+            <h5>Payées</h5>
+            <h3>{{ stats.total_payees|default:0|floatformat:3 }} {{ devise }}</h3>
+        </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3 mb-3">
+        <div class="card stat-card warning h-100">
+            <h5>En attente</h5>
+            <h3>{{ stats.total_penalites|add:stats.total_payees|floatformat:3 }} {{ devise }}</h3>
+        </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3 mb-3">
+        <div class="card stat-card info h-100">
+            <h5>Nombre</h5>
+            <h3>{{ stats.count_total|default:0 }}</h3>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        {% if penalites %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0" id="penalitesTable">
+                <thead>
+                    <tr>
+                        <th>Membre</th>
+                        <th>Période</th>
+                        <th>Cotisation</th>
+                        <th>Taux</th>
+                        <th>Pénalité mensuelle</th>
+                        <th>Pénalité cumulée</th>
+                        <th>Statut</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for pen in penalites %}
+                <tr class="{% if pen.est_payee %}table-success{% endif %}">
+                    <td data-label="Membre">{{ pen.membre.get_full_name }}</td>
+                    <td data-label="Période">
+                        {% if pen.mois %}{{ pen.get_mois_nom }} {{ pen.annee }}{% else %}-{% endif %}
+                    </td>
+                    <td data-label="Cotisation">{{ pen.montant_cotisation|floatformat:3 }} {{ devise }}</td>
+                    <td data-label="Taux">{{ pen.taux_penalite }}%</td>
+                    <td data-label="Mensuelle">{{ pen.penalite_mensuelle|floatformat:3 }} {{ devise }}</td>
+                    <td data-label="Cumulée"><strong>{{ pen.penalite_cumulee|floatformat:3 }} {{ devise }}</strong></td>
+                    <td data-label="Statut">
+                        {% if pen.est_payee %}
+                        <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Payée</span>
+                        {% else %}
+                        <span class="badge bg-warning text-dark"><i class="bi bi-clock me-1"></i>En attente</span>
+                        {% endif %}
+                    </td>
+                    <td data-label="Actions">
+                        {% if not pen.est_payee %}
+                        <a href="{% url 'marquer_penalite_payee' pen.id_penalite %}" class="btn btn-sm btn-success" title="Marquer payée" onclick="return confirm('Marquer cette pénalité comme payée ?')">
+                            <i class="bi bi-check me-1"></i> Payer
+                        </a>
+                        {% else %}
+                        <span class="text-success"><i class="bi bi-check-circle"></i> Payée</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% include 'includes/pagination.html' %}
+        {% else %}
+        <div class="text-center py-5">
+            <p class="text-muted mb-0">Aucune pénalité</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+.stat-card {
+    border-radius: 12px;
+    padding: 1.5rem;
+    color: white;
+    box-shadow: 0 4px 15px rgba(0,0,0,.15);
+    border: none;
+}
+.stat-card h5 { font-size: 0.9rem; opacity: 0.9; margin-bottom: 0.5rem; font-weight: 600; }
+.stat-card h3 { font-size: 1.8rem; font-weight: 700; margin: 0; }
+.stat-card.primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+.stat-card.success { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
+.stat-card.warning { background: linear-gradient(135deg, #ffd32a 0%, #f59f00 100%); color: #000; }
+.stat-card.info { background: linear-gradient(135deg, #17a2b8 0%, #138496 100%); }
+@media (max-width: 767px) {
+    #penalitesTable thead { display: none; }
+    #penalitesTable tbody tr {
+        display: block;
+        border: 1px solid #dee2e6;
+        border-radius: .5rem;
+        padding: .75rem;
+        margin: .75rem;
+        background: #fff;
+        box-shadow: 0 2px 4px rgba(0,0,0,.05);
+    }
+    #penalitesTable tbody td {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: .35rem .5rem;
+        border: none;
+        border-bottom: 1px solid #f0f0f0;
+        text-align: right;
+    }
+    #penalitesTable tbody td:last-child { border-bottom: none; }
+    #penalitesTable tbody td::before {
+        content: attr(data-label);
+        font-weight: 600;
+        text-align: left;
+        padding-right: .5rem;
+        color: #555;
+    }
+    #penalitesTable tbody td[data-label="Actions"] { justify-content: flex-start; gap: .5rem; }
+}
+</style>
+{% endblock %}

@@ -1,0 +1,39 @@
+{% extends 'twiyungunganye/base.html' %}
+{% load static %}
+{% block title %}Licence expirée{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-6 text-center py-5">
+
+        <div class="mb-4">
+            <i class="bi bi-exclamation-triangle-fill text-warning" style="font-size:5rem;"></i>
+        </div>
+
+        <h2 class="mb-3">Votre licence a expiré</h2>
+        <p class="lead text-muted mb-4">
+            Vous ne pouvez plus accéder aux fonctionnalités de l'application.
+            Veuillez renouveler votre licence pour continuer.
+        </p>
+
+        <div class="alert alert-info text-start mb-4">
+            <i class="bi bi-info-circle me-2"></i>
+            Si vous avez reçu une <strong>clé de licence</strong> de l'administrateur,
+            cliquez sur le bouton ci-dessous pour la saisir et réactiver votre abonnement.
+        </div>
+
+        <a href="{% url 'superadmin:saisir_cle_payante' %}" class="btn btn-primary btn-lg mb-3">
+            <i class="bi bi-key me-2"></i> Saisir une clé de licence
+        </a>
+
+        <div class="mt-4">
+            <small class="text-muted">
+                <i class="bi bi-envelope me-1"></i>
+                Pas de clé ? Contactez l'administrateur :<br>
+                <strong>kevin.ngenda@gmail.com</strong> — <strong>+257 71 56 57 46</strong>
+            </small>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

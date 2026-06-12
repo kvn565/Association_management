@@ -1,0 +1,106 @@
+{% extends 'superadmin/base_superadmin.html' %}
+{% block title %}{{ tenant.nom }}{% endblock %}
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <h2 class="mb-0">{{ tenant.nom }} <small class="text-muted">({{ tenant.sous_domaine }})</small></h2>
+    <div class="d-flex flex-wrap gap-1">
+        <a href="{% url 'superadmin:tenant_modifier' tenant.pk %}" class="btn btn-warning"><i class="fas fa-edit"></i> Modifier</a>
+        <a href="{% url 'superadmin:tenant_toggle' tenant.pk %}" class="btn btn-secondary">
+            {% if tenant.actif %}<i class="fas fa-pause"></i> Suspendre{% else %}<i class="fas fa-play"></i> Réactiver{% endif %}
+        </a>
+        {% if not a_deja_une_cle %}
+        <a href="{% url 'superadmin:cle_generer' tenant.pk %}" class="btn btn-success"><i class="fas fa-key"></i> Clé</a>
+        {% endif %}
+        <a href="{% url 'superadmin:tenant_supprimer' tenant.pk %}" class="btn btn-danger" onclick="return confirm('Supprimer définitivement cette association ?')"><i class="fas fa-trash"></i></a>
+    </div>
+</div>
+
+<div class="row mt-4 g-3">
+    <div class="col-12 col-lg-6">
+        <div class="card h-100 p-3">
+            <h5>Informations</h5>
+            <table class="table table-sm">
+                <tr><td>Sigle</td><td>{{ tenant.sigle|default:"-" }}</td></tr>
+                <tr><td>Sous-domaine</td><td><code>{{ tenant.sous_domaine }}</code></td></tr>
+                <tr><td>Province</td><td>{{ tenant.province|default:"-" }}</td></tr>
+                <tr><td>Commune</td><td>{{ tenant.commune|default:"-" }}</td></tr>
+                <tr><td>Quartier</td><td>{{ tenant.quartier|default:"-" }}</td></tr>
+                <tr><td>Avenue/Numéro</td><td>{{ tenant.avenue|default:"" }} {{ tenant.numero|default:"" }}</td></tr>
+                <tr><td>Téléphone</td><td>{{ tenant.telephone|default:"-" }}</td></tr>
+                <tr><td>Email</td><td>{{ tenant.email|default:"-" }}</td></tr>
+                <tr><td>Statut</td><td>{% if tenant.actif %}<span class="badge bg-success">Actif</span>{% else %}<span class="badge bg-danger">Suspendu</span>{% endif %}</td></tr>
+                <tr><td>Cotisation mensuelle</td><td>{{ tenant.montant_cotisation_mensuelle }} {{ devise }}</td></tr>
+                <tr><td>Cotisation imprévu</td><td>{{ tenant.montant_cotisation_imprevu_mensuelle }} {{ devise }}</td></tr>
+            </table>
+        </div>
+    </div>
+    <div class="col-12 col-lg-6">
+        <div class="card h-100 p-3">
+            <h5>Licence active</h5>
+            {% if cle_active %}
+            <table class="table table-sm">
+                <tr><td>Clé</td><td><code>{{ cle_active.cle_visible }}</code></td></tr>
+                <tr><td>Plan</td><td>{{ cle_active.label_plan }}</td></tr>
+                <tr><td>Début</td><td>{{ cle_active.date_debut|date:"d/m/Y" }}</td></tr>
+                <tr><td>Fin</td><td>{{ cle_active.date_fin|date:"d/m/Y" }}</td></tr>
+                <tr><td>Jours restants</td><td><strong>{{ cle_active.jours_restants }}</strong></td></tr>
+            </table>
+            {% else %}
+            <p class="text-danger">Aucune licence active !</p>
+            {% if not a_deja_une_cle %}
+            <a href="{% url 'superadmin:cle_generer' tenant.pk %}" class="btn btn-success"><i class="fas fa-key"></i> Générer une clé</a>
+            {% endif %}
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="card mt-4 p-0">
+    <div class="p-3 pb-0"><h5>Clés d'activation</h5></div>
+    <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0 table-responsive-card" id="tenantClesTable">
+            <thead><tr><th>Clé</th><th>Plan</th><th>Statut</th><th>Début</th><th>Fin</th><th>Actions</th></tr></thead>
+            <tbody>
+                {% for cle in cles %}
+                <tr>
+                    <td data-label="Clé"><code>{{ cle.cle_visible }}</code></td>
+                    <td data-label="Plan">{{ cle.label_plan }}</td>
+                    <td data-label="Statut">{{ cle.get_statut_display }}</td>
+                    <td data-label="Début">{{ cle.date_debut|date:"d/m/Y" }}</td>
+                    <td data-label="Fin">{{ cle.date_fin|date:"d/m/Y" }}</td>
+                    <td data-label="Actions">
+                        <a href="{% url 'superadmin:cle_detail' cle.pk %}" class="btn btn-sm btn-info"><i class="fas fa-eye"></i></a>
+                        {% if cle.statut != 'REVOQUEE' %}
+                        <a href="{% url 'superadmin:cle_revoquer' cle.pk %}" class="btn btn-sm btn-danger"><i class="fas fa-ban"></i></a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6" class="text-muted">Aucune clé</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card mt-4 p-0">
+    <div class="p-3 pb-0"><h5>Audit récent</h5></div>
+    <div class="table-responsive">
+        <table class="table table-sm mb-0 table-responsive-card" id="tenantAuditTable">
+            <thead><tr><th>Action</th><th>Message</th><th>IP</th><th>Date</th></tr></thead>
+            <tbody>
+                {% for a in audits %}
+                <tr>
+                    <td data-label="Action">{{ a.get_action_display }}</td>
+                    <td data-label="Message">{{ a.message }}</td>
+                    <td data-label="IP">{{ a.ip_address|default:"-" }}</td>
+                    <td data-label="Date">{{ a.date_action|date:"d/m/Y H:i" }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="4" class="text-muted">Aucun audit</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

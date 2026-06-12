@@ -1,0 +1,205 @@
+{% load menu_perms %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}SuperAdmin{% endblock %} - {{ config_app.nom_app|default:'Gestion Multi-Tenant' }}</title>
+    {% if config_app.favicon %}
+    <link rel="icon" type="image/png" href="{{ config_app.favicon.url }}">
+    {% endif %}
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { background: #f4f6f9; }
+        .sidebar {
+            background: #343a40;
+            min-height: 100vh;
+            padding-top: 1rem;
+            transition: transform .3s ease;
+        }
+        .sidebar a {
+            color: rgba(255,255,255,.8);
+            text-decoration: none;
+            padding: .5rem 1rem;
+            display: block;
+        }
+        .sidebar a:hover, .sidebar a.active { color: #fff; background: rgba(255,255,255,.1); }
+        .sidebar .nav-section { color: #adb5bd; font-size: .75rem; text-transform: uppercase; padding: 1rem 1rem .25rem; }
+        .main-content { padding: 2rem; }
+        .card { border-radius: .5rem; box-shadow: 0 2px 4px rgba(0,0,0,.05); }
+        .stat-card { border-left: 4px solid; }
+        .stat-card.tenants { border-left-color: #007bff; }
+        .stat-card.cles { border-left-color: #28a745; }
+        .stat-card.actifs { border-left-color: #ffc107; }
+        .stat-card.expirees { border-left-color: #dc3545; }
+
+        /* Sidebar mobile overlay */
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,.4);
+            z-index: 1020;
+        }
+        .sidebar-overlay.show { display: block; }
+
+        /* Mobile sidebar toggle */
+        .sidebar-toggle-btn {
+            display: none;
+            position: fixed;
+            top: .5rem; left: .5rem;
+            z-index: 1040;
+            border: none;
+            background: #343a40;
+            color: #fff;
+            padding: .5rem .7rem;
+            border-radius: .25rem;
+            font-size: 1.2rem;
+            cursor: pointer;
+        }
+        @media (max-width: 767px) {
+            .sidebar-toggle-btn { display: block; }
+            .sidebar {
+                position: fixed;
+                top: 0; left: 0;
+                width: 260px;
+                z-index: 1030;
+                transform: translateX(-100%);
+            }
+            .sidebar.show { transform: translateX(0); }
+            .main-content { padding: 1rem; padding-top: 3rem; }
+        }
+
+        /* Responsive tables: card-style at mobile */
+        @media (max-width: 767px) {
+            .table-responsive-card thead { display: none; }
+            .table-responsive-card tbody tr {
+                display: block;
+                border: 1px solid #dee2e6;
+                border-radius: .5rem;
+                padding: .75rem;
+                margin-bottom: .75rem;
+                background: #fff;
+            }
+            .table-responsive-card tbody td {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: .35rem 0;
+                border: none;
+                border-bottom: 1px solid #f0f0f0;
+                text-align: right;
+            }
+            .table-responsive-card tbody td:last-child { border-bottom: none; }
+            .table-responsive-card tbody td::before {
+                content: attr(data-label);
+                font-weight: 600;
+                text-align: left;
+                padding-right: .5rem;
+                color: #555;
+            }
+        }
+    </style>
+</head>
+<body>
+    <button class="sidebar-toggle-btn" id="sidebarToggleBtn" onclick="toggleSidebar()">
+        <i class="fas fa-bars"></i>
+    </button>
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+    <div class="container-fluid">
+        <div class="row">
+            <nav class="col-md-2 d-none d-md-block sidebar" id="superadminSidebar">
+                <h5 class="text-white text-center py-3">
+                    {% if config_app.logo %}
+                    <img src="{{ config_app.logo.url }}" alt="Logo" height="28" class="me-1">
+                    {% endif %}
+                    {{ config_app.nom_app|default:'SuperAdmin' }}
+                </h5>
+                <hr class="text-white">
+                <div class="nav-section">Administration</div>
+                <a href="{% url 'superadmin:dashboard' %}" class="{% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+                    <i class="fas fa-tachometer-alt me-2"></i>Dashboard
+                </a>
+                <div class="nav-section">Associations</div>
+                <a href="{% url 'superadmin:tenant_liste' %}" class="{% if request.resolver_match.url_name == 'tenant_liste' %}active{% endif %}">
+                    <i class="fas fa-building me-2"></i>Liste des associations
+                </a>
+                <a href="{% url 'superadmin:tenant_creer' %}" class="{% if request.resolver_match.url_name == 'tenant_creer' %}active{% endif %}">
+                    <i class="fas fa-plus-circle me-2"></i>Créer une association
+                </a>
+                <div class="nav-section">Utilisateurs</div>
+                <a href="{% url 'superadmin:membre_liste' %}" class="{% if request.resolver_match.url_name == 'membre_liste' %}active{% endif %}">
+                    <i class="fas fa-users me-2"></i>Tous les utilisateurs
+                </a>
+                <a href="{% url 'superadmin:membre_creer' %}" class="{% if request.resolver_match.url_name == 'membre_creer' %}active{% endif %}">
+                    <i class="fas fa-user-plus me-2"></i>Créer un utilisateur
+                </a>
+                <div class="nav-section">Sécurité</div>
+                <a href="{% url 'superadmin:connexion_liste' %}" class="{% if request.resolver_match.url_name == 'connexion_liste' %}active{% endif %}">
+                    <i class="fas fa-network-wired me-2"></i>Audit des connexions
+                </a>
+                <div class="nav-section">Clés d'activation</div>
+                <a href="{% url 'superadmin:cle_liste' %}" class="{% if request.resolver_match.url_name == 'cle_liste' %}active{% endif %}">
+                    <i class="fas fa-key me-2"></i>Liste des clés
+                </a>
+                <a href="{% url 'superadmin:generer_cle' %}" class="{% if request.resolver_match.url_name == 'generer_cle' %}active{% endif %}">
+                    <i class="fas fa-plus-circle me-2"></i>Générer une clé
+                </a>
+                <hr class="text-white">
+                <div class="nav-section">Configuration</div>
+                <a href="{% url 'superadmin:configurer_app' %}" class="{% if request.resolver_match.url_name == 'configurer_app' %}active{% endif %}">
+                    <i class="fas fa-cog me-2"></i>Configuration app
+                </a>
+                <a href="{% url 'superadmin:profil' %}" class="{% if request.resolver_match.url_name == 'profil' %}active{% endif %}">
+                    <i class="fas fa-user-cog me-2"></i>Mon profil
+                </a>
+                <form action="{% url 'logout' %}" method="post" style="display: inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-link text-white w-100 text-start p-2" style="background: none; border: none;">
+                        <i class="fas fa-sign-out-alt me-2"></i>Déconnexion
+                    </button>
+                </form>
+            </nav>
+            <main class="col-md-10 ms-sm-auto main-content">
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert {{ message.tags }} alert-dismissible fade show">{{ message }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+                    {% endfor %}
+                {% endif %}
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
+    <footer class="text-center py-3 text-muted" style="border-top:1px solid #dee2e6;margin-top:2rem;">
+        <small>
+            {% if config_app.footer_texte %}
+                {{ config_app.footer_texte|replace_annee }}
+            {% else %}
+                &copy; {% now "Y" %} {{ config_app.nom_app|default:'Twiyungunganye' }} — Tous droits réservés
+            {% endif %}
+        </small>
+    </footer>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+    function toggleSidebar() {
+        document.getElementById('superadminSidebar').classList.toggle('show');
+        document.getElementById('sidebarOverlay').classList.toggle('show');
+    }
+    document.addEventListener('DOMContentLoaded', function() {
+        var sidebar = document.getElementById('superadminSidebar');
+        if (sidebar) {
+            sidebar.querySelectorAll('a').forEach(function(link) {
+                link.addEventListener('click', function() {
+                    if (window.innerWidth <= 767) {
+                        toggleSidebar();
+                    }
+                });
+            });
+        }
+    });
+    </script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
