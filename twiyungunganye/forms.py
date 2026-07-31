@@ -265,7 +265,18 @@ class CotisationForm(forms.ModelForm):
             self.fields['membre'].queryset = Membre.objects.filter(
                 tenant=self.tenant, est_actif=True
             )
-    
+        if not self.instance.pk:
+            from django.utils import timezone
+            today = timezone.now()
+            self.fields['mois'].initial = today.month
+            self.fields['annee'].initial = today.year
+            self.fields['date_paiement'].initial = today.date()
+
+    def validate_unique(self):
+        if self.instance.pk:
+            return
+        super().validate_unique()
+
     class Meta:
         model = Cotisation
         fields = ['membre', 'montant', 'mois', 'annee', 'statut', 'date_paiement', 'remarque']
@@ -284,9 +295,28 @@ class CotisationForm(forms.ModelForm):
         }
 
 
-class CotisationImprevuForm(forms.ModelForm):
-    """Formulaire pour enregistrer une cotisation pour imprévus/cas sociaux"""
-    
+
+class EncaisserCotisationForm(forms.Form):
+    membre = forms.ModelChoiceField(
+        queryset=Membre.objects.none(),
+        label="Membre",
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+    montant = forms.DecimalField(
+        label="Montant payé",
+        min_value=0,
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.001'})
+    )
+    date_paiement = forms.DateField(
+        label="Date de paiement",
+        widget=forms.DateInput(attrs={'class': 'form-control', 'type': 'date'})
+    )
+    type_cotisation = forms.ChoiceField(
+        label="Type",
+        choices=[('regulier', 'Cotisation régulière'), ('imprevu', 'Imprévu')],
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+
     def __init__(self, *args, **kwargs):
         self.tenant = kwargs.pop('tenant', None)
         super().__init__(*args, **kwargs)
@@ -294,7 +324,38 @@ class CotisationImprevuForm(forms.ModelForm):
             self.fields['membre'].queryset = Membre.objects.filter(
                 tenant=self.tenant, est_actif=True
             )
-    
+            from .models import Association
+            assoc = Association.objects.filter(tenant=self.tenant).first()
+            if assoc:
+                m_reg = assoc.montant_cotisation_mensuelle
+                m_imp = assoc.montant_cotisation_imprevu_mensuelle
+                self.fields['montant'].help_text = (
+                    f"Mensualité régulière: {m_reg:.0f} | Imprévu: {m_imp:.0f}"
+                )
+
+
+class CotisationImprevuForm(forms.ModelForm):
+    """Formulaire pour enregistrer une cotisation pour imprévus/cas sociaux"""
+
+    def __init__(self, *args, **kwargs):
+        self.tenant = kwargs.pop('tenant', None)
+        super().__init__(*args, **kwargs)
+        if self.tenant:
+            self.fields['membre'].queryset = Membre.objects.filter(
+                tenant=self.tenant, est_actif=True
+            )
+        if not self.instance.pk:
+            from django.utils import timezone
+            today = timezone.now()
+            self.fields['mois'].initial = today.month
+            self.fields['annee'].initial = today.year
+            self.fields['date_paiement'].initial = today.date()
+
+    def validate_unique(self):
+        if self.instance.pk:
+            return  # modification : ignorer la validation unique
+        super().validate_unique()
+
     class Meta:
         model = CotisationImprevu
         fields = ['membre', 'montant', 'mois', 'annee', 'statut', 'date_paiement', 'remarque']
@@ -416,11 +477,10 @@ class RemboursementForm(forms.ModelForm):
     
     class Meta:
         model = Remboursement
-        fields = ['credit', 'montant_rembourse', 'interet_rembourse', 'mode_paiement', 'date_remboursement', 'remarque']
+        fields = ['credit', 'montant_rembourse', 'mode_paiement', 'date_remboursement', 'remarque']
         widgets = {
             'credit': forms.Select(attrs={'class': 'form-select'}),
             'montant_rembourse': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
-            'interet_rembourse': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
             'mode_paiement': forms.Select(attrs={'class': 'form-select'}),
             'date_remboursement': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'remarque': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
@@ -428,7 +488,6 @@ class RemboursementForm(forms.ModelForm):
         labels = {
             'credit': 'Crédit',
             'montant_rembourse': 'Montant remboursé (FBU)',
-            'interet_rembourse': 'Intérêt remboursé (FBU)',
             'mode_paiement': 'Mode de paiement',
             'date_remboursement': 'Date de remboursement',
             'remarque': 'Remarque'
@@ -437,10 +496,23 @@ class RemboursementForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         self.tenant = kwargs.pop('tenant', None)
         super().__init__(*args, **kwargs)
-        qs = Credit.objects.filter(statut__in=['APPROUVE', 'EN_COURS'])
+        qs = Credit.objects.filter(statut__in=['APPROUVE', 'EN_COURS']).select_related('membre')
         if self.tenant:
             qs = qs.filter(tenant=self.tenant)
         self.fields['credit'].queryset = qs
+        # Afficher le montant restant dynamique dans le libellé
+        def credit_label(obj):
+            reste = obj.get_reste_a_rembourser()
+            return f"{obj.membre.get_full_name()} — Reste: {reste:,.3f} / {obj.montant_accorde:,.3f} FBU"
+        self.fields['credit'].label_from_instance = credit_label
+        # Afficher le montant restant dynamique dans la liste déroulante
+        from django.utils.html import escape
+        choices = []
+        for credit in qs:
+            reste = credit.get_reste_a_rembourser()
+            label = f"{credit.membre.get_full_name()} — Reste: {reste:,.3f} / {credit.montant_accorde:,.3f} FBU"
+            choices.append((credit.pk, label))
+        self.fields['credit'].choices = choices
 
 
 class SuggestionForm(forms.ModelForm):
@@ -507,6 +579,49 @@ class RapportAnnuelForm(forms.Form):
         label="Année",
         widget=forms.NumberInput(attrs={'class': 'form-control'})
     )
+
+
+class RapportPeriodeForm(forms.Form):
+    """Formulaire pour générer un rapport sur une période de mois"""
+    
+    mois_debut = forms.ChoiceField(
+        label="Mois début",
+        choices=[(1, 'Janvier'), (2, 'Février'), (3, 'Mars'), (4, 'Avril'),
+                 (5, 'Mai'), (6, 'Juin'), (7, 'Juillet'), (8, 'Août'),
+                 (9, 'Septembre'), (10, 'Octobre'), (11, 'Novembre'), (12, 'Décembre')],
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+    annee_debut = forms.IntegerField(
+        label="Année début",
+        widget=forms.NumberInput(attrs={'class': 'form-control'})
+    )
+    mois_fin = forms.ChoiceField(
+        label="Mois fin",
+        choices=[(1, 'Janvier'), (2, 'Février'), (3, 'Mars'), (4, 'Avril'),
+                 (5, 'Mai'), (6, 'Juin'), (7, 'Juillet'), (8, 'Août'),
+                 (9, 'Septembre'), (10, 'Octobre'), (11, 'Novembre'), (12, 'Décembre')],
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+    annee_fin = forms.IntegerField(
+        label="Année fin",
+        widget=forms.NumberInput(attrs={'class': 'form-control'})
+    )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        md = cleaned_data.get('mois_debut')
+        ad = cleaned_data.get('annee_debut')
+        mf = cleaned_data.get('mois_fin')
+        af = cleaned_data.get('annee_fin')
+
+        if md is not None and ad is not None and mf is not None and af is not None:
+            md = int(md)
+            mf = int(mf)
+            ad = int(ad)
+            af = int(af)
+            if (ad, md) > (af, mf):
+                raise forms.ValidationError("La date de début doit être antérieure ou égale à la date de fin.")
+        return cleaned_data
 
 
 class MembrePasswordChangeForm(PasswordChangeForm):

@@ -8,7 +8,7 @@
 <div class="card">
     <div class="card-body">
         {% if credits %}
-        <table class="table table-hover">
+        <div class="table-responsive"><table class="table table-hover">
             <thead><tr><th>Membre</th><th>Montant demandé</th><th>Montant accordé</th><th>Statut</th><th>Date</th><th>Action</th></tr></thead>
             <tbody>
             {% for credit in credits %}
@@ -28,7 +28,7 @@
             </tr>
             {% endfor %}
             </tbody>
-        </table>
+        </table></div>
         {% else %}<div class="text-center py-5"><p>Aucun crédit</p></div>{% endif %}
     </div>
 </div>

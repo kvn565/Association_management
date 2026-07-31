@@ -41,4 +41,7 @@ urlpatterns = [
 
     # ========== CONFIGURATION DE L'APPLICATION ==========
     path('configuration/', views.configurer_app, name='configurer_app'),
+
+    # ========== EXTRACTION DES DONNÉES ==========
+    path('extraction-donnees/', views.extraction_donnees, name='extraction_donnees'),
 ]

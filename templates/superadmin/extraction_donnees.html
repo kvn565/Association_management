@@ -1,0 +1,38 @@
+{% extends 'superadmin/base_superadmin.html' %}
+{% block title %}Extraction des données{% endblock %}
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-12 col-md-8 col-lg-6">
+            <div class="card shadow" style="border-radius: 15px; border: none;">
+                <div class="card-header text-white py-3" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 15px 15px 0 0;">
+                    <h4 class="mb-0"><i class="fas fa-file-excel me-2"></i>Extraction des données</h4>
+                </div>
+                <div class="card-body p-4">
+                    <p class="text-muted mb-4">
+                        Sélectionnez une association pour générer un fichier Excel contenant toutes ses données :
+                        membres, cotisations, crédits, remboursements, intérêts, pénalités, assistances, suggestions.
+                    </p>
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="mb-4">
+                            <label for="tenant-select" class="form-label fw-bold">Association</label>
+                            <select name="tenant" id="tenant-select" class="form-select form-select-lg" required>
+                                <option value="">-- Choisissez une association --</option>
+                                {% for t in tenants %}
+                                <option value="{{ t.pk }}">{{ t.nom }} ({{ t.sous_domaine }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="fas fa-download me-2"></i>Extraire et télécharger
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -4,10 +4,11 @@ from django.db.models import Sum, Q
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side, numbers
 from openpyxl.utils import get_column_letter
-from decimal import Decimal, ROUND_DOWN
+from decimal import Decimal
 from datetime import datetime
+from io import BytesIO
 
-from .models import Membre, Cotisation, CotisationImprevu, Credit, Interet, Remboursement, Association
+from .models import Membre, Cotisation, CotisationImprevu, Credit, Interet, Remboursement, Association, PenaliteCotisation, Suggestion
 from cas_assistance.models import CasAssistance
 
 
@@ -77,7 +78,7 @@ def _auto_width(ws, num_cols, max_width=40):
 
 def _format_money(ws, row, col, value):
     cell = ws.cell(row=row, column=col)
-    cell.value = float(Decimal(str(value)).quantize(Decimal('0.001'), rounding=ROUND_DOWN))
+    cell.value = float(value)
     cell.number_format = '#,##0.000'
 
 
@@ -325,40 +326,28 @@ def export_remboursements_excel(request):
     ws.title = "Remboursements"
     devise = get_devise(request)
 
-    headers = ['#', 'Membre', 'Crédit #', 'Principal', 'Intérêt', 'Total', 'Reste', 'Mode', 'Date']
+    headers = ['#', 'Membre', 'Crédit #', 'Montant', 'Reste', 'Mode', 'Date']
     ws.append(headers)
     _style_header(ws, len(headers))
 
     remboursements = qs_for_tenant(request, Remboursement.objects.all()).select_related('credit__membre').order_by('-date_remboursement')
 
     total_principal = Decimal('0')
-    total_interets = Decimal('0')
     for i, r in enumerate(remboursements, 1):
         row = i + 1
-        total_remb = r.montant_rembourse + r.interet_rembourse
         ws.cell(row=row, column=1, value=i)
         ws.cell(row=row, column=2, value=r.credit.membre.get_full_name())
         ws.cell(row=row, column=3, value=r.credit.id_credit)
         _format_money(ws, row, 4, r.montant_rembourse)
-        _format_money(ws, row, 5, r.interet_rembourse)
-        _format_money(ws, row, 6, total_remb)
-        _format_money(ws, row, 7, r.reste_a_rembourser)
-        ws.cell(row=row, column=8, value=r.get_mode_paiement_display())
-        ws.cell(row=row, column=9, value=r.date_remboursement.strftime('%d/%m/%Y') if r.date_remboursement else '')
+        _format_money(ws, row, 5, r.credit.get_reste_a_rembourser())
+        ws.cell(row=row, column=6, value=r.get_mode_paiement_display())
+        ws.cell(row=row, column=7, value=r.date_remboursement.strftime('%d/%m/%Y') if r.date_remboursement else '')
         total_principal += r.montant_rembourse
-        total_interets += r.interet_rembourse
 
     total_row = len(remboursements) + 2
     ws.cell(row=total_row, column=1, value='TOTAL')
     ws.cell(row=total_row, column=1).font = Font(bold=True)
     _format_money(ws, total_row, 4, total_principal)
-    _format_money(ws, total_row, 5, total_interets)
-    _format_money(ws, total_row, 6, total_principal + total_interets)
-    for col in range(1, len(headers) + 1):
-        ws.cell(row=total_row, column=col).font = Font(bold=True)
-
-    _style_data(ws, total_row, len(headers), devise)
-    _auto_width(ws, len(headers))
 
     response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     response['Content-Disposition'] = 'attachment; filename="Remboursements.xlsx"'
@@ -385,9 +374,12 @@ def export_rapport_mensuel_excel(request, mois, annee):
     base_cotisations = qs_for_tenant(request, Cotisation.objects.all())
     base_remboursements = qs_for_tenant(request, Remboursement.objects.all())
     base_credits = qs_for_tenant(request, Credit.objects.all())
-
+    base_interets = qs_for_tenant(request, Interet.objects.all())
     cotisations_mois = base_cotisations.filter(mois=mois, annee=annee).select_related('membre')
     remboursements_mois = base_remboursements.filter(
+        date_remboursement__month=mois, date_remboursement__year=annee
+    ).select_related('credit__membre')
+    interets_mois = base_interets.filter(
         date_remboursement__month=mois, date_remboursement__year=annee
     ).select_related('credit__membre')
     credits_mois = base_credits.filter(
@@ -407,11 +399,14 @@ def export_rapport_mensuel_excel(request, mois, annee):
         cotisations_dict[key] = cotisations_dict.get(key, Decimal('0')) + c.montant
 
     remb_dict = {}
-    interets_dict = {}
     for r in remboursements_mois:
         key = r.credit.membre_id
         remb_dict[key] = remb_dict.get(key, Decimal('0')) + r.montant_rembourse
-        interets_dict[key] = interets_dict.get(key, Decimal('0')) + r.interet_rembourse
+
+    interets_dict = {}
+    for it in interets_mois:
+        key = it.credit.membre_id
+        interets_dict[key] = interets_dict.get(key, Decimal('0')) + it.interet_rembourse
 
     credits_dict = {}
     for cr in credits_mois:
@@ -510,7 +505,7 @@ def export_penalites_excel(request):
     ws.append(headers)
     _style_header(ws, len(headers))
 
-    penalites = qs_for_tenant(request, PenaliteCotisation.objects.all()).select_related('membre')
+    penalites = qs_for_tenant(request, PenaliteCotisation.objects.filter(exclu=False)).filter(membre__est_actif=True).select_related('membre')
     date_debut = request.GET.get('date_debut')
     date_fin = request.GET.get('date_fin')
     if date_debut:
@@ -554,4 +549,136 @@ def export_penalites_excel(request):
     response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     response['Content-Disposition'] = 'attachment; filename="Penalites.xlsx"'
     wb.save(response)
+    return response
+
+
+def generer_backup_tenant(tenant, request=None):
+    from datetime import date as date_func
+    wb = Workbook()
+    devise = 'FBU'
+    if tenant:
+        assoc = Association.get_association(tenant)
+        devise = assoc.devise if assoc and assoc.devise else 'FBU'
+    now = datetime.now().strftime('%Y%m%d_%H%M%S')
+
+    def qs(qs_model):
+        qs = qs_model
+        if tenant:
+            return qs.filter(tenant=tenant)
+        return qs
+
+    def write_sheet(ws, title, headers, rows_data):
+        ws.title = title
+        ws.append(headers)
+        hdr_font = Font(bold=True, color='FFFFFF', size=11)
+        hdr_fill = PatternFill(start_color='4a90e2', end_color='4a90e2', fill_type='solid')
+        hdr_align = Alignment(horizontal='center', vertical='center')
+        thin = Border(left=Side(style='thin'), right=Side(style='thin'),
+                      top=Side(style='thin'), bottom=Side(style='thin'))
+        for col in range(1, len(headers) + 1):
+            c = ws.cell(row=1, column=col)
+            c.font = hdr_font; c.fill = hdr_fill; c.alignment = hdr_align; c.border = thin
+        for r_idx, row_vals in enumerate(rows_data, 2):
+            for c_idx, val in enumerate(row_vals, 1):
+                cell = ws.cell(row=r_idx, column=c_idx, value=val)
+                cell.font = Font(size=10); cell.alignment = Alignment(horizontal='center', vertical='center')
+                cell.border = thin
+        for col in range(1, len(headers) + 1):
+            max_len = max((len(str(ws.cell(row=r, column=col).value or '')) for r in range(1, len(rows_data) + 2)), default=0)
+            ws.column_dimensions[get_column_letter(col)].width = min(max_len + 3, 40)
+
+    # 1. Membres
+    ws = wb.active
+    rows = []
+    membres = Membre.objects.filter(is_superuser=False)
+    if tenant: membres = membres.filter(tenant=tenant)
+    for m in membres.order_by('nom', 'prenom'):
+        rows.append([m.get_full_name(), m.carte_identite or '', m.email or '',
+                     m.telephone or '', m.adresse or '', 'Actif' if m.est_actif else 'Inactif',
+                     m.date_inscription.strftime('%d/%m/%Y') if m.date_inscription else ''])
+    write_sheet(ws, 'Membres', ['Nom','Carte ID','Email','Téléphone','Adresse','Statut','Date inscription'], rows)
+
+    # 2. Cotisations
+    ws = wb.create_sheet()
+    rows = []
+    for c in qs(Cotisation.objects.filter(statut='PAYE')).select_related('membre').order_by('-annee','-mois'):
+        rows.append([c.membre.get_full_name(), c.get_mois_nom(), c.annee, float(c.montant),
+                     c.date_paiement.strftime('%d/%m/%Y') if c.date_paiement else ''])
+    write_sheet(ws, 'Cotisations', ['Membre','Mois','Année','Montant','Date paiement'], rows)
+
+    # 3. Imprévus
+    ws = wb.create_sheet()
+    rows = []
+    for c in qs(CotisationImprevu.objects.filter(statut='PAYE')).select_related('membre').order_by('-annee','-mois'):
+        rows.append([c.membre.get_full_name(), c.get_mois_nom(), c.annee, float(c.montant),
+                     c.date_paiement.strftime('%d/%m/%Y') if c.date_paiement else ''])
+    write_sheet(ws, 'Imprévus', ['Membre','Mois','Année','Montant','Date paiement'], rows)
+
+    # 4. Crédits
+    ws = wb.create_sheet()
+    rows = []
+    for c in qs(Credit.objects.all()).select_related('membre').order_by('-date_demande'):
+        rows.append([c.membre.get_full_name(), float(c.montant_demande), float(c.montant_accorde),
+                     c.get_statut_display(), c.date_demande.strftime('%d/%m/%Y'),
+                     c.date_accord.strftime('%d/%m/%Y') if c.date_accord else ''])
+    write_sheet(ws, 'Crédits', ['Membre','Montant demandé','Montant accordé','Statut','Date demande','Date accord'], rows)
+
+    # 5. Remboursements
+    ws = wb.create_sheet()
+    rows = []
+    for r in qs(Remboursement.objects.all()).select_related('credit__membre').order_by('-date_remboursement'):
+        rows.append([r.credit.membre.get_full_name(), r.credit.id_credit, float(r.montant_rembourse),
+                     r.get_mode_paiement_display() if hasattr(r,'get_mode_paiement_display') else '',
+                     r.date_remboursement.strftime('%d/%m/%Y') if r.date_remboursement else ''])
+    write_sheet(ws, 'Remboursements', ['Membre','Crédit #','Montant','Mode','Date'], rows)
+
+    # 6. Intérêts
+    ws = wb.create_sheet()
+    rows = []
+    for it in qs(Interet.objects.all()).select_related('credit__membre').order_by('-annee','-mois'):
+        rows.append([it.credit.membre.get_full_name(), it.credit.id_credit, it.get_mois_nom(), it.annee,
+                     float(it.interet_mensuel), float(it.interet_cumule),
+                     it.date_calcul.strftime('%d/%m/%Y') if it.date_calcul else ''])
+    write_sheet(ws, 'Intérêts', ['Membre','Crédit #','Mois','Année','Intérêt mensuel','Intérêt cumulé','Date calcul'], rows)
+
+    # 7. Pénalités
+    ws = wb.create_sheet()
+    rows = []
+    for p in qs(PenaliteCotisation.objects.filter(exclu=False)).select_related('membre').order_by('-annee','-mois'):
+        rows.append([p.membre.get_full_name(), f"{p.get_mois_nom()} {p.annee}" if p.mois else '',
+                     float(p.montant_cotisation), f"{p.taux_penalite}%",
+                     float(p.penalite_mensuelle), float(p.penalite_cumulee),
+                     'Payée' if p.est_payee else 'En attente',
+                     p.date_paiement.strftime('%d/%m/%Y') if p.date_paiement else ''])
+    write_sheet(ws, 'Pénalités', ['Membre','Période','Cotisation','Taux','Pénalité mensuelle','Pénalité cumulée','Statut','Date paiement'], rows)
+
+    # 8. Assistances
+    ws = wb.create_sheet()
+    rows = []
+    for a in qs(CasAssistance.objects.all()).select_related('membre').order_by('-date_assistance'):
+        rows.append([a.membre.get_full_name(), float(a.montant), a.motif,
+                     a.date_assistance.strftime('%d/%m/%Y') if a.date_assistance else ''])
+    write_sheet(ws, 'Assistances', ['Membre','Montant','Motif','Date'], rows)
+
+    # 9. Suggestions
+    ws = wb.create_sheet()
+    rows = []
+    for s in qs(Suggestion.objects.all()).select_related('membre').order_by('-date_soumission'):
+        rows.append([s.membre.get_full_name(), s.titre, s.description or '',
+                     s.date_soumission.strftime('%d/%m/%Y') if s.date_soumission else '',
+                     s.get_statut_display()])
+    write_sheet(ws, 'Suggestions', ['Membre','Titre','Description','Date','Statut'], rows)
+
+    nom_tenant = tenant.nom.replace(' ', '_') if tenant else 'TOUTES'
+    buffer = BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+    return buffer, nom_tenant, now
+
+
+def export_backup_complet(request):
+    tenant = get_tenant(request)
+    buffer, nom_tenant, now = generer_backup_tenant(tenant, request)
+    response = HttpResponse(buffer.getvalue(), content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = f'attachment; filename="Backup_{nom_tenant}_{now}.xlsx"'
     return response

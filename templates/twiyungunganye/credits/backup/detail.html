@@ -25,7 +25,7 @@
             </div>
             <div class="card-body">
                 {% if remboursements %}
-                <table class="table table-sm">
+                <div class="table-responsive"><table class="table table-sm">
                     <thead><tr><th>Montant</th><th>Reste</th><th>Date</th></tr></thead>
                     <tbody>
                     {% for remb in remboursements %}
@@ -36,7 +36,7 @@
                     </tr>
                     {% endfor %}
                     </tbody>
-                </table>
+                </table></div>
                 {% else %}<p>Aucun remboursement</p>{% endif %}
             </div>
         </div>

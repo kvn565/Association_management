@@ -5,6 +5,12 @@
 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
     <h2 class="mb-0"><i class="bi bi-exclamation-triangle"></i> Pénalités cotisations impayées</h2>
     <div class="d-flex flex-wrap gap-2">
+        <a href="{% url 'penalites_pdf' %}?{% if annee_filter %}annee={{ annee_filter }}&{% endif %}{% if mois_filter %}mois={{ mois_filter }}&{% endif %}{% if statut_filter %}statut={{ statut_filter }}{% endif %}" class="btn btn-outline-danger">
+            <i class="bi bi-file-pdf me-1"></i> PDF récapitulatif
+        </a>
+        <a href="{% url 'membres_non_payes' %}" class="btn btn-outline-warning">
+            <i class="bi bi-person-x me-1"></i> Membres non-payés
+        </a>
         <button type="submit" form="exportPenalitesForm" class="btn btn-outline-primary">
             <i class="bi bi-file-earmark-excel me-1"></i> Exporter Excel
         </button>
@@ -30,6 +36,40 @@
     </div>
 </div>
 
+<!-- Filtres -->
+<div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
+    <span class="fw-bold me-2">Filtrer :</span>
+    <a href="{% url 'liste_penalites' %}" class="btn btn-sm {% if not annee_filter and not mois_filter and not statut_filter %}btn-dark{% else %}btn-outline-secondary{% endif %}">
+        <i class="bi bi-list"></i> Tout
+    </a>
+    {% for an in annees_disponibles %}
+    <a href="{% url 'liste_penalites' %}?annee={{ an }}{% if mois_filter %}&mois={{ mois_filter }}{% endif %}{% if statut_filter %}&statut={{ statut_filter }}{% endif %}" class="btn btn-sm {% if annee_filter == an %}btn-dark{% else %}btn-outline-secondary{% endif %}">
+        {{ an }}
+    </a>
+    {% endfor %}
+    <div class="dropdown d-inline-block">
+        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+            {% if mois_filter %}
+                {% for m, nom in mois_list %}{% if mois_filter == m %}{{ nom }}{% endif %}{% endfor %}
+            {% else %}
+                Mois
+            {% endif %}
+        </button>
+        <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="{% url 'liste_penalites' %}{% if annee_filter %}?annee={{ annee_filter }}{% endif %}{% if statut_filter %}&statut={{ statut_filter }}{% endif %}">Tous les mois</a></li>
+            {% for m, nom in mois_list %}
+            <li><a class="dropdown-item" href="{% url 'liste_penalites' %}?mois={{ m }}{% if annee_filter %}&annee={{ annee_filter }}{% endif %}{% if statut_filter %}&statut={{ statut_filter }}{% endif %}">{{ nom }}</a></li>
+            {% endfor %}
+        </ul>
+    </div>
+    <a href="{% url 'liste_penalites' %}?statut=payee{% if annee_filter %}&annee={{ annee_filter }}{% endif %}{% if mois_filter %}&mois={{ mois_filter }}{% endif %}" class="btn btn-sm {% if statut_filter == 'payee' %}btn-success{% else %}btn-outline-success{% endif %}">
+        <i class="bi bi-check-circle"></i> Payées
+    </a>
+    <a href="{% url 'liste_penalites' %}?statut=impayee{% if annee_filter %}&annee={{ annee_filter }}{% endif %}{% if mois_filter %}&mois={{ mois_filter }}{% endif %}" class="btn btn-sm {% if statut_filter == 'impayee' %}btn-warning{% else %}btn-outline-warning{% endif %}">
+        <i class="bi bi-clock"></i> En attente
+    </a>
+</div>
+
 <!-- Statistiques -->
 <div class="row mb-4">
     <div class="col-12 col-sm-6 col-xl-3 mb-3">
@@ -47,7 +87,7 @@
     <div class="col-12 col-sm-6 col-xl-3 mb-3">
         <div class="card stat-card warning h-100">
             <h5>En attente</h5>
-            <h3>{{ stats.total_penalites|add:stats.total_payees|floatformat:3 }} {{ devise }}</h3>
+            <h3>{{ stats.total_attente|default:0|floatformat:3 }} {{ devise }}</h3>
         </div>
     </div>
     <div class="col-12 col-sm-6 col-xl-3 mb-3">
@@ -67,10 +107,13 @@
                     <tr>
                         <th>Membre</th>
                         <th>Période</th>
-                        <th>Cotisation</th>
+                        <th>Détail impayés</th>
                         <th>Taux</th>
                         <th>Pénalité mensuelle</th>
                         <th>Pénalité cumulée</th>
+                        <th>Payé</th>
+                        <th>Date paiement</th>
+                        <th>Reste</th>
                         <th>Statut</th>
                         <th>Actions</th>
                     </tr>
@@ -82,10 +125,49 @@
                     <td data-label="Période">
                         {% if pen.mois %}{{ pen.get_mois_nom }} {{ pen.annee }}{% else %}-{% endif %}
                     </td>
-                    <td data-label="Cotisation">{{ pen.montant_cotisation|floatformat:3 }} {{ devise }}</td>
+                    <td data-label="Détail impayés" style="min-width: 160px;">
+                        {% if pen.montant_cotisation_base > 0 %}
+                        <span class="badge bg-danger me-1" title="Cotisation simple impayée"><i class="bi bi-cash"></i> C: {{ pen.montant_cotisation_base|floatformat:0 }}</span>
+                        {% endif %}
+                        {% if pen.montant_imprevu_base > 0 %}
+                        <span class="badge bg-warning text-dark me-1" title="Imprévu impayé"><i class="bi bi-exclamation-circle"></i> I: {{ pen.montant_imprevu_base|floatformat:0 }}</span>
+                        {% endif %}
+                        {% if not pen.montant_cotisation_base and not pen.montant_imprevu_base %}
+                        <span class="text-muted">—</span>
+                        {% endif %}
+                        <small class="text-muted d-block mt-1">Total base: {{ pen.montant_cotisation|floatformat:0 }}</small>
+                    </td>
                     <td data-label="Taux">{{ pen.taux_penalite }}%</td>
                     <td data-label="Mensuelle">{{ pen.penalite_mensuelle|floatformat:3 }} {{ devise }}</td>
                     <td data-label="Cumulée"><strong>{{ pen.penalite_cumulee|floatformat:3 }} {{ devise }}</strong></td>
+                    <td data-label="Payé">
+                        {% if pen.montant_paye > 0 %}
+                            <span class="text-success">{{ pen.montant_paye|floatformat:3 }} {{ devise }}</span>
+                        {% else %}
+                        <span class="text-muted">&mdash;</span>
+                        {% endif %}
+                    </td>
+                    <td data-label="Date paiement">
+                        <div class="d-flex align-items-center gap-1">
+                            {% if pen.date_paiement %}
+                                <span class="small">{{ pen.date_paiement|date:"d/m/Y" }}</span>
+                            {% else %}
+                                <span class="text-muted small">&mdash;</span>
+                            {% endif %}
+                            <a href="{% url 'modifier_date_paiement_penalite' pen.id_penalite %}" class="btn btn-sm btn-outline-secondary py-0 px-1" title="Modifier la date">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                        </div>
+                    </td>
+                    <td data-label="Reste">
+                        {% with reste=pen.montant_restant|floatformat:3 %}
+                        {% if pen.montant_restant > 0 %}
+                            <span class="text-danger fw-bold">{{ reste }} {{ devise }}</span>
+                        {% else %}
+                            <span class="text-success">0.000 {{ devise }}</span>
+                        {% endif %}
+                        {% endwith %}
+                    </td>
                     <td data-label="Statut">
                         {% if pen.est_payee %}
                         <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Payée</span>
@@ -94,12 +176,33 @@
                         {% endif %}
                     </td>
                     <td data-label="Actions">
-                        {% if not pen.est_payee %}
-                        <a href="{% url 'marquer_penalite_payee' pen.id_penalite %}" class="btn btn-sm btn-success" title="Marquer payée" onclick="return confirm('Marquer cette pénalité comme payée ?')">
-                            <i class="bi bi-check me-1"></i> Payer
+                        {% if pen.montant_restant > 0 %}
+                        <a href="{% url 'payer_penalite' pen.id_penalite %}" class="btn btn-sm btn-success" title="Enregistrer un paiement">
+                            <i class="bi bi-cash me-1"></i> Payer
                         </a>
+                        <form method="post" action="{% url 'payer_integralement_penalite' pen.id_penalite %}" class="d-inline">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-outline-success" title="Payer la totalité en un clic"
+                                    onclick="return confirm('Payer intégralement la pénalité de {{ pen.membre.get_full_name }} ({{ pen.montant_restant|floatformat:3 }} {{ devise }}) ?')">
+                                <i class="bi bi-lightning"></i>
+                            </button>
+                        </form>
                         {% else %}
-                        <span class="text-success"><i class="bi bi-check-circle"></i> Payée</span>
+                        <span class="text-success me-2"><i class="bi bi-check-circle"></i> Payée</span>
+                        {% endif %}
+                        {% if pen.montant_paye > 0 %}
+                        <a href="{% url 'modifier_montant_paye_penalite' pen.id_penalite %}" class="btn btn-sm btn-outline-warning" title="Modifier le montant payé">
+                            <i class="bi bi-pencil"></i>
+                        </a>
+                        {% endif %}
+                        {% if user.is_admin or user.is_gestionnaire %}
+                        <button type="button" class="btn btn-sm btn-outline-danger" title="Supprimer cette pénalité"
+                                data-bs-toggle="modal" data-bs-target="#supprimerModal"
+                                data-url="{% url 'supprimer_penalite' pen.id_penalite %}"
+                                data-membre="{{ pen.membre.get_full_name }}"
+                                data-periode="{{ pen.get_mois_nom }} {{ pen.annee }}">
+                            <i class="bi bi-trash"></i>
+                        </button>
                         {% endif %}
                     </td>
                 </tr>
@@ -107,6 +210,7 @@
                 </tbody>
             </table>
         </div>
+
         {% include 'includes/pagination.html' %}
         {% else %}
         <div class="text-center py-5">
@@ -115,6 +219,36 @@
         {% endif %}
     </div>
 </div>
+
+<div class="modal fade" id="supprimerModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header text-white" style="background: #dc3545;">
+                <h6 class="modal-title"><i class="bi bi-exclamation-triangle me-2"></i>Confirmer la suppression</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="supprimerModalBody">
+                <p class="mb-0">Supprimer la pénalité de <strong id="supprimerMembre"></strong> pour <strong id="supprimerPeriode"></strong> ?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <a href="#" id="supprimerLien" class="btn btn-sm btn-danger">
+                    <i class="bi bi-trash me-1"></i> Supprimer
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.querySelectorAll('[data-bs-toggle="modal"][data-bs-target="#supprimerModal"]').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        document.getElementById('supprimerMembre').textContent = this.dataset.membre;
+        document.getElementById('supprimerPeriode').textContent = this.dataset.periode;
+        document.getElementById('supprimerLien').href = this.dataset.url;
+    });
+});
+</script>
 
 <style>
 .stat-card {

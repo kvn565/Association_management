@@ -1,14 +1,14 @@
 {% extends 'twiyungunganye/base.html' %}
-{% block title %}Ajouter remboursement{% endblock %}
+{% block title %}{% if action == 'Modifier' %}Modifier le remboursement{% else %}Ajouter remboursement{% endif %}{% endblock %}
 {% block content %}
-<h2><i class="bi bi-credit-card"></i> Ajouter un remboursement</h2>
+<h2><i class="bi bi-credit-card"></i> {% if action == 'Modifier' %}Modifier le remboursement{% else %}Ajouter un remboursement{% endif %}</h2>
 <div class="card">
     <div class="card-body">
         <form method="post">
             {% csrf_token %}
             {{ form.as_p }}
-            <button type="submit" class="btn btn-primary"><i class="bi bi-check"></i> Enregistrer</button>
-            <a href="javascript:history.back()" class="btn btn-secondary">Annuler</a>
+            <button type="submit" class="btn btn-primary"><i class="bi bi-check"></i> {% if action == 'Modifier' %}Enregistrer les modifications{% else %}Enregistrer{% endif %}</button>
+            <a href="{% url 'liste_remboursements' %}" class="btn btn-secondary">Annuler</a>
         </form>
     </div>
 </div>

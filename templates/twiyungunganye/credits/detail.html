@@ -341,7 +341,7 @@
                                         <strong class="text-success">{{ remb.montant_rembourse|floatformat:3 }}</strong> {{ devise }}
                                     </td>
                                     <td data-label="Reste:">
-                                        <strong class="text-warning">{{ remb.reste_a_rembourser|floatformat:3 }}</strong> {{ devise }}
+                                        <strong class="text-warning">{{ remb.credit.get_reste_a_rembourser|floatformat:3 }}</strong> {{ devise }}
                                     </td>
                                     <td data-label="Date:">
                                         {{ remb.date_remboursement|date:"d/m/Y" }}

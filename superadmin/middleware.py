@@ -84,6 +84,7 @@ class LicenceMiddleware(MiddlewareMixin):
         '/static/',
         '/media/',
         '/superadmin/licence-expiree/',
+        '/logout/',
         '/setup/',
         '/favicon.ico',
     ]

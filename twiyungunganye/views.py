@@ -4,18 +4,32 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
-from django.db.models import Sum, Count, Q
+from django.db.models import Sum, Count, Q, F
+from django.db import IntegrityError
 from django.core.paginator import Paginator
 from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
 from datetime import datetime, date
-from decimal import Decimal, ROUND_DOWN
+from decimal import Decimal, InvalidOperation
 from dateutil.relativedelta import relativedelta
 
 
 def tronquer(montant):
-    """Tronque un montant à 3 décimales sans arrondissement"""
-    return Decimal(str(montant)).quantize(Decimal('0.001'), rounding=ROUND_DOWN)
+    """Retourne le montant sans arrondi (l'affichage via floatformat:3 gère les 3 décimales)"""
+    return Decimal(str(montant))
+
+def parse_montant(valeur):
+    """Convertit une saisie utilisateur en Decimal (format burundais).
+       Le point (.) = séparateur milliers, la virgule (,) = séparateur décimal.
+       Ex: '5.800' → 5800, '5,8' → 5.8, '1.200,50' → 1200.50
+    """
+    s = str(valeur).strip().replace(' ', '')
+    if ',' in s:
+        s = s.replace('.', '').replace(',', '.')
+    elif s.count('.') > 1:
+        parts = s.split('.')
+        s = ''.join(parts[:-1]) + '.' + parts[-1]
+    return Decimal(s)
 
 from .pdf_utils import save_pdf_and_respond
 from .models import (
@@ -26,8 +40,9 @@ from superadmin.models import Tenant as TenantModel
 from .forms import (
     LoginForm, MembrePasswordCreationForm, MembreForm, CotisationForm,
     CotisationImprevuForm, CreditDemandeForm, CreditApprovalForm, 
-    RemboursementForm,     SuggestionForm, ReponseSuggestionForm, RapportMensuelForm, RapportAnnuelForm,
-    AssociationForm, ModifierProfilForm, MembrePasswordChangeForm, DepenseForm
+    RemboursementForm, SuggestionForm, ReponseSuggestionForm, RapportMensuelForm, RapportAnnuelForm, RapportPeriodeForm,
+    AssociationForm, ModifierProfilForm, MembrePasswordChangeForm, DepenseForm,
+    EncaisserCotisationForm,
 )
 
 
@@ -233,7 +248,6 @@ def dashboard(request):
         context['nombre_credits_actifs'] = mes_credits_actifs.count()
 
         # Ses pénalités impayées
-        from .models import PenaliteCotisation
         penalites_impayees = qs_for_tenant(request, PenaliteCotisation.objects.filter(
             membre=request.user, est_payee=False
         )).aggregate(Sum('penalite_cumulee'))['penalite_cumulee__sum'] or 0
@@ -270,19 +284,18 @@ def dashboard(request):
     tcm = base_cotisations.filter(mois=mois_actuel, annee=annee_actuelle, statut='PAYE').aggregate(Sum('montant'))['montant__sum'] or 0
     tcrm = base_credits.filter(date_accord__month=mois_actuel, date_accord__year=annee_actuelle, statut__in=['APPROUVE', 'EN_COURS', 'REMBOURSE']).aggregate(Sum('montant_accorde'))['montant_accorde__sum'] or 0
     tim = base_imprevus.filter(mois=mois_actuel, annee=annee_actuelle, statut='PAYE').aggregate(Sum('montant'))['montant__sum'] or 0
+    # Intérêts / Pénalités / Remboursements (globaux)
+    base_interets = qs_for_tenant(request, Interet.objects.all())
+    base_penalites = qs_for_tenant(request, PenaliteCotisation.objects.filter(exclu=False))
+    trm = base_remboursements.filter(date_remboursement__month=mois_actuel, date_remboursement__year=annee_actuelle).aggregate(Sum('montant_rembourse'))['montant_rembourse__sum'] or 0
+    tipm = base_interets.filter(date_remboursement__month=mois_actuel, date_remboursement__year=annee_actuelle).aggregate(Sum('interet_rembourse'))['interet_rembourse__sum'] or 0
 
-    # Capital de l'association
-    # Formule : (cotisations + imprevus + remboursements_principal + interets_percus) 
-    #         - (depenses + credits_accordes)
+    # Solde de caisse (uniquement le mois en cours)
     from .models import Depense
     base_depenses = qs_for_tenant(request, Depense.objects.all()) if hasattr(request, 'tenant') else Depense.objects.none()
     total_depenses = base_depenses.aggregate(Sum('montant'))['montant__sum'] or 0
 
     total_membres = base_membres.filter(est_actif=True).count()
-    total_entrees = (base_cotisations.filter(statut='PAYE').aggregate(Sum('montant'))['montant__sum'] or 0) + (base_imprevus.filter(statut='PAYE').aggregate(Sum('montant'))['montant__sum'] or 0) + (base_remboursements.aggregate(Sum('montant_rembourse'))['montant_rembourse__sum'] or 0) + (base_remboursements.aggregate(Sum('interet_rembourse'))['interet_rembourse__sum'] or 0)
-    total_sorties = total_depenses + (base_credits.filter(statut__in=['APPROUVE', 'EN_COURS', 'REMBOURSE']).aggregate(Sum('montant_accorde'))['montant_accorde__sum'] or 0)
-    solde_caisse = total_entrees - total_sorties
-
     cotisations_payees = base_cotisations.filter(mois=mois_actuel, annee=annee_actuelle, statut='PAYE').count()
     taux_paiement = (cotisations_payees / total_membres * 100) if total_membres > 0 else 0
 
@@ -291,9 +304,20 @@ def dashboard(request):
     derniers_credits = base_credits.select_related('membre').order_by('-date_demande')[:10]
 
     # Intérêts / Pénalités / Remboursements (globaux)
-    from .models import Interet, PenaliteCotisation
-    base_interets = qs_for_tenant(request, Interet.objects.all())
-    base_penalites = qs_for_tenant(request, PenaliteCotisation.objects.all())
+    total_penalites_payees = base_penalites.aggregate(Sum('montant_paye'))['montant_paye__sum'] or 0
+    total_penalites_payees_mois = base_penalites.filter(date_paiement__month=mois_actuel, date_paiement__year=annee_actuelle).aggregate(Sum('montant_paye'))['montant_paye__sum'] or 0
+
+    solde_caisse = tcm + trm + tipm + total_penalites_payees_mois - tcrm
+
+    total_credits_restants = Decimal('0')
+    for c in base_credits.filter(statut__in=['APPROUVE', 'EN_COURS']).iterator():
+        total_credits_restants += c.get_reste_a_rembourser()
+
+    total_interets_percus = base_interets.filter(date_remboursement__isnull=False).aggregate(
+        Sum('interet_rembourse')
+    )['interet_rembourse__sum'] or 0
+
+    capital_association = solde_caisse + total_credits_restants
 
     context.update({
         'cotisations_3_derniers_mois': cotisations_3_derniers_mois,
@@ -302,14 +326,21 @@ def dashboard(request):
         'total_cotisations_mois_actuel': tcm,
         'total_credits_mois_actuel': tcrm,
         'total_imprevus_mois_actuel': tim,
-        'total_general_mois_actuel': tcm + tcrm + tim,
+        'total_remboursements_mois': trm,
+        'total_interets_percus_mois': tipm,
+        'total_penalites_payees_mois': total_penalites_payees_mois,
+        'total_revenus_mois': tcm + tim + trm + tipm + total_penalites_payees_mois,
+        'total_general_mois_actuel': (tcm + tim + trm + tipm + total_penalites_payees_mois) - tcrm,
         'total_membres': total_membres,
         'solde_caisse': solde_caisse,
         'taux_paiement': taux_paiement,
         'total_imprevus_capital': base_imprevus.filter(statut='PAYE').aggregate(Sum('montant'))['montant__sum'] or 0,
         'total_remboursements': base_remboursements.aggregate(Sum('montant_rembourse'))['montant_rembourse__sum'] or 0,
         'total_depenses': total_depenses,
-        'capital_association': solde_caisse,
+        'total_penalites_payees': total_penalites_payees,
+        'capital_association': capital_association,
+        'total_credits_restants': total_credits_restants,
+        'total_interets_percus': total_interets_percus,
         'total_credits_accordes': base_credits.filter(statut__in=['APPROUVE', 'EN_COURS', 'REMBOURSE']).aggregate(Sum('montant_accorde'))['montant_accorde__sum'] or 0,
         'total_interets_mois': base_interets.filter(mois=mois_actuel, annee=annee_actuelle).aggregate(Sum('interet_mensuel'))['interet_mensuel__sum'] or 0,
         'total_interets_cumules': base_interets.aggregate(Sum('interet_cumule'))['interet_cumule__sum'] or 0,
@@ -468,7 +499,154 @@ def detail_membre(request, pk):
     return render(request, 'twiyungunganye/membres/detail.html', context)
 
 
+@login_required
+@user_passes_test(is_admin_only)
+def supprimer_membre(request, pk):
+    """Supprimer un membre"""
+    membre = get_object_or_404(qs_for_tenant(request, Membre.objects.all()), pk=pk)
+
+    if request.method == 'POST':
+        nom = membre.get_full_name()
+        membre.delete()
+        messages.success(request, f'Le membre {nom} a été supprimé.')
+        return redirect('liste_membres')
+
+    return render(request, 'twiyungunganye/confirmer_suppression.html', {
+        'objet': membre,
+        'titre': f'Membre : {membre.get_full_name()}',
+        'message': f'Supprimer le membre {membre.get_full_name()} (carte: {membre.carte_identite}) ? Cette action est irréversible.',
+        'url_supprimer': 'supprimer_membre',
+        'url_annuler': 'liste_membres',
+    })
+
+
 # Gestion des cotisations régulières
+@login_required
+@user_passes_test(is_admin_or_gestionnaire)
+def encaisser_cotisation(request):
+    """Encaisser un paiement qui peut couvrir plusieurs mois"""
+    from decimal import Decimal
+
+    mois_noms = ['', 'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+                 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
+
+    if request.method == 'POST':
+        form = EncaisserCotisationForm(request.POST, tenant=get_tenant(request))
+        if form.is_valid():
+            membre = form.cleaned_data['membre']
+            montant = form.cleaned_data['montant']
+            date_paiement = form.cleaned_data['date_paiement']
+            type_cot = form.cleaned_data['type_cotisation']
+
+            tenant = get_tenant(request)
+            assoc = Association.get_association(tenant)
+            mensualite = assoc.montant_cotisation_mensuelle if type_cot == 'regulier' else assoc.montant_cotisation_imprevu_mensuelle
+
+            if mensualite <= 0:
+                messages.error(request, "Le montant mensuel n'est pas configuré pour ce type de cotisation.")
+                return redirect('encaisser_cotisation')
+
+            nb_mois = int(montant // mensualite)
+            reste = montant % mensualite
+
+            # Trouver les mois impayés les plus anciens
+            Model = Cotisation if type_cot == 'regulier' else CotisationImprevu
+
+            cotisations_existantes = qs_for_tenant(request, Model.objects.filter(membre=membre)).values_list('annee', 'mois')
+            cotise_set = set(cotisations_existantes)
+
+            now = datetime.now()
+            annee_courante = now.year
+            mois_courant = now.month
+
+            mois_a_couvrir = []
+            for an in range(annee_courante, annee_courante - 5, -1):
+                for m in range(12, 0, -1):
+                    if (an, m) not in cotise_set and (an < annee_courante or (an == annee_courante and m <= mois_courant)):
+                        mois_a_couvrir.append((an, m))
+                        if len(mois_a_couvrir) >= max(nb_mois, 1):
+                            break
+                if len(mois_a_couvrir) >= max(nb_mois, 1):
+                    break
+            mois_a_couvrir.reverse()  # du plus ancien au plus récent
+
+            if nb_mois < 1:
+                # Montant insuffisant → créer un mois en EN_ATTENTE
+                an, m = mois_a_couvrir[0] if mois_a_couvrir else (annee_courante, mois_courant)
+                Model.objects.update_or_create(
+                    membre=membre, mois=m, annee=an,
+                    defaults={
+                        'montant': montant,
+                        'statut': 'EN_ATTENTE',
+                        'date_paiement': date_paiement,
+                        'tenant': tenant,
+                    }
+                )
+                messages.warning(
+                    request,
+                    f"Montant insuffisant ({montant}) pour un mois complet ({mensualite}). "
+                    f"La cotisation de {membre.get_full_name()} pour {mois_noms[m]} {an} "
+                    f"est enregistrée comme <b>impayée</b> (EN_ATTENTE)."
+                )
+                return redirect('liste_cotisations')
+
+            if len(mois_a_couvrir) < nb_mois:
+                messages.warning(
+                    request,
+                    f"Seulement {len(mois_a_couvrir)} mois impayés trouvés, "
+                    f"mais le montant couvre {nb_mois} mois. "
+                    f"{len(mois_a_couvrir)} mois seront couverts."
+                )
+
+            cree = 0
+            for an, m in mois_a_couvrir[:nb_mois]:
+                Model.objects.update_or_create(
+                    membre=membre,
+                    mois=m,
+                    annee=an,
+                    defaults={
+                        'montant': mensualite,
+                        'statut': 'PAYE',
+                        'date_paiement': date_paiement,
+                        'tenant': tenant,
+                    }
+                )
+                cree += 1
+
+            # Nettoyer les pénalités pour les mois couverts
+            if type_cot == 'regulier':
+                from django.db.models import Q
+                from .models import PenaliteCotisation
+                q_filter = Q(membre=membre, mois=0, annee=0)
+                for an, m in mois_a_couvrir[:nb_mois]:
+                    q_filter |= Q(membre=membre, mois=m, annee=an)
+                PenaliteCotisation.objects.filter(q_filter).delete()
+                messages.success(
+                    request,
+                    f"{cree} mois de cotisation régulière enregistrés pour {membre.get_full_name()} "
+                    f"(total: {montant}). Pénalités correspondantes supprimées."
+                )
+            else:
+                # Imprévu : recalculer les pénalités pour refléter la nouvelle base
+                PenaliteCotisation.generer_toutes_penalites()
+                messages.success(
+                    request,
+                    f"{cree} mois d'imprévu enregistrés pour {membre.get_full_name()} "
+                    f"(total: {montant}). Pénalités mises à jour."
+                )
+
+            if reste > 0:
+                messages.info(request, f"Reste non distribué: {reste:.3f} (inférieur à la mensualité de {mensualite}).")
+
+            return redirect('liste_cotisations')
+    else:
+        form = EncaisserCotisationForm(tenant=get_tenant(request))
+
+    return render(request, 'twiyungunganye/cotisations/encaisser.html', {
+        'form': form,
+    })
+
+
 @login_required
 def liste_cotisations(request):
     """Liste des cotisations régulières"""
@@ -492,13 +670,21 @@ def ajouter_cotisation(request):
     if request.method == 'POST':
         form = CotisationForm(request.POST, tenant=get_tenant(request))
         if form.is_valid():
-            cotisation = form.save(commit=False)
-            tenant = get_tenant(request)
-            if tenant:
-                cotisation.tenant = tenant
-            cotisation.save()
-            messages.success(request, f'Cotisation enregistrée pour {cotisation.membre.get_full_name()}.')
-            return redirect('liste_cotisations')
+            try:
+                cotisation = form.save(commit=False)
+                tenant = get_tenant(request)
+                if tenant:
+                    cotisation.tenant = tenant
+                cotisation.save()
+                messages.success(request, f'Cotisation enregistrée pour {cotisation.membre.get_full_name()}.')
+                return redirect('liste_cotisations')
+            except IntegrityError:
+                messages.error(request, 'Cette combinaison Membre + Mois + Année existe déjà.')
+        else:
+            for field, errors in form.errors.items():
+                for error in errors:
+                    label = form.fields[field].label if field in form.fields else field
+                    messages.error(request, f"{label}: {error}")
     else:
         form = CotisationForm(tenant=get_tenant(request))
     
@@ -540,16 +726,24 @@ def ajouter_cotisation_imprevu(request):
     if request.method == 'POST':
         form = CotisationImprevuForm(request.POST, tenant=get_tenant(request))
         if form.is_valid():
-            cotisation = form.save(commit=False)
-            tenant = get_tenant(request)
-            if tenant:
-                cotisation.tenant = tenant
-            cotisation.save()
-            messages.success(
-                request, 
-                f'Cotisation imprévus de {cotisation.membre.get_full_name()} enregistrée avec succès.'
-            )
-            return redirect('liste_cotisations_imprevus')
+            try:
+                cotisation = form.save(commit=False)
+                tenant = get_tenant(request)
+                if tenant:
+                    cotisation.tenant = tenant
+                cotisation.save()
+                messages.success(
+                    request, 
+                    f'Cotisation imprévus de {cotisation.membre.get_full_name()} enregistrée avec succès.'
+                )
+                return redirect('liste_cotisations_imprevus')
+            except IntegrityError:
+                messages.error(request, 'Cette combinaison Membre + Mois + Année existe déjà.')
+        else:
+            for field, errors in form.errors.items():
+                for error in errors:
+                    label = form.fields[field].label if field in form.fields else field
+                    messages.error(request, f"{label}: {error}")
     else:
         form = CotisationImprevuForm(tenant=get_tenant(request))
     
@@ -570,9 +764,17 @@ def modifier_cotisation_imprevu(request, pk):
     if request.method == 'POST':
         form = CotisationImprevuForm(request.POST, instance=cotisation, tenant=get_tenant(request))
         if form.is_valid():
-            form.save()
-            messages.success(request, 'Cotisation imprévus modifiée avec succès.')
-            return redirect('liste_cotisations_imprevus')
+            try:
+                form.save()
+                messages.success(request, 'Cotisation imprévus modifiée avec succès.')
+                return redirect('liste_cotisations_imprevus')
+            except IntegrityError:
+                messages.error(request, 'Cette combinaison Membre + Mois + Année existe déjà.')
+        else:
+            for field, errors in form.errors.items():
+                for error in errors:
+                    label = form.fields[field].label if field in form.fields else field
+                    messages.error(request, f"{label}: {error}")
     else:
         form = CotisationImprevuForm(instance=cotisation, tenant=get_tenant(request))
     
@@ -580,6 +782,78 @@ def modifier_cotisation_imprevu(request, pk):
         'form': form,
         'action': 'Modifier',
         'cotisation': cotisation
+    })
+
+
+@login_required
+@user_passes_test(is_admin_or_gestionnaire)
+def modifier_cotisation(request, pk):
+    """Modifier une cotisation régulière existante"""
+    cotisation = get_object_or_404(
+        qs_for_tenant(request, Cotisation.objects.all()), pk=pk
+    )
+
+    if request.method == 'POST':
+        form = CotisationForm(request.POST, instance=cotisation, tenant=get_tenant(request))
+        if form.is_valid():
+            try:
+                form.save()
+                messages.success(request, 'Cotisation modifiée avec succès.')
+                return redirect('liste_cotisations')
+            except IntegrityError:
+                messages.error(request, 'Cette combinaison Membre + Mois + Année existe déjà.')
+    else:
+        form = CotisationForm(instance=cotisation, tenant=get_tenant(request))
+
+    return render(request, 'twiyungunganye/cotisations/formulaire.html', {
+        'form': form,
+        'action': 'Modifier',
+    })
+
+
+@login_required
+@user_passes_test(is_admin_or_gestionnaire)
+def supprimer_cotisation(request, pk):
+    """Supprimer une cotisation régulière"""
+    cotisation = get_object_or_404(
+        qs_for_tenant(request, Cotisation.objects.all()), pk=pk
+    )
+
+    if request.method == 'POST':
+        membre_nom = cotisation.membre.get_full_name()
+        cotisation.delete()
+        messages.success(request, f'Cotisation de {membre_nom} supprimée avec succès.')
+        return redirect('liste_cotisations')
+
+    return render(request, 'twiyungunganye/confirmer_suppression.html', {
+        'objet': cotisation,
+        'titre': f'Cotisation de {cotisation.membre.get_full_name()} — {cotisation.get_mois_nom} {cotisation.annee}',
+        'message': f'Supprimer la cotisation de {cotisation.membre.get_full_name()} pour {cotisation.get_mois_nom} {cotisation.annee} d\'un montant de {cotisation.montant} ?',
+        'url_supprimer': 'supprimer_cotisation',
+        'url_annuler': 'liste_cotisations',
+    })
+
+
+@login_required
+@user_passes_test(is_admin_or_gestionnaire)
+def supprimer_cotisation_imprevu(request, pk):
+    """Supprimer une cotisation imprévus"""
+    cotisation = get_object_or_404(
+        qs_for_tenant(request, CotisationImprevu.objects.all()), pk=pk
+    )
+
+    if request.method == 'POST':
+        membre_nom = cotisation.membre.get_full_name()
+        cotisation.delete()
+        messages.success(request, f'Cotisation imprévus de {membre_nom} supprimée avec succès.')
+        return redirect('liste_cotisations_imprevus')
+
+    return render(request, 'twiyungunganye/confirmer_suppression.html', {
+        'objet': cotisation,
+        'titre': f'Cotisation imprévus de {cotisation.membre.get_full_name()} — {cotisation.get_mois_nom} {cotisation.annee}',
+        'message': f'Supprimer la cotisation imprévus de {cotisation.membre.get_full_name()} pour {cotisation.get_mois_nom} {cotisation.annee} d\'un montant de {cotisation.montant} ?',
+        'url_supprimer': 'supprimer_cotisation_imprevu',
+        'url_annuler': 'liste_cotisations_imprevus',
     })
 
 
@@ -602,6 +876,49 @@ def mes_cotisations_imprevus(request):
 
 
 # Gestion des crédits
+@login_required
+@user_passes_test(is_admin_or_gestionnaire)
+def modifier_credit(request, pk):
+    """Modifier un crédit existant"""
+    from .forms import CreditApprovalForm
+    credit = get_object_or_404(
+        qs_for_tenant(request, Credit.objects.all()), pk=pk
+    )
+    if request.method == 'POST':
+        form = CreditApprovalForm(request.POST, instance=credit, tenant=get_tenant(request))
+        if form.is_valid():
+            form.save()
+            messages.success(request, f'Crédit #{credit.id_credit} modifié avec succès.')
+            return redirect('liste_credits')
+    else:
+        form = CreditApprovalForm(instance=credit, tenant=get_tenant(request))
+    return render(request, 'twiyungunganye/credits/formulaire_modifier.html', {
+        'form': form,
+        'credit': credit,
+    })
+
+
+@login_required
+@user_passes_test(is_admin_or_gestionnaire)
+def supprimer_credit(request, pk):
+    """Supprimer un crédit"""
+    credit = get_object_or_404(
+        qs_for_tenant(request, Credit.objects.all()), pk=pk
+    )
+    if request.method == 'POST':
+        membre_nom = credit.membre.get_full_name()
+        credit.delete()
+        messages.success(request, f'Crédit #{credit.id_credit} de {membre_nom} supprimé.')
+        return redirect('liste_credits')
+    return render(request, 'twiyungunganye/confirmer_suppression.html', {
+        'objet': credit,
+        'titre': f'Crédit #{credit.id_credit} — {credit.membre.get_full_name()}',
+        'message': f'Supprimer le crédit #{credit.id_credit} de {credit.membre.get_full_name()} d\'un montant de {credit.montant_accorde} FBU ?',
+        'url_supprimer': 'supprimer_credit',
+        'url_annuler': 'liste_credits',
+    })
+
+
 @login_required
 def liste_credits(request):
     """Liste des crédits"""
@@ -725,6 +1042,48 @@ def ajouter_remboursement(request, credit_id=None):
 
 @login_required
 @user_passes_test(is_admin_or_gestionnaire)
+def modifier_remboursement(request, pk):
+    """Modifier un remboursement existant"""
+    remboursement = get_object_or_404(
+        qs_for_tenant(request, Remboursement.objects.all()), pk=pk
+    )
+    if request.method == 'POST':
+        form = RemboursementForm(request.POST, instance=remboursement, tenant=get_tenant(request))
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Remboursement modifié avec succès.')
+            return redirect('liste_remboursements')
+    else:
+        form = RemboursementForm(instance=remboursement, tenant=get_tenant(request))
+    return render(request, 'twiyungunganye/remboursements/formulaire.html', {
+        'form': form,
+        'action': 'Modifier',
+        'remboursement': remboursement
+    })
+
+
+@login_required
+@user_passes_test(is_admin_or_gestionnaire)
+def supprimer_remboursement(request, pk):
+    """Supprimer un remboursement"""
+    remboursement = get_object_or_404(
+        qs_for_tenant(request, Remboursement.objects.all()), pk=pk
+    )
+    if request.method == 'POST':
+        remboursement.delete()
+        messages.success(request, 'Remboursement supprimé avec succès.')
+        return redirect('liste_remboursements')
+    return render(request, 'twiyungunganye/confirmer_suppression.html', {
+        'objet': remboursement,
+        'titre': f'Remboursement #{remboursement.id_rembourse} — {remboursement.credit.membre.get_full_name()}',
+        'message': f'Supprimer le remboursement de {remboursement.montant_rembourse} FBU effectué le {remboursement.date_remboursement} ?',
+        'url_supprimer': 'supprimer_remboursement',
+        'url_annuler': 'liste_remboursements',
+    })
+
+
+@login_required
+@user_passes_test(is_admin_or_gestionnaire)
 def liste_remboursements(request):
     """Liste de tous les remboursements"""
     remboursements = qs_for_tenant(
@@ -743,56 +1102,116 @@ def liste_remboursements(request):
 @login_required
 @user_passes_test(is_admin_or_gestionnaire)
 def liste_interets(request):
-    """Liste des intérêts mensuels calculés"""
+    """Liste des intérêts mensuels calculés, groupés par membre"""
     from django.db.models import Sum
-    
-    tenant = get_tenant(request)
+    from collections import OrderedDict
+    from datetime import date
+
+    credit_filter = request.GET.get('credit', '')
+    annee_filter = request.GET.get('annee', '')
+    mois_filter = request.GET.get('mois', '')
+
     credits = qs_for_tenant(request, Credit.objects.all()).filter(
         statut__in=['APPROUVE', 'EN_COURS', 'REMBOURSE']
     ).select_related('membre')
-    
-    interets_data = []
+    if credit_filter:
+        credits = credits.filter(pk=credit_filter)
+
+    has_filters = bool(annee_filter) or bool(mois_filter)
     today = timezone.now().date()
-    
+
+    membres_map = OrderedDict()
+
     for credit in credits:
         if not credit.date_accord:
             continue
-        
-        # Calculer le nombre de mois écoulés depuis l'accord
-        from dateutil.relativedelta import relativedelta
-        delta = relativedelta(today, credit.date_accord)
-        mois_ecoules = delta.years * 12 + delta.months
-        
-        if mois_ecoules <= 0:
-            mois_ecoules = 1
-        
-        # Calculer l'intérêt mensuel
-        taux = Decimal(str(credit.taux_interet)) / Decimal('100')
-        interet_mensuel = tronquer(credit.montant_accorde * taux)
-        
-        # Calculer l'intérêt cumulé
-        interet_cumule = tronquer(interet_mensuel * mois_ecoules)
-        
-        # Récupérer les intérêts déjà enregistrés
+
+        membre = credit.membre
+        mid = membre.id_membre
+        if mid not in membres_map:
+            membres_map[mid] = {
+                'membre': membre,
+                'credits': [],
+                'total_interets_tous_credits': Decimal('0'),
+                'total_rembourse_tous_credits': Decimal('0'),
+            }
+
+        taux = Decimal(str(credit.taux_interet)) / Decimal('100') if credit.taux_interet else Decimal('0')
+        remboursements = list(credit.remboursements.order_by('date_remboursement')) if credit.pk else []
+
         interets_existants = credit.interets.all().order_by('-annee', '-mois')
-        total_enregistre = interets_existants.aggregate(Sum('interet_mensuel'))['interet_mensuel__sum'] or Decimal('0.000')
-        
-        interets_data.append({
-            'credit': credit,
-            'membre': credit.membre,
-            'montant_accorde': credit.montant_accorde,
-            'taux_interet': credit.taux_interet,
-            'date_accord': credit.date_accord,
-            'mois_ecoules': mois_ecoules,
-            'interet_mensuel': interet_mensuel,
-            'interet_cumule': interet_cumule,
-            'total_enregistre': total_enregistre,
-            'interets_existants': interets_existants,
-        })
-    
+        if annee_filter:
+            interets_existants = interets_existants.filter(annee=annee_filter)
+        if mois_filter:
+            interets_existants = interets_existants.filter(mois=mois_filter)
+
+        mois_details = []
+        total_calcule = Decimal('0')
+        total_rembourse = Decimal('0')
+        for it in interets_existants:
+            interet_calcule = it.interet_mensuel
+            if interet_calcule <= 0 and it.interet_rembourse <= 0:
+                continue
+            total_calcule += interet_calcule
+            total_rembourse += it.interet_rembourse
+            mois_details.append({
+                'pk': it.pk,
+                'mois': it.mois,
+                'annee': it.annee,
+                'mois_nom': it.get_mois_nom(),
+                'interet_mensuel': it.interet_mensuel,
+                'interet_rembourse': it.interet_rembourse,
+                'date_remboursement': it.date_remboursement,
+                'reste': tronquer(max(it.interet_mensuel - it.interet_rembourse, Decimal('0'))),
+                'credit_id': credit.id_credit,
+                'montant_accorde': credit.montant_accorde,
+                'taux_interet': credit.taux_interet,
+                'date_accord': credit.date_accord,
+            })
+
+        if not has_filters or mois_details:
+            membres_map[mid]['credits'].append({
+                'credit': credit,
+                'montant_accorde': credit.montant_accorde,
+                'taux_interet': credit.taux_interet,
+                'date_accord': credit.date_accord,
+                'total_calcule': total_calcule,
+                'total_rembourse': total_rembourse,
+                'reste_cumule': tronquer(max(total_calcule - total_rembourse, Decimal('0'))),
+                'mois_details': mois_details,
+            })
+            membres_map[mid]['total_interets_tous_credits'] += total_calcule
+            membres_map[mid]['total_rembourse_tous_credits'] += total_rembourse
+
+    for md in membres_map.values():
+        md['total_reste_tous_credits'] = tronquer(max(
+            md['total_interets_tous_credits'] - md['total_rembourse_tous_credits'],
+            Decimal('0')
+        ))
+
+    interets_data = list(membres_map.values())
+
+    base_interets_tenant = Interet.objects.filter(
+        credit__in=qs_for_tenant(request, Credit.objects.all())
+    )
+    if credit_filter:
+        base_interets_tenant = base_interets_tenant.filter(credit_id=credit_filter)
+    annees_disponibles = base_interets_tenant.values_list('annee', flat=True).distinct().order_by('-annee')
+
+    paginator = Paginator(interets_data, 3)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
     context = {
-        'interets_data': interets_data,
+        'interets_data': page_obj,
+        'page_obj': page_obj,
         'today': today,
+        'annee_courante': today.year,
+        'annee_filter': int(annee_filter) if annee_filter else None,
+        'mois_filter': int(mois_filter) if mois_filter else None,
+        'annees_disponibles': annees_disponibles,
+        'credit_filter': credit_filter,
+        'mois_list': [(1, 'Janvier'), (2, 'Février'), (3, 'Mars'), (4, 'Avril'), (5, 'Mai'), (6, 'Juin'), (7, 'Juillet'), (8, 'Août'), (9, 'Septembre'), (10, 'Octobre'), (11, 'Novembre'), (12, 'Décembre')],
     }
     return render(request, 'twiyungunganye/interets/liste.html', context)
 
@@ -800,71 +1219,82 @@ def liste_interets(request):
 @login_required
 @user_passes_test(is_admin_or_gestionnaire)
 def generer_interets(request, credit_id):
-    """Générer les intérêts mensuels pour un crédit"""
-    from dateutil.relativedelta import relativedelta
-    from decimal import Decimal
-    
+    """Générer les intérêts mensuels pour un crédit (mois calendaire)"""
     credit = get_object_or_404(qs_for_tenant(request, Credit.objects.all()), pk=credit_id)
-    
+
     if credit.statut not in ['APPROUVE', 'EN_COURS', 'REMBOURSE']:
         messages.error(request, "Ce crédit ne peut pas générer d'intérêts.")
         return redirect('liste_interets')
-    
+
     if not credit.date_accord:
         messages.error(request, "Ce crédit n'a pas de date d'accord.")
         return redirect('liste_interets')
-    
+
+    from calendar import monthrange
+    from datetime import date
+
     tenant = get_tenant(request)
     today = timezone.now().date()
-    
-    # Calculer le nombre de mois écoulés
-    delta = relativedelta(today, credit.date_accord)
-    mois_ecoules = delta.years * 12 + delta.months
-    if mois_ecoules <= 0:
-        mois_ecoules = 1
-    
-    taux = Decimal(str(credit.taux_interet)) / Decimal('100')
-    interet_mensuel = tronquer(credit.montant_accorde * taux)
-    
+
     interets_crees = 0
-    for i in range(1, mois_ecoules + 1):
-        date_mois = credit.date_accord + relativedelta(months=i-1)
-        mois = date_mois.month
-        annee = date_mois.year
-        
-        # Vérifier si l'intérêt existe déjà
+
+    current = date(credit.date_accord.year, credit.date_accord.month, 1)
+
+    while current < today:
+        last_day = monthrange(current.year, current.month)[1]
+        month_end = date(current.year, current.month, last_day)
+
+        if month_end > today:
+            break
+
+        if current.month == 12:
+            next_month = date(current.year + 1, 1, 1)
+        else:
+            next_month = date(current.year, current.month + 1, 1)
+
+        capital = credit._capital_au(next_month)
+        if capital <= 0:
+            break
+
+        taux = Decimal(credit.taux_interet) / Decimal(100)
+        interet_mensuel = tronquer(capital * taux)
+        interet_cumule = credit.calculer_interet(jusqua_date=month_end)
+
         interet, created = Interet.objects.get_or_create(
             credit=credit,
-            mois=mois,
-            annee=annee,
+            mois=current.month,
+            annee=current.year,
             defaults={
                 'tenant': tenant,
                 'interet_mensuel': interet_mensuel,
-                'interet_cumule': tronquer(interet_mensuel * i),
-                'date_calcul': date_mois,
+                'interet_cumule': interet_cumule,
+                'date_calcul': month_end,
             }
         )
         if created:
             interets_crees += 1
         else:
-            # Mettre à jour l'intérêt cumulé
-            interet.interet_cumule = tronquer(interet_mensuel * i)
-            interet.save(update_fields=['interet_cumule'])
-    
+            interet.interet_mensuel = interet_mensuel
+            interet.interet_cumule = interet_cumule
+            interet.date_calcul = month_end
+            interet.save(update_fields=['interet_mensuel', 'interet_cumule', 'date_calcul'])
+
+        current = next_month
+
     if interets_crees > 0:
         messages.success(request, f"{interets_crees} intérêts générés pour le crédit #{credit.id_credit}.")
     else:
         messages.info(request, "Tous les intérêts étaient déjà générés.")
-    
+
     return redirect('liste_interets')
 
 
 @login_required
 @user_passes_test(is_admin_or_gestionnaire)
 def generer_tous_interets(request):
-    """Générer les intérêts pour tous les crédits actifs"""
-    from dateutil.relativedelta import relativedelta
-    from decimal import Decimal
+    """Générer les intérêts pour tous les crédits actifs (mois calendaire)"""
+    from calendar import monthrange
+    from datetime import date
     
     tenant = get_tenant(request)
     credits = qs_for_tenant(request, Credit.objects.all()).filter(
@@ -873,40 +1303,53 @@ def generer_tous_interets(request):
     
     total_interets_crees = 0
     today = timezone.now().date()
-    
+
     for credit in credits:
         if not credit.date_accord:
             continue
-        
-        delta = relativedelta(today, credit.date_accord)
-        mois_ecoules = delta.years * 12 + delta.months
-        if mois_ecoules <= 0:
-            mois_ecoules = 1
-        
-        taux = Decimal(str(credit.taux_interet)) / Decimal('100')
-        interet_mensuel = tronquer(credit.montant_accorde * taux)
-        
-        for i in range(1, mois_ecoules + 1):
-            date_mois = credit.date_accord + relativedelta(months=i-1)
-            mois = date_mois.month
-            annee = date_mois.year
-            
+
+        current = date(credit.date_accord.year, credit.date_accord.month, 1)
+
+        while current < today:
+            last_day = monthrange(current.year, current.month)[1]
+            month_end = date(current.year, current.month, last_day)
+
+            if month_end > today:
+                break
+
+            if current.month == 12:
+                next_month = date(current.year + 1, 1, 1)
+            else:
+                next_month = date(current.year, current.month + 1, 1)
+
+            capital = credit._capital_au(next_month)
+            if capital <= 0:
+                break
+
+            taux = Decimal(credit.taux_interet) / Decimal(100)
+            interet_mensuel = tronquer(capital * taux)
+            interet_cumule = credit.calculer_interet(jusqua_date=month_end)
+
             interet, created = Interet.objects.get_or_create(
                 credit=credit,
-                mois=mois,
-                annee=annee,
+                mois=current.month,
+                annee=current.year,
                 defaults={
                     'tenant': tenant,
                     'interet_mensuel': interet_mensuel,
-                    'interet_cumule': tronquer(interet_mensuel * i),
-                    'date_calcul': date_mois,
+                    'interet_cumule': interet_cumule,
+                    'date_calcul': month_end,
                 }
             )
             if created:
                 total_interets_crees += 1
             else:
-                interet.interet_cumule = tronquer(interet_mensuel * i)
-                interet.save(update_fields=['interet_cumule'])
+                interet.interet_mensuel = interet_mensuel
+                interet.interet_cumule = interet_cumule
+                interet.date_calcul = month_end
+                interet.save(update_fields=['interet_mensuel', 'interet_cumule', 'date_calcul'])
+
+            current = next_month
     
     if total_interets_crees > 0:
         messages.success(request, f"{total_interets_crees} intérêts générés pour tous les crédits.")
@@ -918,28 +1361,219 @@ def generer_tous_interets(request):
 
 @login_required
 @user_passes_test(is_admin_or_gestionnaire)
+def ajouter_interet_rembourse(request, pk):
+    """Ajouter un remboursement d'intérêt pour un mois spécifique"""
+    interet = get_object_or_404(qs_for_tenant(request, Interet.objects.all()), pk=pk)
+    credit = interet.credit
+
+    interet_calcule = interet.interet_mensuel
+    reste_calcule = tronquer(max(interet_calcule - interet.interet_rembourse, Decimal('0')))
+
+    if request.method == 'POST':
+        montant_str = request.POST.get('montant_rembourse', '0')
+        date_str = request.POST.get('date_remboursement', '')
+        try:
+            montant = parse_montant(montant_str)
+        except (InvalidOperation, TypeError):
+            montant = Decimal('0')
+
+        if montant > 0:
+            date_paiement = timezone.now().date()
+            if date_str:
+                from datetime import datetime
+                try:
+                    date_paiement = datetime.strptime(date_str, '%Y-%m-%d').date()
+                except (ValueError, TypeError):
+                    pass
+            
+            # Créer un historique dans Remboursement
+            remb = Remboursement(
+                credit=interet.credit,
+                tenant=interet.tenant,
+                montant_rembourse=Decimal('0'),
+                interet_rembourse=tronquer(montant),
+                date_remboursement=date_paiement,
+                mode_paiement='ESPECES',
+                remarque=f"Paiement intérêt ({interet.get_mois_nom()} {interet.annee})"
+            )
+            remb.save()
+
+            interet.interet_rembourse += tronquer(montant)
+            interet.date_remboursement = date_paiement
+            interet.save(update_fields=['interet_rembourse', 'date_remboursement'])
+            
+            messages.success(
+                request,
+                f"Intérêt remboursé de {montant} enregistré pour {interet.credit.membre.get_full_name()} "
+                f"({interet.get_mois_nom()} {interet.annee})."
+            )
+        else:
+            messages.error(request, "Le montant doit être supérieur à 0.")
+
+        return redirect('liste_interets')
+
+    return render(request, 'twiyungunganye/interets/rembourser.html', {
+        'interet': interet,
+        'interet_mensuel_calcule': interet_calcule,
+        'reste': reste_calcule,
+    })
+
+
+@login_required
+@user_passes_test(is_admin_or_gestionnaire)
+def modifier_interet_rembourse(request, pk):
+    """Modifier le montant remboursé d'un intérêt (remplace, pas ajouter)"""
+    interet = get_object_or_404(qs_for_tenant(request, Interet.objects.all()), pk=pk)
+    credit = interet.credit
+
+    interet_calcule = interet.interet_mensuel
+    reste = tronquer(max(interet_calcule - interet.interet_rembourse, Decimal('0')))
+
+    if request.method == 'POST':
+        montant_str = request.POST.get('montant_rembourse', '0')
+        date_str = request.POST.get('date_remboursement', '')
+        try:
+            montant = parse_montant(montant_str)
+        except (InvalidOperation, TypeError):
+            montant = Decimal('0')
+
+        if montant >= 0:
+            if date_str:
+                from datetime import datetime
+                try:
+                    interet.date_remboursement = datetime.strptime(date_str, '%Y-%m-%d').date()
+                except (ValueError, TypeError):
+                    pass
+            else:
+                interet.date_remboursement = None
+            
+            interet.interet_rembourse = tronquer(montant)
+            interet.save(update_fields=['interet_rembourse', 'date_remboursement'])
+            
+            # Synchroniser avec Remboursement pour l'historique
+            signature_1 = f"Paiement intérêt ({interet.get_mois_nom()} {interet.annee})"
+            signature_2 = f"Migration automatique paiement interet ({interet.get_mois_nom()} {interet.annee})"
+            from django.db.models import Q
+            Remboursement.objects.filter(
+                credit=interet.credit,
+                montant_rembourse=Decimal('0')
+            ).filter(
+                Q(remarque=signature_1) | Q(remarque=signature_2)
+            ).delete()
+
+            if montant > 0:
+                date_paiement = interet.date_remboursement or timezone.now().date()
+                remb = Remboursement(
+                    credit=interet.credit,
+                    tenant=interet.tenant,
+                    montant_rembourse=Decimal('0'),
+                    interet_rembourse=tronquer(montant),
+                    date_remboursement=date_paiement,
+                    mode_paiement='ESPECES',
+                    remarque=signature_1
+                )
+                remb.save()
+
+            messages.success(
+                request,
+                f"Remboursement modifié pour {interet.credit.membre.get_full_name()} "
+                f"({interet.get_mois_nom()} {interet.annee}) : {interet.interet_rembourse} FBU."
+            )
+        else:
+            messages.error(request, "Le montant doit être supérieur ou égal à 0.")
+
+        return redirect('liste_interets')
+
+    return render(request, 'twiyungunganye/interets/modifier_remboursement.html', {
+        'interet': interet,
+        'interet_mensuel_calcule': interet_calcule,
+        'reste': reste,
+    })
+
+
+@login_required
+@user_passes_test(is_admin_or_gestionnaire)
+def modifier_date_remboursement_interet(request, pk):
+    """Modifier la date de remboursement d'un intérêt (page dédiée)"""
+    interet = get_object_or_404(qs_for_tenant(request, Interet.objects.all()), pk=pk)
+    
+    if request.method == 'POST':
+        date_str = request.POST.get('date_remboursement', '')
+        if date_str:
+            from datetime import datetime
+            try:
+                interet.date_remboursement = datetime.strptime(date_str, '%Y-%m-%d').date()
+                interet.save(update_fields=['date_remboursement'])
+                messages.success(request, "Date de remboursement mise à jour.")
+            except (ValueError, TypeError):
+                messages.error(request, "Format de date invalide.")
+        else:
+            interet.date_remboursement = None
+            interet.save(update_fields=['date_remboursement'])
+            messages.success(request, "Date de remboursement effacée.")
+        return redirect('liste_interets')
+    
+    return render(request, 'twiyungunganye/interets/definir_date.html', {
+        'interet': interet,
+    })
+
+
+@login_required
+@user_passes_test(is_admin_or_gestionnaire)
 def liste_penalites(request):
     """Liste des pénalités de cotisations impayées"""
-    from django.db.models import Sum
-    
+    from dateutil.relativedelta import relativedelta
+
     tenant = get_tenant(request)
-    penalites = qs_for_tenant(request, PenaliteCotisation.objects.all()).select_related('membre', 'cotisation').order_by('-annee', '-mois')
-    
-    # Statistiques
+    annee_filter = request.GET.get('annee', '')
+    mois_filter = request.GET.get('mois', '')
+    statut_filter = request.GET.get('statut', '')
+
+    penalites = qs_for_tenant(request, PenaliteCotisation.objects.filter(exclu=False)).filter(membre__est_actif=True).select_related('membre', 'cotisation')
+    if annee_filter:
+        penalites = penalites.filter(annee=annee_filter)
+    if mois_filter:
+        penalites = penalites.filter(mois=mois_filter)
+    if statut_filter == 'payee':
+        penalites = penalites.filter(montant_paye__gte=F('penalite_cumulee'))
+    elif statut_filter == 'impayee':
+        penalites = penalites.filter(montant_paye__lt=F('penalite_cumulee'))
+
+    penalites = penalites.order_by('-annee', '-mois')
+
+    # Statistiques depuis la DB
+    total_paye = penalites.aggregate(Sum('montant_paye'))['montant_paye__sum'] or Decimal('0.000')
     stats = penalites.aggregate(
         total_penalites=Sum('penalite_cumulee'),
-        total_payees=Sum('penalite_cumulee', filter=Q(est_payee=True)),
-        count_total=Sum('id_penalite'),
-        count_payees=Sum('id_penalite', filter=Q(est_payee=True)),
+        count_total=Count('id_penalite'),
     )
-    
-    paginator = Paginator(penalites, 10)
+    total_penalites_val = stats['total_penalites'] or Decimal('0.000')
+    stats['total_penalites'] = total_penalites_val
+    stats['total_payees'] = total_paye
+    stats['total_attente'] = total_penalites_val - total_paye
+
+    paginator = Paginator(penalites, 3)
     page_obj = paginator.get_page(request.GET.get('page'))
-    
+
+    # Ajuster reste_a_payer pour les impayées
+    for pen in page_obj:
+        if pen.reste_a_payer > pen.montant_paye:
+            pen.reste_a_payer = pen.penalite_cumulee
+
+    annees_disponibles = PenaliteCotisation.objects.filter(
+        tenant=tenant
+    ).values_list('annee', flat=True).distinct().order_by('-annee') if tenant else []
+
     context = {
         'page_obj': page_obj,
         'penalites': page_obj,
         'stats': stats,
+        'annee_courante': timezone.now().year,
+        'annee_filter': int(annee_filter) if annee_filter else None,
+        'mois_filter': int(mois_filter) if mois_filter else None,
+        'statut_filter': statut_filter,
+        'annees_disponibles': annees_disponibles,
+        'mois_list': [(1, 'Janvier'), (2, 'Février'), (3, 'Mars'), (4, 'Avril'), (5, 'Mai'), (6, 'Juin'), (7, 'Juillet'), (8, 'Août'), (9, 'Septembre'), (10, 'Octobre'), (11, 'Novembre'), (12, 'Décembre')],
     }
     return render(request, 'twiyungunganye/penalites/liste.html', context)
 
@@ -958,14 +1592,223 @@ def generer_penalites(request):
 
 @login_required
 @user_passes_test(is_admin_or_gestionnaire)
+def membres_non_payes(request):
+    """Liste des membres qui n'ont pas payé régulier ET/OU imprévu pour un mois donné"""
+    mois_noms = ['', 'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+                 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
+
+    tenant = get_tenant(request)
+    now = timezone.now()
+    mois = int(request.GET.get('mois', now.month))
+    annee = int(request.GET.get('annee', now.year))
+
+    # Mois précédent/suivant
+    mois_prec = mois - 1 if mois > 1 else 12
+    annee_prec = annee if mois > 1 else annee - 1
+    mois_suiv = mois + 1 if mois < 12 else 1
+    annee_suiv = annee if mois < 12 else annee + 1
+
+    # Membres du tenant actif non-admin avec au moins une cotisation
+    membres = Membre.objects.filter(tenant=tenant, est_actif=True, is_admin=False)
+    membres = membres.filter(
+        Q(cotisations__isnull=False) | Q(cotisations_imprevus__isnull=False)
+    ).distinct()
+
+    # Regroupement par statut
+    membres_payes = []
+    membres_non_payes = []
+    membres_non_payes_imp = []
+
+    for m in membres:
+        a_paye_reg = Cotisation.objects.filter(membre=m, mois=mois, annee=annee, statut='PAYE').exists()
+        a_paye_imp = CotisationImprevu.objects.filter(membre=m, mois=mois, annee=annee, statut='PAYE').exists()
+
+        if not a_paye_reg and not a_paye_imp:
+            membres_non_payes.append(m)
+        elif not a_paye_reg:
+            membres_non_payes.append(m)
+        elif not a_paye_imp:
+            membres_non_payes_imp.append(m)
+        else:
+            membres_payes.append(m)
+
+    context = {
+        'mois': mois,
+        'annee': annee,
+        'mois_nom': mois_noms[mois],
+        'mois_prec': mois_prec,
+        'annee_prec': annee_prec,
+        'mois_suiv': mois_suiv,
+        'annee_suiv': annee_suiv,
+        'membres_payes': membres_payes,
+        'membres_non_payes': membres_non_payes,
+        'membres_non_payes_imp': membres_non_payes_imp,
+        'total_non_payes': len(membres_non_payes),
+        'total_payes': len(membres_payes),
+        'annees': range(now.year - 2, now.year + 2),
+        'mois_list': list(enumerate(mois_noms))[1:],
+    }
+    return render(request, 'twiyungunganye/penalites/membres_non_payes.html', context)
+
+
+@login_required
+@user_passes_test(is_admin_or_gestionnaire)
 def marquer_penalite_payee(request, pk):
     """Marquer une pénalité comme payée"""
-    penalite = get_object_or_404(qs_for_tenant(request, PenaliteCotisation.objects.all()), pk=pk)
+    penalite = get_object_or_404(qs_for_tenant(request, PenaliteCotisation.objects.filter(exclu=False)), pk=pk)
+    penalite.montant_paye = penalite.reste_a_payer
     penalite.est_payee = True
     penalite.date_paiement = timezone.now().date()
-    penalite.save(update_fields=['est_payee', 'date_paiement'])
+    penalite.save(update_fields=['montant_paye', 'est_payee', 'date_paiement'])
     messages.success(request, f"Pénalité marquée comme payée.")
     return redirect('liste_penalites')
+
+
+@login_required
+@user_passes_test(is_admin_or_gestionnaire)
+def payer_penalite(request, pk):
+    """Enregistrer un paiement partiel sur une pénalité"""
+    penalite = get_object_or_404(qs_for_tenant(request, PenaliteCotisation.objects.filter(exclu=False)), pk=pk)
+
+    if request.method == 'POST':
+        montant_str = request.POST.get('montant_paye', '0')
+        date_str = request.POST.get('date_paiement', '')
+        try:
+            montant = parse_montant(montant_str)
+        except (InvalidOperation, TypeError):
+            montant = Decimal('0')
+
+        if montant > 0:
+            reste_max = tronquer(max(penalite.reste_a_payer - penalite.montant_paye, Decimal('0')))
+            if montant > reste_max:
+                messages.error(request, f"Le montant ne peut pas dépasser le reste à payer ({reste_max} ).")
+                return redirect('payer_penalite', pk=penalite.pk)
+
+            penalite.montant_paye += tronquer(montant)
+            if date_str:
+                from datetime import datetime
+                try:
+                    penalite.date_paiement = datetime.strptime(date_str, '%Y-%m-%d').date()
+                except (ValueError, TypeError):
+                    pass
+            if penalite.montant_paye >= penalite.reste_a_payer:
+                penalite.est_payee = True
+            penalite.save()
+            messages.success(
+                request,
+                f"Paiement de {montant} enregistré pour la pénalité de {penalite.membre.get_full_name()} "
+                f"({penalite.get_mois_nom} {penalite.annee})."
+            )
+        else:
+            messages.error(request, "Le montant doit être supérieur à 0.")
+
+        return redirect('liste_penalites')
+
+    return render(request, 'twiyungunganye/penalites/payer.html', {
+        'penalite': penalite,
+        'reste': tronquer(max(penalite.reste_a_payer - penalite.montant_paye, Decimal('0'))),
+    })
+
+
+@login_required
+@user_passes_test(is_admin_or_gestionnaire)
+def payer_integralement_penalite(request, pk):
+    """Payer intégralement une pénalité en un clic"""
+    penalite = get_object_or_404(qs_for_tenant(request, PenaliteCotisation.objects.filter(exclu=False)), pk=pk)
+    montant = tronquer(max(penalite.reste_a_payer - penalite.montant_paye, Decimal('0')))
+    penalite.montant_paye += montant
+    penalite.est_payee = True
+    penalite.date_paiement = timezone.now().date()
+    penalite.save()
+    messages.success(
+        request,
+        f"Pénalité payée intégralement : {penalite.membre.get_full_name()} "
+        f"({penalite.get_mois_nom} {penalite.annee}) — {montant}"
+    )
+    return redirect('liste_penalites')
+
+
+@login_required
+@user_passes_test(is_admin_or_gestionnaire)
+def modifier_montant_paye_penalite(request, pk):
+    """Modifier le montant payé d'une pénalité (remplace, pas ajouter)"""
+    penalite = get_object_or_404(qs_for_tenant(request, PenaliteCotisation.objects.filter(exclu=False)), pk=pk)
+    reste = tronquer(max(penalite.reste_a_payer, Decimal('0')))
+
+    if request.method == 'POST':
+        montant_str = request.POST.get('montant_paye', '0')
+        date_str = request.POST.get('date_paiement', '')
+        try:
+            montant = parse_montant(montant_str)
+        except (InvalidOperation, TypeError):
+            montant = Decimal('0')
+
+        if montant >= 0:
+            penalite.montant_paye = tronquer(montant)
+            penalite.est_payee = penalite.montant_paye >= penalite.reste_a_payer
+            if date_str:
+                from datetime import datetime
+                try:
+                    penalite.date_paiement = datetime.strptime(date_str, '%Y-%m-%d').date()
+                except (ValueError, TypeError):
+                    pass
+            else:
+                penalite.date_paiement = None
+            penalite.save()
+            messages.success(
+                request,
+                f"Paiement modifié pour la pénalité de {penalite.membre.get_full_name()} "
+                f"({penalite.get_mois_nom()} {penalite.annee}) : {penalite.montant_paye} FBU."
+            )
+        else:
+            messages.error(request, "Le montant doit être supérieur ou égal à 0.")
+
+        return redirect('liste_penalites')
+
+    return render(request, 'twiyungunganye/penalites/modifier_paiement.html', {
+        'penalite': penalite,
+        'reste': reste,
+    })
+
+
+@login_required
+@user_passes_test(is_admin_or_gestionnaire)
+def supprimer_penalite(request, pk):
+    """Exclure une pénalité spécifique (au lieu de supprimer)"""
+    penalite = get_object_or_404(qs_for_tenant(request, PenaliteCotisation.objects.all()), pk=pk)
+    membre_nom = penalite.membre.get_full_name()
+    periode = f"{penalite.get_mois_nom} {penalite.annee}"
+    penalite.exclu = True
+    penalite.save(update_fields=['exclu'])
+    messages.success(request, f"Pénalité exclue : {membre_nom} ({periode})")
+    return redirect('liste_penalites')
+
+
+@login_required
+@user_passes_test(is_admin_or_gestionnaire)
+def modifier_date_paiement_penalite(request, pk):
+    """Modifier la date de paiement d'une pénalité"""
+    penalite = get_object_or_404(qs_for_tenant(request, PenaliteCotisation.objects.filter(exclu=False)), pk=pk)
+    
+    if request.method == 'POST':
+        date_str = request.POST.get('date_paiement', '')
+        if date_str:
+            from datetime import datetime
+            try:
+                penalite.date_paiement = datetime.strptime(date_str, '%Y-%m-%d').date()
+                penalite.save(update_fields=['date_paiement'])
+                messages.success(request, "Date de paiement mise à jour.")
+            except (ValueError, TypeError):
+                messages.error(request, "Format de date invalide.")
+        else:
+            penalite.date_paiement = None
+            penalite.save(update_fields=['date_paiement'])
+            messages.success(request, "Date de paiement effacée.")
+        return redirect('liste_penalites')
+    
+    return render(request, 'twiyungunganye/penalites/definir_date.html', {
+        'penalite': penalite,
+    })
 
 
 @login_required
@@ -988,26 +1831,52 @@ def mes_interets(request):
     """Liste des intérêts du membre connecté"""
     from django.db.models import Sum
     from decimal import Decimal
-    from dateutil.relativedelta import relativedelta
-    
+    from calendar import monthrange
+    from datetime import date
+
     today = timezone.now().date()
     credits = qs_for_tenant(request, Credit.objects.all()).filter(
         membre=request.user,
         statut__in=['APPROUVE', 'EN_COURS', 'REMBOURSE']
     ).select_related('membre')
-    
+
     interets_data = []
     for credit in credits:
         if not credit.date_accord:
             continue
-        delta = relativedelta(today, credit.date_accord)
-        mois_ecoules = delta.years * 12 + delta.months
-        if mois_ecoules <= 0:
-            mois_ecoules = 1
         taux = Decimal(str(credit.taux_interet)) / Decimal('100')
-        interet_mensuel = tronquer(credit.montant_accorde * taux)
-        interet_cumule = tronquer(interet_mensuel * mois_ecoules)
-        interets_existants = credit.interets.all().order_by('-annee', '-mois')
+        remboursements = list(credit.remboursements.order_by('date_remboursement')) if credit.pk else []
+        total_interet = Decimal('0')
+        dernier_interet = Decimal('0')
+        mois_ecoules = 0
+
+        current = date(credit.date_accord.year, credit.date_accord.month, 1)
+
+        while current < today:
+            last_day = monthrange(current.year, current.month)[1]
+            month_end = date(current.year, current.month, last_day)
+            if month_end > today:
+                break
+
+            if current.month == 12:
+                next_month = date(current.year + 1, 1, 1)
+            else:
+                next_month = date(current.year, current.month + 1, 1)
+
+            montant_restant = credit._capital_au(next_month)
+            if montant_restant <= 0:
+                break
+
+            interet_mois = tronquer(montant_restant * taux)
+            total_interet += interet_mois
+            dernier_interet = interet_mois
+            mois_ecoules += 1
+
+            current = next_month
+
+        interet_mensuel = dernier_interet
+        interet_cumule = total_interet
+        interets_existants = credit.interets.all().order_by('-annee', '-mois').exclude(interet_rembourse__gte=F('interet_mensuel'))
         total_enregistre = interets_existants.aggregate(Sum('interet_mensuel'))['interet_mensuel__sum'] or Decimal('0.000')
         interets_data.append({
             'credit': credit,
@@ -1021,7 +1890,7 @@ def mes_interets(request):
             'total_enregistre': total_enregistre,
             'interets_existants': interets_existants,
         })
-    
+
     return render(request, 'twiyungunganye/interets/liste.html', {
         'interets_data': interets_data,
         'today': today,
@@ -1033,23 +1902,39 @@ def mes_interets(request):
 def mes_penalites(request):
     """Liste des pénalités du membre connecté"""
     from django.db.models import Sum
-    penalites = qs_for_tenant(request, PenaliteCotisation.objects.all()).filter(
+    from dateutil.relativedelta import relativedelta
+    penalites = qs_for_tenant(request, PenaliteCotisation.objects.filter(exclu=False)).filter(
         membre=request.user
     ).select_related('membre', 'cotisation').order_by('-annee', '-mois')
     
+    total_paye = penalites.aggregate(Sum('montant_paye'))['montant_paye__sum'] or Decimal('0.000')
     stats = penalites.aggregate(
         total_penalites=Sum('penalite_cumulee'),
-        total_payees=Sum('penalite_cumulee', filter=Q(est_payee=True)),
+        count_total=Count('id_penalite'),
     )
+    total_penalites_val = stats['total_penalites'] or Decimal('0.000')
+    stats['total_penalites'] = total_penalites_val
+    stats['total_payees'] = total_paye
+    stats['total_attente'] = total_penalites_val - total_paye
     
     paginator = Paginator(penalites, 10)
     page_obj = paginator.get_page(request.GET.get('page'))
     
+    today = timezone.now().date()
+    for pen in page_obj:
+        if pen.reste_a_payer > pen.montant_paye:
+            pen.reste_a_payer = pen.penalite_cumulee
+
     return render(request, 'twiyungunganye/penalites/liste.html', {
         'page_obj': page_obj,
         'penalites': page_obj,
         'stats': stats,
         'mes_penalites': True,
+        'annee_filter': None,
+        'mois_filter': None,
+        'statut_filter': '',
+        'annees_disponibles': [],
+        'mois_list': [(1, 'Janvier'), (2, 'Février'), (3, 'Mars'), (4, 'Avril'), (5, 'Mai'), (6, 'Juin'), (7, 'Juillet'), (8, 'Août'), (9, 'Septembre'), (10, 'Octobre'), (11, 'Novembre'), (12, 'Décembre')],
     })
 
 
@@ -1066,6 +1951,7 @@ def ajouter_credit_direct(request):
             credit = form.save(commit=False)
             if tenant:
                 credit.tenant = tenant
+            credit.montant_demande = credit.montant_accorde
             credit.save()
             messages.success(request, f'Crédit #{credit.id_credit} ajouté pour {credit.membre.get_full_name()}.')
             return redirect('detail_credit', pk=credit.pk)
@@ -1259,6 +2145,171 @@ def page_rapport_annuel(request):
     return render(request, 'twiyungunganye/rapports/rapport_annuel.html', {'form': form})
 
 
+@login_required
+@user_passes_test(is_admin_or_gestionnaire)
+def page_rapport_periode(request):
+    """Rapport sur une période de mois : participants + récapitulatif complet"""
+    from dateutil.relativedelta import relativedelta
+    from calendar import monthrange
+
+    tenant = get_tenant(request)
+    base_cotisations = qs_for_tenant(request, Cotisation.objects.all())
+    base_imprevus = qs_for_tenant(request, CotisationImprevu.objects.all())
+    base_remboursements = qs_for_tenant(request, Remboursement.objects.all())
+    base_credits = qs_for_tenant(request, Credit.objects.all())
+    base_interets = qs_for_tenant(request, Interet.objects.all())
+    from cas_assistance.models import CasAssistance
+    base_assistances = qs_for_tenant(request, CasAssistance.objects.all())
+    base_penalites = qs_for_tenant(request, PenaliteCotisation.objects.filter(exclu=False))
+
+    mois_data = None
+    totals = None
+    participants = None
+    mois_list = []
+    form = RapportPeriodeForm()
+
+    if request.method == 'POST':
+        form = RapportPeriodeForm(request.POST)
+        if form.is_valid():
+            md = int(form.cleaned_data['mois_debut'])
+            ad = int(form.cleaned_data['annee_debut'])
+            mf = int(form.cleaned_data['mois_fin'])
+            af = int(form.cleaned_data['annee_fin'])
+
+            date_debut = date(ad, md, 1)
+            date_fin = date(af, mf, monthrange(af, mf)[1])
+
+            mois_list = list(_iter_mois_names(md, ad, mf, af))
+
+            # Collecter tous les membres uniques ayant cotisé sur la période
+            membres_ids = set()
+            current = date_debut
+            while current <= date_fin:
+                m, a = current.month, current.year
+                mids = base_cotisations.filter(
+                    mois=m, annee=a, statut='PAYE'
+                ).values_list('membre_id', flat=True).distinct()
+                membres_ids.update(mids)
+                current += relativedelta(months=1)
+
+            membres = Membre.objects.filter(id_membre__in=membres_ids).order_by('nom', 'prenom')
+
+            # Matrice participants : cotisations, intérêts, remboursements, pénalités par membre/mois
+            participants = []
+            for membre in membres:
+                row = {'membre': membre}
+                mois_cotises = 0
+                for m, a in mois_list:
+                    cot = base_cotisations.filter(
+                        membre=membre, mois=m, annee=a, statut='PAYE'
+                    ).first()
+                    interet_qs = base_interets.filter(
+                        credit__membre=membre, date_remboursement__month=m, date_remboursement__year=a
+                    )
+                    remb_qs = base_remboursements.filter(
+                        credit__membre=membre, date_remboursement__month=m, date_remboursement__year=a
+                    )
+                    pen = base_penalites.filter(
+                        membre=membre, mois=m, annee=a
+                    ).first()
+                    row[f'{m}-{a}'] = {
+                        'cotisation': cot.montant if cot else None,
+                        'interet': interet_qs.aggregate(Sum('interet_rembourse'))['interet_rembourse__sum'] or Decimal('0'),
+                        'remboursement': remb_qs.aggregate(Sum('montant_rembourse'))['montant_rembourse__sum'] or Decimal('0'),
+                        'penalite': pen.montant_paye if pen else Decimal('0'),
+                    }
+                    if cot:
+                        mois_cotises += 1
+                row['mois_cotises'] = mois_cotises
+                participants.append(row)
+
+            mois_data = []
+            cumul = Decimal('0')
+            current = date_debut
+            while current <= date_fin:
+                m, a = current.month, current.year
+
+                cot_mois = base_cotisations.filter(mois=m, annee=a, statut='PAYE').aggregate(
+                    Sum('montant'))['montant__sum'] or Decimal('0')
+                imp_mois = base_imprevus.filter(mois=m, annee=a, statut='PAYE').aggregate(
+                    Sum('montant'))['montant__sum'] or Decimal('0')
+                remb_mois = base_remboursements.filter(date_remboursement__month=m,
+                    date_remboursement__year=a).aggregate(
+                    Sum('montant_rembourse'))['montant_rembourse__sum'] or Decimal('0')
+                int_mois = base_interets.filter(date_remboursement__month=m,
+                    date_remboursement__year=a).aggregate(
+                    Sum('interet_rembourse'))['interet_rembourse__sum'] or Decimal('0')
+                cred_mois = base_credits.filter(date_accord__month=m, date_accord__year=a,
+                    statut__in=['APPROUVE', 'EN_COURS', 'REMBOURSE']).aggregate(
+                    Sum('montant_accorde'))['montant_accorde__sum'] or Decimal('0')
+                pen_mois = base_penalites.filter(date_paiement__month=m, date_paiement__year=a).aggregate(
+                    Sum('montant_paye'))['montant_paye__sum'] or Decimal('0')
+                assistance_mois = base_assistances.filter(date_assistance__month=m, date_assistance__year=a).aggregate(
+                    Sum('montant'))['montant__sum'] or Decimal('0')
+
+                effectif = base_cotisations.filter(mois=m, annee=a, statut='PAYE').values(
+                    'membre').distinct().count()
+
+                reste_imprevus = imp_mois - assistance_mois
+
+                # Solde du mois = entrées - sorties
+                entrees = cot_mois + remb_mois + int_mois + pen_mois
+                sorties = cred_mois
+                solde_mois = entrees - sorties
+                cumul += solde_mois
+
+                mois_data.append({
+                    'mois': m, 'annee': a,
+                    'effectif': effectif,
+                    'cotisations': cot_mois,
+                    'imprevus': imp_mois,
+                    'assistances': assistance_mois,
+                    'reste_imprevus': reste_imprevus,
+                    'remboursements': remb_mois,
+                    'interets': int_mois,
+                    'penalites': pen_mois,
+                    'credits': cred_mois,
+                    'solde_mois': solde_mois,
+                    'cumul': cumul,
+                })
+                current += relativedelta(months=1)
+
+            totals = {
+                'effectif': max(d['effectif'] for d in mois_data) if mois_data else 0,
+                'cotisations': sum(d['cotisations'] for d in mois_data),
+                'imprevus': sum(d['imprevus'] for d in mois_data),
+                'assistances': sum(d['assistances'] for d in mois_data),
+                'reste_imprevus': sum(d['reste_imprevus'] for d in mois_data),
+                'remboursements': sum(d['remboursements'] for d in mois_data),
+                'interets': sum(d['interets'] for d in mois_data),
+                'penalites': sum(d['penalites'] for d in mois_data),
+                'credits': sum(d['credits'] for d in mois_data),
+            }
+
+    MOIS_NOMS = {1: 'Janvier', 2: 'Février', 3: 'Mars', 4: 'Avril', 5: 'Mai', 6: 'Juin',
+                 7: 'Juillet', 8: 'Août', 9: 'Septembre', 10: 'Octobre', 11: 'Novembre', 12: 'Décembre'}
+    return render(request, 'twiyungunganye/rapports/rapport_periode.html', {
+        'form': form,
+        'mois_data': mois_data,
+        'totals': totals,
+        'participants': participants,
+        'MOIS_NOMS': MOIS_NOMS,
+        'mois_list': mois_list,
+    })
+
+
+def _iter_mois_names(md, ad, mf, af):
+    """Retourne les tuples (mois, annee) entre deux dates"""
+    from calendar import monthrange
+    from dateutil.relativedelta import relativedelta
+    from datetime import date
+    d = date(ad, md, 1)
+    fin = date(af, mf, monthrange(af, mf)[1])
+    while d <= fin:
+        yield (d.month, d.year)
+        d += relativedelta(months=1)
+
+
 # Types d'export avec leurs infos (champs de filtre, URLs)
 EXPORT_TYPES = {
     'membres': {
@@ -1308,6 +2359,14 @@ EXPORT_TYPES = {
         'url_pdf': 'export_interets_pdf',
         'url_excel': 'export_interets_excel',
         'filtres': [],
+    },
+    'penalites': {
+        'label': 'Pénalités',
+        'icone': 'bi-exclamation-triangle',
+        'description': 'Liste des pénalités de cotisations impayées',
+        'url_pdf': None,
+        'url_excel': 'export_penalites_excel',
+        'filtres': ['mois', 'annee', 'statut', 'membre'],
     },
 }
 
@@ -1368,6 +2427,26 @@ def page_export_filtre(request, export_type):
             if v:
                 filtres_actifs[f] = v
                 qs = qs.filter(**{f: int(v) if f in ('mois', 'annee') else v})
+        membre_id = request.GET.get('membre') or request.POST.get('membre')
+        if membre_id:
+            filtres_actifs['membre'] = membre_id
+            qs = qs.filter(membre_id=int(membre_id))
+        queryset = qs[:20]
+
+    elif export_type == 'penalites':
+        qs = qs_for_tenant(request, PenaliteCotisation.objects.filter(exclu=False)).select_related('membre')
+        for f in ['mois', 'annee']:
+            v = request.GET.get(f) or request.POST.get(f)
+            if v:
+                filtres_actifs[f] = v
+                qs = qs.filter(**{f: int(v) if f in ('mois', 'annee') else v})
+        statut = request.GET.get('statut') or request.POST.get('statut')
+        if statut:
+            filtres_actifs['statut'] = statut
+            if statut == 'payee':
+                qs = qs.filter(montant_paye__gte=F('penalite_cumulee'))
+            elif statut == 'impayee':
+                qs = qs.filter(montant_paye__lt=F('penalite_cumulee'))
         membre_id = request.GET.get('membre') or request.POST.get('membre')
         if membre_id:
             filtres_actifs['membre'] = membre_id

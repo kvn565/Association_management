@@ -3,7 +3,7 @@ from django.db.models import Sum
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.utils import timezone
 from django.core.exceptions import ValidationError
-from decimal import Decimal, ROUND_DOWN
+from decimal import Decimal
 from django.conf import settings
 
 DEVISE_CHOICES = [
@@ -19,10 +19,8 @@ DEVISE_CHOICES = [
 ]
 
 def tronquer(montant):
-    """Tronque un montant à 3 décimales sans arrondissement (ROUND_DOWN)"""
-    return Decimal(str(montant)).quantize(Decimal('0.001'), rounding=ROUND_DOWN)
-from datetime import date
-from dateutil.relativedelta import relativedelta
+    """Retourne le montant sans arrondi (l'affichage via floatformat:3 gère les 3 décimales)"""
+    return Decimal(str(montant))
 
 
 class MembreManager(BaseUserManager):
@@ -271,40 +269,55 @@ class Credit(models.Model):
         self.clean()
         super().save(*args, **kwargs)
     
-    def calculer_interet(self):
-        """Calcule l'intérêt sur le montant restant dû (dégressif mois par mois)"""
+    @staticmethod
+    def _mois_entre(d1, d2):
+        """Nombre de mois calendaires entre deux dates."""
+        return max(0, (d2.year - d1.year) * 12 + (d2.month - d1.month))
+
+    def _capital_au(self, date):
+        """Capital restant à une date donnée (avant les remboursements de ce jour)."""
+        capital_rembourse = sum(
+            r.montant_rembourse for r in self.remboursements.all()
+            if r.date_remboursement < date
+        ) if self.pk else Decimal('0')
+        return max(self.montant_accorde - capital_rembourse, Decimal('0'))
+
+    def calculer_interet(self, jusqua_date=None):
+        """Calcule l'intérêt cumulé par mois calendaire complet.
+        - Démarre au mois de date_accord (pas de mois gratuit)
+        - Intérêt = capital au DERNIER jour du mois × taux mensuel"""
         if not self.montant_accorde or not self.date_accord:
             return Decimal('0')
 
-        today = timezone.now().date()
-        mois = (today.year - self.date_accord.year) * 12 + today.month - self.date_accord.month
-        if mois <= 0:
-            return Decimal('0')
+        if jusqua_date is None:
+            jusqua_date = timezone.now().date()
+
+        from calendar import monthrange
+        from datetime import date
 
         taux = Decimal(self.taux_interet) / Decimal(100)
-        repayments = []
-        if self.pk:
-            repayments = list(self.remboursements.order_by('date_remboursement'))
-
-        montant_restant = self.montant_accorde
         total_interet = Decimal('0')
 
-        for m in range(mois):
-            interet_mois = tronquer(montant_restant * taux)
-            total_interet += interet_mois
+        current = date(self.date_accord.year, self.date_accord.month, 1)
 
-            mois_courant = self.date_accord.month + m
-            annee_courante = self.date_accord.year + (mois_courant - 1) // 12
-            mois_courant = ((mois_courant - 1) % 12) + 1
+        while current < jusqua_date:
+            last_day = monthrange(current.year, current.month)[1]
+            month_end = date(current.year, current.month, last_day)
 
-            principal_rembourse = sum(
-                r.montant_rembourse for r in repayments
-                if r.date_remboursement.month == mois_courant
-                and r.date_remboursement.year == annee_courante
-            )
-            montant_restant -= principal_rembourse
-            if montant_restant <= 0:
+            if month_end > jusqua_date:
                 break
+
+            if current.month == 12:
+                next_month = date(current.year + 1, 1, 1)
+            else:
+                next_month = date(current.year, current.month + 1, 1)
+
+            capital = self._capital_au(next_month)
+            if capital <= 0:
+                break
+
+            total_interet += tronquer(capital * taux)
+            current = next_month
 
         return tronquer(max(total_interet, Decimal('0')))
     
@@ -318,9 +331,9 @@ class Credit(models.Model):
         return tronquer(total)
     
     def get_reste_a_rembourser(self):
-        """Calcule le reste à rembourser (troncature 3 décimales)"""
-        reste = self.calculer_montant_total() - self.get_montant_rembourse()
-        return tronquer(max(reste, Decimal('0')))
+        """Calcule le capital restant à rembourser (hors intérêts)"""
+        total_capital_rembourse = sum(r.montant_rembourse for r in self.remboursements.all())
+        return tronquer(max(self.montant_accorde - total_capital_rembourse, Decimal('0')))
 
 
 class Interet(models.Model):
@@ -336,7 +349,13 @@ class Interet(models.Model):
     annee = models.IntegerField()
     interet_mensuel = models.DecimalField(max_digits=10, decimal_places=3)
     interet_cumule = models.DecimalField(max_digits=10, decimal_places=3)
+    interet_rembourse = models.DecimalField(max_digits=10, decimal_places=3, default=0)
+    date_remboursement = models.DateField(null=True, blank=True, help_text="Date à laquelle l'intérêt a été remboursé")
     date_calcul = models.DateField(default=timezone.now)
+
+    @property
+    def reste_a_payer(self):
+        return tronquer(max(self.interet_mensuel - self.interet_rembourse, Decimal('0')))
     
     class Meta:
         db_table = 'interets'
@@ -349,6 +368,11 @@ class Interet(models.Model):
         mois_noms = ['', 'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
                      'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
         return f"Intérêt - {self.credit.membre.get_full_name()} - {mois_noms[self.mois]} {self.annee}"
+
+    def get_mois_nom(self):
+        mois_noms = ['', 'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+                     'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
+        return mois_noms[self.mois]
 
 
 class PenaliteCotisation(models.Model):
@@ -368,13 +392,26 @@ class PenaliteCotisation(models.Model):
     mois = models.IntegerField()
     annee = models.IntegerField()
     montant_cotisation = models.DecimalField(max_digits=10, decimal_places=3)
+    montant_cotisation_base = models.DecimalField(max_digits=10, decimal_places=3, default=0,
+        help_text="Montant de la cotisation régulière impayée")
+    montant_imprevu_base = models.DecimalField(max_digits=10, decimal_places=3, default=0,
+        help_text="Montant de l'imprévu impayé")
     taux_penalite = models.DecimalField(max_digits=5, decimal_places=2)
     penalite_mensuelle = models.DecimalField(max_digits=10, decimal_places=3)
     penalite_cumulee = models.DecimalField(max_digits=10, decimal_places=3)
     date_calcul = models.DateField(default=timezone.now)
     est_payee = models.BooleanField(default=False)
     date_paiement = models.DateField(null=True, blank=True)
-    
+    montant_paye = models.DecimalField(max_digits=10, decimal_places=3, default=0)
+    exclu = models.BooleanField(default=False,
+        help_text="Exclure cette pénalité (au lieu de supprimer)")
+    reste_a_payer = models.DecimalField(max_digits=10, decimal_places=3, default=0,
+        help_text="Montant de la pénalité à payer (éditable)")
+
+    @property
+    def montant_restant(self):
+        return tronquer(max(self.reste_a_payer - self.montant_paye, Decimal('0')))
+
     class Meta:
         db_table = 'penalites_cotisation'
         verbose_name = 'Pénalité cotisation'
@@ -386,9 +423,15 @@ class PenaliteCotisation(models.Model):
         mois_noms = ['', 'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
                      'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
         return f"Pénalité - {self.membre.get_full_name()} - {mois_noms[self.mois]} {self.annee}"
-    
+
+    def get_mois_nom(self):
+        mois_noms = ['', 'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+                     'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
+        return mois_noms[self.mois]
+
     @classmethod
-    def calculer_pour_membre(cls, membre, mois, annee, taux_penalite=None):
+    def calculer_pour_membre(cls, membre, mois, annee, taux_penalite=None, montant_base=None,
+                              montant_cotisation_base=None, montant_imprevu_base=None):
         """Calcule la pénalité pour un membre sur un mois donné"""
         from superadmin.models import Tenant
         
@@ -399,62 +442,75 @@ class PenaliteCotisation(models.Model):
         if taux_penalite is None:
             taux_penalite = tenant.taux_penalite_cotisation
         
-        # Vérifier si la cotisation existe
-        try:
-            cotisation = Cotisation.objects.get(membre=membre, mois=mois, annee=annee)
-            montant_cotisation = cotisation.montant
-        except Cotisation.DoesNotExist:
-            # Si pas de cotisation, utiliser le montant par défaut de l'association
-            from twiyungunganye.models import Association
-            association = Association.get_association(tenant)
-            if association:
-                montant_cotisation = association.montant_cotisation_mensuelle
-            else:
-                return None
+        if montant_base is not None:
+            montant_cotisation = montant_base
+        elif montant_cotisation_base is not None and montant_imprevu_base is not None:
+            montant_cotisation = montant_cotisation_base + montant_imprevu_base
+        else:
+            try:
+                cotisation = Cotisation.objects.get(membre=membre, mois=mois, annee=annee)
+                montant_cotisation = cotisation.montant
+            except Cotisation.DoesNotExist:
+                from twiyungunganye.models import Association
+                association = Association.get_association(tenant)
+                if association:
+                    montant_cotisation = association.montant_cotisation_mensuelle
+                else:
+                    return None
         
         taux = Decimal(str(taux_penalite)) / Decimal('100')
         penalite_mensuelle = tronquer(montant_cotisation * taux)
         
-        # Calculer combien de mois de retard
         today = timezone.now().date()
-        date_echeance = date(annee, mois, 1)  # Premier du mois
-        delta = relativedelta(today, date_echeance)
-        mois_retard = delta.years * 12 + delta.months
-        if mois_retard < 0:
-            mois_retard = 0
+        penalite_cumulee = penalite_mensuelle
         
-        penalite_cumulee = tronquer(penalite_mensuelle * max(1, mois_retard))
-        
-        # Créer ou mettre à jour la pénalité
+        defaults = {
+            'tenant': tenant,
+            'montant_cotisation': montant_cotisation,
+            'taux_penalite': taux_penalite,
+            'penalite_mensuelle': penalite_mensuelle,
+            'penalite_cumulee': penalite_cumulee,
+            'reste_a_payer': penalite_cumulee,
+            'date_calcul': today,
+        }
+        if montant_cotisation_base is not None:
+            defaults['montant_cotisation_base'] = montant_cotisation_base
+        if montant_imprevu_base is not None:
+            defaults['montant_imprevu_base'] = montant_imprevu_base
+
         penalite, created = cls.objects.get_or_create(
             membre=membre,
             mois=mois,
             annee=annee,
-            defaults={
-                'tenant': tenant,
-                'cotisation': cotisation if 'cotisation' in locals() else None,
-                'montant_cotisation': montant_cotisation,
-                'taux_penalite': taux_penalite,
-                'penalite_mensuelle': penalite_mensuelle,
-                'penalite_cumulee': penalite_cumulee,
-                'date_calcul': today,
-            }
+            defaults=defaults,
         )
         
         if not created:
             penalite.penalite_cumulee = penalite_cumulee
-            penalite.save(update_fields=['penalite_cumulee'])
+            penalite.reste_a_payer = penalite_cumulee
+            penalite.penalite_mensuelle = penalite_mensuelle
+            penalite.montant_cotisation = montant_cotisation
+            penalite.taux_penalite = taux_penalite
+            update_fields = ['penalite_cumulee', 'reste_a_payer', 'penalite_mensuelle', 'montant_cotisation', 'taux_penalite']
+            if montant_cotisation_base is not None:
+                penalite.montant_cotisation_base = montant_cotisation_base
+                update_fields.append('montant_cotisation_base')
+            if montant_imprevu_base is not None:
+                penalite.montant_imprevu_base = montant_imprevu_base
+                update_fields.append('montant_imprevu_base')
+            penalite.save(update_fields=update_fields)
         
         return penalite
     
     @classmethod
     def generer_toutes_penalites(cls, tenant=None):
-        """Génère les pénalités pour tous les membres ayant des cotisations impayées"""
+        """Génère les pénalités pour tous les membres ayant des cotisations impayées.
+        Régulier et Imprévu : cumulatif (total payé < total dû → pénalité).
+        Gère les paiements en avance (135000 en mars couvre 9 mois).
+        Supprime les pénalités des mois devenus couverts."""
         from dateutil.relativedelta import relativedelta
-        from django.db.models import Q
         
         if tenant is None:
-            # Générer pour tous les tenants
             from superadmin.models import Tenant
             tenants = Tenant.objects.filter(actif=True)
         else:
@@ -466,22 +522,170 @@ class PenaliteCotisation(models.Model):
         for t in tenants:
             taux = t.taux_penalite_cotisation
             membres = Membre.objects.filter(tenant=t, est_actif=True)
+            association = Association.get_association(t)
+            if not association:
+                continue
+            
+            mensualite_reg = association.montant_cotisation_mensuelle
+            mensualite_imp = association.montant_cotisation_imprevu_mensuelle
+            
+            # Mois de début global du tenant (première cotisation tous membres confondus)
+            premiere_cot_tenant = Cotisation.objects.filter(
+                membre__tenant=t
+            ).order_by('annee', 'mois').values('annee', 'mois').first()
+            premiere_imp_tenant = CotisationImprevu.objects.filter(
+                membre__tenant=t
+            ).order_by('annee', 'mois').values('annee', 'mois').first()
+            mois_debut_tenant = None
+            if premiere_cot_tenant:
+                md = premiere_cot_tenant['annee'] * 12 + premiere_cot_tenant['mois']
+                mois_debut_tenant = md if mois_debut_tenant is None else min(mois_debut_tenant, md)
+            if premiere_imp_tenant:
+                md = premiere_imp_tenant['annee'] * 12 + premiere_imp_tenant['mois']
+                mois_debut_tenant = md if mois_debut_tenant is None else min(mois_debut_tenant, md)
             
             for membre in membres:
-                # Vérifier les 12 derniers mois
-                for i in range(12):
-                    date_check = today - relativedelta(months=i)
-                    mois = date_check.month
-                    annee = date_check.year
+                # Déterminer le début pour chaque type
+                premiere_cotisation = Cotisation.objects.filter(
+                    membre=membre
+                ).order_by('annee', 'mois').first()
+                
+                premiere_imprevu = CotisationImprevu.objects.filter(
+                    membre=membre
+                ).order_by('annee', 'mois').first()
+                
+                # Date de début régulier (minimum entre le membre et le tenant)
+                if premiere_cotisation:
+                    debut_mois_reg = premiere_cotisation.mois
+                    debut_annee_reg = premiere_cotisation.annee
+                    if mois_debut_tenant is not None:
+                        debut_membre = debut_annee_reg * 12 + debut_mois_reg
+                        if mois_debut_tenant < debut_membre:
+                            debut_annee_reg = mois_debut_tenant // 12
+                            debut_mois_reg = mois_debut_tenant % 12
+                            if debut_mois_reg == 0:
+                                debut_mois_reg = 12
+                                debut_annee_reg -= 1
+                else:
+                    debut_mois_reg = None
+                    debut_annee_reg = None
+                
+                # Date de début imprévus (minimum entre le membre et le tenant)
+                if premiere_imprevu:
+                    debut_mois_imp = premiere_imprevu.mois
+                    debut_annee_imp = premiere_imprevu.annee
+                    if mois_debut_tenant is not None:
+                        debut_membre = debut_annee_imp * 12 + debut_mois_imp
+                        if mois_debut_tenant < debut_membre:
+                            debut_annee_imp = mois_debut_tenant // 12
+                            debut_mois_imp = mois_debut_tenant % 12
+                            if debut_mois_imp == 0:
+                                debut_mois_imp = 12
+                                debut_annee_imp -= 1
+                else:
+                    debut_mois_imp = None
+                    debut_annee_imp = None
+                
+                # Mois de référence
+                mois_ref = today.year * 12 + today.month
+                
+                # Déterminer le mois de début (uniquement types qui ont des enregistrements)
+                debut_options = []
+                if debut_annee_reg is not None:
+                    debut_options.append(debut_annee_reg * 12 + debut_mois_reg)
+                if debut_annee_imp is not None:
+                    debut_options.append(debut_annee_imp * 12 + debut_mois_imp)
+                if not debut_options:
+                    # Aucun enregistrement → supprimer toutes ses pénalités existantes
+                    cls.objects.filter(membre=membre).delete()
+                    continue
+                mois_debut = min(debut_options)
+
+                # Supprimer les pénalités avant le mois de début
+                annee_debut = mois_debut // 12
+                mois_debut_num = mois_debut % 12
+                if mois_debut_num == 0:
+                    mois_debut_num = 12
+                    annee_debut -= 1
+                cls.objects.filter(membre=membre, annee__lt=annee_debut).delete()
+                cls.objects.filter(membre=membre, annee=annee_debut, mois__lt=mois_debut_num).delete()
+                mois_max_check = mois_ref - 1 if mois_ref > mois_debut else mois_debut
+
+                # Calculer debut_reg et debut_imp pour la boucle
+                debut_reg = debut_annee_reg * 12 + debut_mois_reg if debut_annee_reg is not None else mois_max_check + 1
+                if debut_annee_imp is not None and debut_annee_reg is not None:
+                    debut_imp = min(debut_annee_imp * 12 + debut_mois_imp, debut_annee_reg * 12 + debut_mois_reg)
+                else:
+                    debut_imp = debut_annee_imp * 12 + debut_mois_imp if debut_annee_imp is not None else mois_max_check + 1
+                
+                # Supprimer pénalités après le mois max (mois courant et futurs)
+                max_annee = mois_max_check // 12
+                max_mois_num = mois_max_check % 12
+                if max_mois_num == 0:
+                    max_mois_num = 12
+                    max_annee -= 1
+                cls.objects.filter(
+                    membre=membre, exclu=False,
+                    annee__gt=max_annee
+                ).delete()
+                cls.objects.filter(
+                    membre=membre, exclu=False,
+                    annee=max_annee, mois__gt=max_mois_num
+                ).delete()
+                
+                # Suivre les mois qui ONT une pénalité
+                mois_avec_penalite = set()
+                
+                # Ensembles des mois PAYÉS (pour lookup rapide)
+                cotisations_payees = set(Cotisation.objects.filter(
+                    membre=membre, statut='PAYE'
+                ).values_list('annee', 'mois'))
+                imprevus_payes = set(CotisationImprevu.objects.filter(
+                    membre=membre, statut='PAYE'
+                ).values_list('annee', 'mois'))
+                
+                # Itérer sur chaque mois à vérifier
+                for mois_idx in range(mois_debut, mois_max_check + 1):
+                    annee = mois_idx // 12
+                    mois = mois_idx % 12
+                    if mois == 0:
+                        mois = 12
+                        annee -= 1
                     
-                    # Vérifier si la cotisation est impayée
-                    cotisation = Cotisation.objects.filter(
-                        membre=membre, mois=mois, annee=annee
-                    ).first()
+                    position_mois_reg = mois_idx - debut_reg + 1
+                    position_mois_imp = mois_idx - debut_imp + 1
                     
-                    if cotisation and cotisation.statut in ['EN_ATTENTE', 'RETARD']:
-                        cls.calculer_pour_membre(membre, mois, annee, taux)
+                    # Ne pas regénérer une pénalité exclue manuellement
+                    if cls.objects.filter(membre=membre, mois=mois, annee=annee, exclu=True).exists():
+                        continue
+                    
+                    est_impaye = False
+                    montant_base = Decimal('0')
+                    mnt_cot = Decimal('0')
+                    mnt_imp = Decimal('0')
+                    
+                    # Régulier : impayé si pas de PAYE pour ce mois exact
+                    if position_mois_reg > 0 and (annee, mois) not in cotisations_payees:
+                        est_impaye = True
+                        montant_base += mensualite_reg
+                        mnt_cot = mensualite_reg
+                    
+                    # Imprévus : impayé si pas de PAYE pour ce mois exact
+                    if position_mois_imp > 0 and (annee, mois) not in imprevus_payes:
+                        est_impaye = True
+                        montant_base += mensualite_imp
+                        mnt_imp = mensualite_imp
+                    
+                    if est_impaye and montant_base > 0:
+                        mois_avec_penalite.add((annee, mois))
+                        cls.calculer_pour_membre(membre, mois, annee, taux, montant_base=montant_base,
+                                                  montant_cotisation_base=mnt_cot, montant_imprevu_base=mnt_imp)
                         total_crees += 1
+                
+                # Supprimer les pénalités des mois devenus couverts
+                for pen in cls.objects.filter(membre=membre, exclu=False):
+                    if (pen.annee, pen.mois) not in mois_avec_penalite and pen.reste_a_payer > pen.montant_paye:
+                        pen.delete()
         
         return total_crees
 
@@ -520,21 +724,46 @@ class Remboursement(models.Model):
     def __str__(self):
         return f"Remboursement {self.id_rembourse} - {self.credit.membre.get_full_name()} - {self.montant_rembourse} FBU"
     
+    @staticmethod
+    def _synchroniser_interets(credit):
+        """Recalcule interet_mensuel (capital fin de mois) sans toucher interet_rembourse"""
+        from calendar import monthrange
+        from datetime import date
+        from decimal import Decimal
+
+        taux = Decimal(str(credit.taux_interet or '0')) / Decimal('100')
+        interets = Interet.objects.filter(credit=credit).order_by('annee', 'mois')
+        for interet in interets:
+            if interet.mois == 12:
+                next_month = date(interet.annee + 1, 1, 1)
+            else:
+                next_month = date(interet.annee, interet.mois + 1, 1)
+            capital = credit._capital_au(next_month)
+            interet.interet_mensuel = tronquer(capital * taux) if capital > 0 else Decimal('0')
+
+        Interet.objects.bulk_update(interets, ['interet_mensuel'])
+
+    def delete(self, *args, **kwargs):
+        credit = self.credit
+        super().delete(*args, **kwargs)
+        Remboursement._synchroniser_interets(credit)
+
     def save(self, *args, **kwargs):
         if not self.credit_id:
             return super().save(*args, **kwargs)
 
-        total_a_rembourser = self.credit.calculer_montant_total()
         autres_remb = Remboursement.objects.filter(credit=self.credit)
         if self.pk:
             autres_remb = autres_remb.exclude(pk=self.pk)
-        total_deja = sum(r.montant_rembourse + r.interet_rembourse for r in autres_remb)
-        total_verse = total_deja + self.montant_rembourse + self.interet_rembourse
-        self.reste_a_rembourser = tronquer(total_a_rembourser - total_verse)
-        if self.reste_a_rembourser < 0:
-            self.reste_a_rembourser = tronquer(0)
+        total_capital_rembourse = sum(r.montant_rembourse for r in autres_remb)
+        self.reste_a_rembourser = tronquer(max(
+            self.credit.montant_accorde - total_capital_rembourse - self.montant_rembourse,
+            Decimal('0')
+        ))
 
         super().save(*args, **kwargs)
+
+        Remboursement._synchroniser_interets(self.credit)
 
         nouveau_statut = 'REMBOURSE' if self.reste_a_rembourser <= 0 else (
             'EN_COURS' if self.credit.statut == 'APPROUVE' else self.credit.statut

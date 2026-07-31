@@ -150,8 +150,7 @@
                             <th>Statut</th>
                         {% elif export_type == 'remboursements' %}
                             <th>Membre</th>
-                            <th>Principal</th>
-                            <th>Intérêt</th>
+                            <th>Montant</th>
                         {% endif %}
                         </tr>
                     </thead>
@@ -170,7 +169,6 @@
                             {% elif export_type == 'remboursements' %}
                             <td>{{ item.credit.membre.get_full_name }}</td>
                             <td>{{ item.montant_rembourse|floatformat:3 }}</td>
-                            <td>{{ item.interet_rembourse|floatformat:3 }}</td>
                             {% endif %}
                         </tr>
                         {% empty %}

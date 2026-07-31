@@ -125,7 +125,10 @@
                 {% if user.is_admin %}
                 <button type="submit" form="exportCreditsForm" class="btn btn-light">
                     <i class="bi bi-file-earmark-pdf me-1"></i> 
-                    <span class="d-none d-sm-inline">Exporter</span> PDF
+                    <span class="d-none d-sm-inline">Exporter</span> PDF Crédits
+                </button>
+                <button type="submit" form="exportCreditsRestantsForm" class="btn btn-outline-danger">
+                    <i class="bi bi-file-earmark-pdf me-1"></i> Restants
                 </button>
                 {% endif %}
                 
@@ -156,6 +159,16 @@
                     <input type="date" name="date_fin" class="form-control border-start-0" title="Date de demande (fin)">
                 </div>
             </form>
+            <form id="exportCreditsRestantsForm" action="{% url 'export_credits_restants_pdf' %}" method="get" style="margin-top: 0.5rem;">
+                <div class="input-group input-group-sm shadow-sm rounded">
+                    <span class="input-group-text bg-white border-end-0 text-muted">
+                        <i class="bi bi-calendar-range me-2"></i> Demandes du :
+                    </span>
+                    <input type="date" name="date_debut" class="form-control border-start-0" title="Date de demande (début)">
+                    <span class="input-group-text bg-light text-muted border-start-0 border-end-0">au</span>
+                    <input type="date" name="date_fin" class="form-control border-start-0" title="Date de demande (fin)">
+                </div>
+            </form>
         </div>
     </div>
 
@@ -171,7 +184,7 @@
                             <th>Montant demandé</th>
                             <th>Montant accordé</th>
                             <th>Statut</th>
-                            <th class="d-none d-lg-table-cell">Date</th>
+                            <th class="d-none d-lg-table-cell">Date accord</th>
                             <th>Action</th>
                         </tr>
                     </thead>
@@ -210,14 +223,24 @@
                                     </span>
                                 {% endif %}
                             </td>
-                            <td data-label="Date:" class="d-none d-lg-table-cell">
-                                {{ credit.date_demande|date:"d/m/Y" }}
+                            <td data-label="Date accord:" class="d-none d-lg-table-cell">
+                                {% if credit.date_accord %}{{ credit.date_accord|date:"d/m/Y" }}{% else %}{{ credit.date_demande|date:"d/m/Y" }}{% endif %}
                             </td>
                             <td data-label="Action:">
-                                <a href="{% url 'detail_credit' credit.pk %}" class="btn btn-sm btn-primary w-100 w-md-auto">
+                                <div class="d-flex gap-1 justify-content-start">
+                                <a href="{% url 'detail_credit' credit.pk %}" class="btn btn-sm btn-primary">
                                     <i class="bi bi-eye me-1"></i>
                                     <span class="d-none d-lg-inline">Détails</span>
                                 </a>
+                                {% if user.is_admin or user.is_gestionnaire %}
+                                <a href="{% url 'modifier_credit' credit.pk %}" class="btn btn-sm btn-warning" title="Modifier">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <a href="{% url 'supprimer_credit' credit.pk %}" class="btn btn-sm btn-danger" title="Supprimer">
+                                    <i class="bi bi-trash"></i>
+                                </a>
+                                {% endif %}
+                                </div>
                             </td>
                         </tr>
                         {% endfor %}

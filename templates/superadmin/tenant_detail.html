@@ -19,7 +19,7 @@
     <div class="col-12 col-lg-6">
         <div class="card h-100 p-3">
             <h5>Informations</h5>
-            <table class="table table-sm">
+            <div class="table-responsive"><table class="table table-sm">
                 <tr><td>Sigle</td><td>{{ tenant.sigle|default:"-" }}</td></tr>
                 <tr><td>Sous-domaine</td><td><code>{{ tenant.sous_domaine }}</code></td></tr>
                 <tr><td>Province</td><td>{{ tenant.province|default:"-" }}</td></tr>
@@ -31,20 +31,20 @@
                 <tr><td>Statut</td><td>{% if tenant.actif %}<span class="badge bg-success">Actif</span>{% else %}<span class="badge bg-danger">Suspendu</span>{% endif %}</td></tr>
                 <tr><td>Cotisation mensuelle</td><td>{{ tenant.montant_cotisation_mensuelle }} {{ devise }}</td></tr>
                 <tr><td>Cotisation imprévu</td><td>{{ tenant.montant_cotisation_imprevu_mensuelle }} {{ devise }}</td></tr>
-            </table>
+            </table></div>
         </div>
     </div>
     <div class="col-12 col-lg-6">
         <div class="card h-100 p-3">
             <h5>Licence active</h5>
             {% if cle_active %}
-            <table class="table table-sm">
+            <div class="table-responsive"><table class="table table-sm">
                 <tr><td>Clé</td><td><code>{{ cle_active.cle_visible }}</code></td></tr>
                 <tr><td>Plan</td><td>{{ cle_active.label_plan }}</td></tr>
                 <tr><td>Début</td><td>{{ cle_active.date_debut|date:"d/m/Y" }}</td></tr>
                 <tr><td>Fin</td><td>{{ cle_active.date_fin|date:"d/m/Y" }}</td></tr>
                 <tr><td>Jours restants</td><td><strong>{{ cle_active.jours_restants }}</strong></td></tr>
-            </table>
+            </table></div>
             {% else %}
             <p class="text-danger">Aucune licence active !</p>
             {% if not a_deja_une_cle %}

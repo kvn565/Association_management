@@ -1,0 +1,146 @@
+{% extends 'twiyungunganye/base.html' %}
+{% load static %}
+{% block title %}Membres n'ayant pas payé - {{ mois_nom }} {{ annee }}{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <h2 class="mb-0"><i class="bi bi-person-x"></i> Membres n'ayant pas payé</h2>
+    <div class="d-flex flex-wrap gap-2">
+        <a href="{% url 'liste_penalites' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i> Retour aux pénalités
+        </a>
+        <button onclick="window.print()" class="btn btn-outline-danger">
+            <i class="bi bi-printer me-1"></i> Imprimer
+        </button>
+    </div>
+</div>
+
+<!-- Navigation mois -->
+<form method="get" class="row g-2 mb-4 align-items-center">
+    <div class="col-auto">
+        <a href="?mois={{ mois_prec }}&annee={{ annee_prec }}" class="btn btn-sm btn-outline-secondary">&laquo; Mois précédent</a>
+    </div>
+    <div class="col-auto">
+        <select name="mois" class="form-select form-select-sm" onchange="this.form.submit()">
+            {% for m, nom in mois_list %}
+            <option value="{{ m }}" {% if m == mois %}selected{% endif %}>{{ nom }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-auto">
+        <select name="annee" class="form-select form-select-sm" onchange="this.form.submit()">
+            {% for a in annees %}
+            <option value="{{ a }}" {% if a == annee %}selected{% endif %}>{{ a }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-auto">
+        <a href="?mois={{ mois_suiv }}&annee={{ annee_suiv }}" class="btn btn-sm btn-outline-secondary">Mois suivant &raquo;</a>
+    </div>
+</form>
+
+<div class="row mb-3">
+    <div class="col-md-4">
+        <div class="card border-danger">
+            <div class="card-body text-center py-3">
+                <h3 class="text-danger mb-0">{{ total_non_payes }}</h3>
+                <small class="text-muted">N'ont pas payé</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-success">
+            <div class="card-body text-center py-3">
+                <h3 class="text-success mb-0">{{ total_payes }}</h3>
+                <small class="text-muted">Ont payé</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-info">
+            <div class="card-body text-center py-3">
+                <h3 class="text-info mb-0">{{ total_non_payes|add:total_payes }}</h3>
+                <small class="text-muted">Total membres</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-exclamation-triangle me-1"></i> Membres n'ayant pas payé</span>
+        <span class="badge bg-light text-danger">{{ total_non_payes }}</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>#</th>
+                        <th>Nom complet</th>
+                        <th>N° pièce</th>
+                        <th>Téléphone</th>
+                        <th>Régulier</th>
+                        <th>Imprévu</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for m in membres_non_payes %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td>{{ m.get_full_name }}</td>
+                        <td>{{ m.carte_identite }}</td>
+                        <td>{{ m.telephone|default:'-' }}</td>
+                        <td><span class="badge bg-danger">Manque</span></td>
+                        <td><span class="badge bg-danger">Manque</span></td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-4">
+                            <i class="bi bi-check-circle text-success fs-4"></i><br>
+                            Tous les membres ont payé pour {{ mois_nom }} {{ annee }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% if membres_non_payes_imp %}
+<div class="card mt-3">
+    <div class="card-header bg-warning text-white d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-exclamation-circle me-1"></i> Membres ayant payé régulier mais pas l'imprévu</span>
+        <span class="badge bg-light text-warning">{{ membres_non_payes_imp|length }}</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>#</th>
+                        <th>Nom complet</th>
+                        <th>N° pièce</th>
+                        <th>Téléphone</th>
+                        <th>Régulier</th>
+                        <th>Imprévu</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for m in membres_non_payes_imp %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td>{{ m.get_full_name }}</td>
+                        <td>{{ m.carte_identite }}</td>
+                        <td>{{ m.telephone|default:'-' }}</td>
+                        <td><span class="badge bg-success">Payé</span></td>
+                        <td><span class="badge bg-danger">Manque</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

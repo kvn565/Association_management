@@ -21,11 +21,11 @@
             <div class="card-header"><h5>Cotisations</h5></div>
             <div class="card-body">
                 {% if cotisations %}
-                <table class="table"><thead><tr><th>Période</th><th>Montant</th><th>Statut</th></tr></thead><tbody>
+                <div class="table-responsive"><table class="table"><thead><tr><th>Période</th><th>Montant</th><th>Statut</th></tr></thead><tbody>
                 {% for cot in cotisations|slice:":5" %}
                 <tr><td>{{ cot.get_mois_nom }} {{ cot.annee }}</td><td>{{ cot.montant }} FBU</td><td><span class="badge bg-success">{{ cot.get_statut_display }}</span></td></tr>
                 {% endfor %}
-                </tbody></table>
+                </tbody></table></div>
                 {% else %}<p>Aucune cotisation</p>{% endif %}
             </div>
         </div>
@@ -33,11 +33,11 @@
             <div class="card-header"><h5>Crédits</h5></div>
             <div class="card-body">
                 {% if credits %}
-                <table class="table"><thead><tr><th>Montant</th><th>Statut</th><th>Date</th></tr></thead><tbody>
+                <div class="table-responsive"><table class="table"><thead><tr><th>Montant</th><th>Statut</th><th>Date</th></tr></thead><tbody>
                 {% for credit in credits|slice:":5" %}
                 <tr><td>{{ credit.montant_accorde }} FBU</td><td><span class="badge bg-info">{{ credit.get_statut_display }}</span></td><td>{{ credit.date_demande|date:"d/m/Y" }}</td></tr>
                 {% endfor %}
-                </tbody></table>
+                </tbody></table></div>
                 {% else %}<p>Aucun crédit</p>{% endif %}
             </div>
         </div>

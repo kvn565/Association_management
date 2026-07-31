@@ -132,8 +132,8 @@ class CleActivationForm(forms.ModelForm):
         date_debut = cleaned.get('date_debut')
         date_fin = cleaned.get('date_fin')
         tenant = cleaned.get('tenant')
-        if tenant and CleActivation.objects.filter(tenant=tenant).exists():
-            raise forms.ValidationError(f"Cette association a déjà une ou plusieurs clés. Impossible d'en générer une nouvelle.")
+        if tenant and CleActivation.objects.filter(tenant=tenant, statut__in=['ACTIVE', 'DISPONIBLE'], active=True, date_fin__gte=timezone.now()).exists():
+            raise forms.ValidationError(f"Cette association a déjà une ou plusieurs clés actives. Impossible d'en générer une nouvelle.")
         if type_plan:
             maintenant = timezone.now()
             if not date_debut:
@@ -220,8 +220,8 @@ class GenererCleForm(forms.ModelForm):
         date_debut = cleaned.get('date_debut')
         date_fin = cleaned.get('date_fin')
         tenant = cleaned.get('tenant')
-        if tenant and CleActivation.objects.filter(tenant=tenant).exists():
-            raise forms.ValidationError(f"Cette association a déjà une ou plusieurs clés. Impossible d'en générer une nouvelle.")
+        if tenant and CleActivation.objects.filter(tenant=tenant, statut__in=['ACTIVE', 'DISPONIBLE'], active=True, date_fin__gte=timezone.now()).exists():
+            raise forms.ValidationError(f"Cette association a déjà une ou plusieurs clés actives. Impossible d'en générer une nouvelle.")
 
         if type_plan == 'PERSONNALISE':
             if not date_debut:

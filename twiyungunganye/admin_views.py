@@ -7,12 +7,16 @@ from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
 from django.db import connection
+from django.http import HttpResponse
 from decimal import Decimal
+from datetime import datetime
 
 from .models import (
-    Membre, Cotisation, Credit, Interet,
-    Remboursement, Association, Suggestion
+    Membre, Cotisation, CotisationImprevu, Credit, Interet,
+    Remboursement, Association, Suggestion, PenaliteCotisation
 )
+from cas_assistance.models import CasAssistance
+from .excel_exports import generer_backup_tenant
 
 
 def is_admin_only(user):
@@ -50,43 +54,36 @@ def reinitialiser_base_donnees(request):
                         return qs.filter(tenant=tenant)
                     return qs
                 
-                # Supprimer toutes les données dans l'ordre correct
+                # GÉNÉRER LE BACKUP EXCEL AVANT SUPPRESSION
+                buffer, nom_tenant, now = generer_backup_tenant(tenant, request)
                 
-                # 1. Supprimer les remboursements
+                # SUPPRESSION DE TOUTES LES DONNÉES
                 count_remb = tenant_qs(Remboursement.objects.all()).count()
                 tenant_qs(Remboursement.objects.all()).delete()
-                
-                # 2. Supprimer les intérêts
                 count_int = tenant_qs(Interet.objects.all()).count()
                 tenant_qs(Interet.objects.all()).delete()
-                
-                # 3. Supprimer les crédits
+                count_pen = tenant_qs(PenaliteCotisation.objects.all()).count()
+                tenant_qs(PenaliteCotisation.objects.all()).delete()
                 count_cred = tenant_qs(Credit.objects.all()).count()
                 tenant_qs(Credit.objects.all()).delete()
-                
-                # 4. Supprimer les cotisations
                 count_cot = tenant_qs(Cotisation.objects.all()).count()
                 tenant_qs(Cotisation.objects.all()).delete()
-                
-                # 5. Supprimer les suggestions
+                count_imp = tenant_qs(CotisationImprevu.objects.all()).count()
+                tenant_qs(CotisationImprevu.objects.all()).delete()
+                count_assist = tenant_qs(CasAssistance.objects.all()).count()
+                tenant_qs(CasAssistance.objects.all()).delete()
                 count_sug = tenant_qs(Suggestion.objects.all()).count()
                 tenant_qs(Suggestion.objects.all()).delete()
-                
-                # 6. Supprimer les membres (sauf superadmin et l'utilisateur courant)
                 membres = Membre.objects.filter(is_superuser=False).exclude(pk=request.user.pk)
                 if tenant:
                     membres = membres.filter(tenant=tenant)
                 count_memb = membres.count()
                 membres.delete()
                 
-                messages.success(
-                    request,
-                    f"✅ Base de données réinitialisée avec succès ! "
-                    f"Données supprimées : {count_memb} membres, {count_cot} cotisations, "
-                    f"{count_cred} crédits, {count_remb} remboursements, {count_sug} suggestions."
-                )
-                
-                return redirect('dashboard')
+                # Retourner le fichier Excel
+                response = HttpResponse(buffer.getvalue(), content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+                response['Content-Disposition'] = f'attachment; filename="Backup_{nom_tenant}_{now}.xlsx"'
+                return response
                 
             except Exception as e:
                 messages.error(
@@ -106,24 +103,33 @@ def reinitialiser_base_donnees(request):
     if tenant:
         membres_qs = membres_qs.filter(tenant=tenant)
         cotisations_qs = Cotisation.objects.filter(tenant=tenant)
+        imprevus_qs = CotisationImprevu.objects.filter(tenant=tenant)
         credits_qs = Credit.objects.filter(tenant=tenant)
         remboursements_qs = Remboursement.objects.filter(tenant=tenant)
         suggestions_qs = Suggestion.objects.filter(tenant=tenant)
         interets_qs = Interet.objects.filter(tenant=tenant)
+        penalites_qs = PenaliteCotisation.objects.filter(tenant=tenant)
+        assistances_qs = CasAssistance.objects.filter(tenant=tenant)
     else:
         cotisations_qs = Cotisation.objects.all()
+        imprevus_qs = CotisationImprevu.objects.all()
         credits_qs = Credit.objects.all()
         remboursements_qs = Remboursement.objects.all()
         suggestions_qs = Suggestion.objects.all()
         interets_qs = Interet.objects.all()
+        penalites_qs = PenaliteCotisation.objects.all()
+        assistances_qs = CasAssistance.objects.all()
     
     stats = {
         'membres': membres_qs.count(),
         'cotisations': cotisations_qs.count(),
+        'imprevus': imprevus_qs.count(),
         'credits': credits_qs.count(),
         'remboursements': remboursements_qs.count(),
         'suggestions': suggestions_qs.count(),
         'interets': interets_qs.count(),
+        'penalites': penalites_qs.count(),
+        'assistances': assistances_qs.count(),
     }
     
     context = {

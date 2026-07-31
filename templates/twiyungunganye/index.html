@@ -279,13 +279,13 @@
                         {% if association %}
                         <div class="row">
                             <div class="col-md-6">
-                                <table class="table table-borderless mb-0">
+                                <div class="table-responsive"><table class="table table-borderless mb-0">
                                     <tr><th class="ps-0" width="35%">Nom :</th><td class="ps-0">{{ association.nom }}</td></tr>
                                     {% if association.sigle %}<tr><th class="ps-0">Sigle :</th><td class="ps-0">{{ association.sigle }}</td></tr>{% endif %}
                                     {% if association.telephone %}<tr><th class="ps-0">Téléphone :</th><td class="ps-0">{{ association.telephone }}</td></tr>{% endif %}
                                     {% if association.email %}<tr><th class="ps-0">Email :</th><td class="ps-0">{{ association.email }}</td></tr>{% endif %}
                                     {% if association.adresse %}<tr><th class="ps-0">Adresse :</th><td class="ps-0">{{ association.adresse }}</td></tr>{% endif %}
-                                </table>
+                                </table></div>
                             </div>
                             <div class="col-md-6">
                                 <div class="p-3 rounded" style="background: linear-gradient(135deg, #667eea15, #764ba215);">

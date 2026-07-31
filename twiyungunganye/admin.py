@@ -264,7 +264,7 @@ class RemboursementAdmin(admin.ModelAdmin):
     interet_rembourse_fbu.short_description = 'Intérêt remboursé'
     
     def reste_a_rembourser_fbu(self, obj):
-        return f"{obj.reste_a_rembourser} FBU"
+        return f"{obj.credit.get_reste_a_rembourser()} FBU"
     reste_a_rembourser_fbu.short_description = 'Reste à rembourser'
 
 
