@@ -3,6 +3,7 @@ import datetime
 from decimal import Decimal
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import login
+from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
 from django.db.models import Count, Sum
@@ -10,14 +11,49 @@ from django.core.paginator import Paginator
 from django.utils import timezone
 from django.db import transaction
 from django.http import JsonResponse
+from django.views.decorators.http import require_POST
 from django.db.models.functions import TruncMonth
 from .models import Tenant, CleActivation, AuditCle, ConnexionAudit, ConfigurationApp
 from .forms import TenantForm, CleActivationForm, ClePayanteForm, InscriptionChefForm, GenererCleForm, SuperadminMembreForm, SuperadminResetPasswordForm, SuperadminTenantSupprimerForm, SuperadminPasswordForm, SuperadminTenantCreateForm, SuperadminProfileForm, ConfigurationAppForm
 from twiyungunganye.models import Membre, Cotisation, Association
+from twiyungunganye.excel_exports import generer_backup_tenant
+from twiyungunganye.pdf_utils import dispo_fichier
 
 
 def is_superadmin(user):
     return user.is_authenticated and user.is_superuser
+
+
+def superadmin_login(request):
+    """Connexion discrète réservée aux superadmins.
+
+    Cette page n'est liée depuis aucune autre page publique. L'URL est
+    configurable via SUPERADMIN_LOGIN_PATH dans .env.
+    """
+    if request.user.is_authenticated and request.user.is_superuser:
+        return redirect('superadmin:dashboard')
+
+    if request.method == 'POST':
+        form = AuthenticationForm(request, data=request.POST)
+        if form.is_valid():
+            user = form.get_user()
+            if user.is_superuser and user.is_active:
+                login(request, user)
+                return redirect('superadmin:dashboard')
+            messages.error(request, "Accès réservé au superadmin.")
+    else:
+        form = AuthenticationForm(request)
+
+    form.fields['username'].widget.attrs.update({
+        'class': 'form-control',
+        'placeholder': "Carte d'identité",
+    })
+    form.fields['password'].widget.attrs.update({
+        'class': 'form-control',
+        'placeholder': 'Mot de passe',
+    })
+
+    return render(request, 'superadmin/login.html', {'form': form})
 
 
 @login_required
@@ -69,7 +105,7 @@ def dashboard(request):
                 else:
                     d[k] = v
             result.append(d)
-        return json.dumps(result)
+        return result
 
     context = {
         'total_tenants': total_tenants,
@@ -81,7 +117,7 @@ def dashboard(request):
         'tenants': tenants,
         'tenant_id': int(tenant_id) if tenant_id and tenant_id.isdigit() else '',
         'selected_tenant': selected_tenant,
-        'repartition_membres': json.dumps(repartition_membres),
+        'repartition_membres': repartition_membres,
         'cotisations_par_mois': serialize_dashboard(cotisations_par_mois),
     }
     return render(request, 'superadmin/dashboard.html', context)
@@ -134,7 +170,7 @@ def tenant_detail(request, pk):
         'cles': cles,
         'audits': audits,
         'cle_active': tenant.cle_active,
-        'a_deja_une_cle': cles.exists(),
+        'a_deja_une_cle': CleActivation.objects.filter(tenant=tenant, statut__in=['ACTIVE', 'DISPONIBLE'], active=True, date_fin__gte=timezone.now()).exists(),
     }
     return render(request, 'superadmin/tenant_detail.html', context)
 
@@ -158,6 +194,7 @@ def tenant_modifier(request, pk):
 
 @login_required
 @user_passes_test(is_superadmin)
+@require_POST
 def tenant_toggle(request, pk):
     tenant = get_object_or_404(Tenant, pk=pk)
     tenant.actif = not tenant.actif
@@ -176,10 +213,10 @@ def tenant_toggle(request, pk):
 @user_passes_test(is_superadmin)
 def cle_generer(request, pk):
     tenant = get_object_or_404(Tenant, pk=pk)
-    deja_cle = CleActivation.objects.filter(tenant=tenant).exists()
+    deja_cle = CleActivation.objects.filter(tenant=tenant, statut__in=['ACTIVE', 'DISPONIBLE'], active=True, date_fin__gte=timezone.now()).exists()
     if request.method == 'POST':
         if deja_cle:
-            messages.error(request, f"L'association « {tenant.nom} » a déjà une ou plusieurs clés. Impossible d'en générer une nouvelle.")
+            messages.error(request, f"L'association « {tenant.nom} » a déjà une ou plusieurs clés actives. Impossible d'en générer une nouvelle.")
             return redirect('superadmin:tenant_detail', pk=tenant.pk)
         form = CleActivationForm(request.POST)
         if form.is_valid():
@@ -230,7 +267,7 @@ def generer_cle(request):
     return render(request, 'superadmin/generer_cle.html', {
         'form': form,
         'action': 'Générer la clé',
-        'tenants_json': json.dumps(tenants_data),
+        'tenants_json': tenants_data,
     })
 
 
@@ -429,6 +466,9 @@ def licence_expiree(request):
 
 @login_required
 def saisir_cle_payante(request):
+    if not (request.user.is_admin or request.user.is_superuser):
+        messages.error(request, "Accès réservé au dirigeant de l'association.")
+        return redirect('dashboard')
     tenant = getattr(request, 'tenant', None)
     if not tenant:
         messages.error(request, "Association non trouvée.")
@@ -491,7 +531,7 @@ def ajax_lookup_nif(request):
 def tenant_keys_check(request, pk):
     """AJAX endpoint: check if a tenant already has keys."""
     tenant = get_object_or_404(Tenant, pk=pk)
-    a_des_cles = CleActivation.objects.filter(tenant=tenant).exists()
+    a_des_cles = CleActivation.objects.filter(tenant=tenant, statut__in=['ACTIVE', 'DISPONIBLE'], active=True, date_fin__gte=timezone.now()).exists()
     return JsonResponse({'a_des_cles': a_des_cles, 'tenant': tenant.nom})
 
 
@@ -653,3 +693,29 @@ def configurer_app(request):
         'form': form,
         'config': config,
     })
+
+
+# ─────────────────────────────────────────────
+# EXTRACTION DES DONNÉES (BACKUP EXCEL)
+# ─────────────────────────────────────────────
+
+@login_required
+@user_passes_test(is_superadmin)
+def extraction_donnees(request):
+    tenants = Tenant.objects.all().order_by('nom')
+    if request.method == 'POST':
+        tenant_id = request.POST.get('tenant', '')
+        if not tenant_id or not tenant_id.isdigit():
+            messages.error(request, "Veuillez sélectionner une association.")
+            return redirect('superadmin:extraction_donnees')
+        tenant = get_object_or_404(Tenant, pk=int(tenant_id))
+        try:
+            buffer, nom_tenant, now = generer_backup_tenant(tenant, request)
+            from django.http import HttpResponse
+            response = HttpResponse(buffer.getvalue(), content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            response['Content-Disposition'] = dispo_fichier(f"Backup_{nom_tenant}_{now}.xlsx")
+            return response
+        except Exception as e:
+            messages.error(request, f"Erreur lors de l'extraction : {str(e)}")
+            return redirect('superadmin:extraction_donnees')
+    return render(request, 'superadmin/extraction_donnees.html', {'tenants': tenants})

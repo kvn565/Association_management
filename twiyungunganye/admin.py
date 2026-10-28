@@ -264,7 +264,7 @@ class RemboursementAdmin(admin.ModelAdmin):
     interet_rembourse_fbu.short_description = 'Intérêt remboursé'
     
     def reste_a_rembourser_fbu(self, obj):
-        return f"{obj.reste_a_rembourser} FBU"
+        return f"{obj.credit.get_reste_a_rembourser()} FBU"
     reste_a_rembourser_fbu.short_description = 'Reste à rembourser'
 
 
@@ -309,8 +309,8 @@ class AssociationAdmin(admin.ModelAdmin):
         return super().has_add_permission(request)
     
     def has_delete_permission(self, request, obj=None):
-        # Empêcher la suppression de l'association
-        return False
+        # Seul le superadmin (createsuperuser) peut supprimer l'association.
+        return request.user.is_superuser
 
 
 class SuggestionAdmin(admin.ModelAdmin):

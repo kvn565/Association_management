@@ -28,19 +28,19 @@
     }
     
     .section-cotisations .section-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #14532D 0%, #0B3A20 100%);
     }
     
     .section-credits .section-header {
-        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        background: linear-gradient(135deg, #C98A1B 0%, #8A5A0B 100%);
     }
     
     .section-imprevus .section-header {
-        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        background: linear-gradient(135deg, #2E9059 0%, #1F7A45 100%);
     }
     
     .section-totaux .section-header {
-        background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+        background: linear-gradient(135deg, #14532D 0%, #1F7A45 100%);
     }
     
     .month-column {
@@ -56,13 +56,13 @@
     }
     
     .month-column:hover {
-        background: rgba(102, 126, 234, 0.05);
+        background: rgba(20, 83, 45, 0.05);
         transform: scale(1.05);
     }
     
     .month-name {
         font-weight: 600;
-        color: #667eea;
+        color: #14532D;
         font-size: 0.9rem;
         text-transform: uppercase;
         letter-spacing: 1px;
@@ -76,19 +76,19 @@
     }
     
     .section-cotisations .month-amount {
-        color: #667eea;
+        color: #14532D;
     }
     
     .section-credits .month-amount {
-        color: #f5576c;
+        color: #8A5A0B;
     }
     
     .section-imprevus .month-amount {
-        color: #00f2fe;
+        color: #1F7A45;
     }
     
     .section-totaux .month-amount {
-        color: #43e97b;
+        color: #14532D;
     }
     
     .month-label {
@@ -128,12 +128,12 @@
     }
     
     .global-stats {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #14532D 0%, #0B3A20 100%);
         border-radius: 15px;
         padding: 2rem;
         color: white;
         margin-bottom: 2rem;
-        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+        box-shadow: 0 10px 30px rgba(20, 83, 45, 0.3);
     }
     
     .global-stats h2 {
@@ -453,17 +453,17 @@
     <div class="quick-actions">
         <div class="row g-3">
             <div class="col-md-4">
-                <a href="{% url 'demander_credit' %}" class="btn action-btn w-100" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <a href="{% url 'demander_credit' %}" class="btn action-btn w-100" style="background: linear-gradient(135deg, #14532D 0%, #0B3A20 100%); color: white;">
                     <i class="bi bi-plus-circle me-2"></i> Demander un crédit
                 </a>
             </div>
             <div class="col-md-4">
-                <a href="{% url 'soumettre_suggestion' %}" class="btn action-btn w-100" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white;">
+                <a href="{% url 'soumettre_suggestion' %}" class="btn action-btn w-100" style="background: linear-gradient(135deg, #C98A1B 0%, #8A5A0B 100%); color: white;">
                     <i class="bi bi-lightbulb me-2"></i> Faire une suggestion
                 </a>
             </div>
             <div class="col-md-4">
-                <a href="{% url 'liste_cotisations' %}" class="btn action-btn w-100" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white;">
+                <a href="{% url 'liste_cotisations' %}" class="btn action-btn w-100" style="background: linear-gradient(135deg, #2E9059 0%, #1F7A45 100%); color: white;">
                     <i class="bi bi-eye me-2"></i> Voir mes cotisations
                 </a>
             </div>
@@ -592,28 +592,52 @@
         </div>
         <div class="d-flex">
             <div class="month-column">
-                <i class="bi bi-cash-coin" style="font-size: 3rem; color: #667eea; opacity: 0.3;"></i>
-                <div class="month-name" style="color: #667eea;">Cotisations</div>
+                <i class="bi bi-cash-coin" style="font-size: 3rem; color: #14532D; opacity: 0.3;"></i>
+                <div class="month-name" style="color: #14532D;">Cotisations</div>
                 <div class="month-amount">{{ total_cotisations_mois_actuel|floatformat:3 }}</div>
                 <div class="month-label">{{ devise }}</div>
             </div>
             <div class="month-column">
-                <i class="bi bi-wallet2" style="font-size: 3rem; color: #f5576c; opacity: 0.3;"></i>
-                <div class="month-name" style="color: #f5576c;">Crédits</div>
-                <div class="month-amount">{{ total_credits_mois_actuel|floatformat:3 }}</div>
+                <i class="bi bi-arrow-return-left" style="font-size: 3rem; color: #C98A1B; opacity: 0.3;"></i>
+                <div class="month-name" style="color: #C98A1B;">Remboursements</div>
+                <div class="month-amount">{{ total_remboursements_mois|floatformat:3 }}</div>
                 <div class="month-label">{{ devise }}</div>
             </div>
             <div class="month-column">
-                <i class="bi bi-heart-fill" style="font-size: 3rem; color: #00f2fe; opacity: 0.3;"></i>
-                <div class="month-name" style="color: #00f2fe;">Imprévus</div>
+                <i class="bi bi-graph-up" style="font-size: 3rem; color: #ffa500; opacity: 0.3;"></i>
+                <div class="month-name" style="color: #ffa500;">Intérêts perçus</div>
+                <div class="month-amount">{{ total_interets_percus_mois|floatformat:3 }}</div>
+                <div class="month-label">{{ devise }}</div>
+            </div>
+            <div class="month-column">
+                <i class="bi bi-heart-fill" style="font-size: 3rem; color: #1F7A45; opacity: 0.3;"></i>
+                <div class="month-name" style="color: #1F7A45;">Imprévus</div>
                 <div class="month-amount">{{ total_imprevus_mois_actuel|floatformat:3 }}</div>
                 <div class="month-label">{{ devise }}</div>
             </div>
+            <div class="month-column">
+                <i class="bi bi-exclamation-triangle" style="font-size: 3rem; color: #dc3545; opacity: 0.3;"></i>
+                <div class="month-name" style="color: #dc3545;">Pénalités payées</div>
+                <div class="month-amount">{{ total_penalites_payees_mois|floatformat:3 }}</div>
+                <div class="month-label">{{ devise }}</div>
+            </div>
+            <div class="month-column" style="background: linear-gradient(135deg, rgba(20, 83, 45, 0.15) 0%, rgba(11, 58, 32, 0.15) 100%);">
+                <i class="bi bi-calculator" style="font-size: 3rem; color: #14532D; opacity: 0.4;"></i>
+                <div class="month-name" style="color: #14532D;">REVENUS</div>
+                <div class="month-amount" style="font-weight: 700;">{{ total_revenus_mois|floatformat:3 }}</div>
+                <div class="month-label">{{ devise }}</div>
+            </div>
+            <div class="month-column" style="background: linear-gradient(135deg, rgba(138, 90, 11, 0.15) 0%, rgba(201, 138, 27, 0.15) 100%);">
+                <i class="bi bi-wallet2" style="font-size: 3rem; color: #8A5A0B; opacity: 0.4;"></i>
+                <div class="month-name" style="color: #8A5A0B;">Crédits (sortie)</div>
+                <div class="month-amount" style="color: #8A5A0B;">− {{ total_credits_mois_actuel|floatformat:3 }}</div>
+                <div class="month-label">{{ devise }}</div>
+            </div>
             <div class="month-column" style="background: linear-gradient(135deg, rgba(67, 233, 123, 0.1) 0%, rgba(56, 249, 215, 0.1) 100%);">
-                <i class="bi bi-piggy-bank" style="font-size: 3rem; color: #43e97b; opacity: 0.5;"></i>
-                <div class="month-name" style="color: #43e97b; font-size: 1.1rem;">TOTAL GÉNÉRAL</div>
-                <div class="month-amount" style="font-size: 2.2rem;">{{ total_general_mois_actuel|floatformat:3 }}</div>
-                <div class="month-label" style="font-weight: 700; color: #43e97b;">{{ devise }}</div>
+                <i class="bi bi-piggy-bank" style="font-size: 3rem; color: #14532D; opacity: 0.5;"></i>
+                <div class="month-name" style="color: #14532D; font-size: 1.1rem;">TOTAL GÉNÉRAL</div>
+                <div class="month-amount" style="font-size: 2.2rem; {% if total_general_mois_actuel < 0 %}color: #8A5A0B;{% endif %}">{{ total_general_mois_actuel|floatformat:3 }}</div>
+                <div class="month-label" style="font-weight: 700; color: #14532D;">{{ devise }}</div>
             </div>
         </div>
     </div>
@@ -624,7 +648,7 @@
         <!-- Derniers crédits -->
         <div class="col-lg-6 mb-4">
             <div class="card section-card">
-                <div class="card-header" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white;">
+                <div class="card-header" style="background: linear-gradient(135deg, #C98A1B 0%, #8A5A0B 100%); color: white;">
                     <h5 class="mb-0"><i class="bi bi-wallet2"></i> Derniers crédits</h5>
                 </div>
                 <div class="card-body p-0">
@@ -672,7 +696,7 @@
         <!-- Dernières cotisations -->
         <div class="col-lg-6 mb-4">
             <div class="card section-card">
-                <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <div class="card-header" style="background: linear-gradient(135deg, #14532D 0%, #0B3A20 100%); color: white;">
                     <h5 class="mb-0"><i class="bi bi-cash-coin"></i> Dernières cotisations</h5>
                 </div>
                 <div class="card-body p-0">
@@ -709,7 +733,7 @@
     </div>
 
     <!-- CAPITAL DE L'ASSOCIATION -->
-    <div class="section-card mt-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+    <div class="section-card mt-4" style="background: linear-gradient(135deg, #14532D 0%, #0B3A20 100%); color: white;">
         <div class="card-body p-4">
             <div class="text-center mb-4">
                 <i class="bi bi-bank2" style="font-size: 4rem; opacity: 0.8;"></i>
@@ -742,25 +766,69 @@
                     </div>
                 </div>
 
-                <div class="col-md-3 mb-3">
+                <div class="col-md-2 mb-3">
                     <div class="p-3" style="background: rgba(255,255,255,0.15); border-radius: 15px; backdrop-filter: blur(10px);">
-                        <i class="bi bi-cart-dash-fill" style="font-size: 2.5rem; opacity: 0.7;"></i>
-                        <h6 class="mt-3 mb-2" style="opacity: 0.9; text-transform: uppercase; letter-spacing: 1px;">Dépenses</h6>
-                        <h2 style="font-weight: 700; text-shadow: 2px 2px 4px rgba(0,0,0,0.2);">
-                            {{ total_depenses|floatformat:3 }}
-                        </h2>
+                        <i class="bi bi-exclamation-triangle" style="font-size: 2rem; opacity: 0.7;"></i>
+                        <h6 class="mt-2 mb-1" style="opacity: 0.9; text-transform: uppercase; letter-spacing: 1px; font-size: 0.8rem;">Pénalités</h6>
+                        <h3 style="font-weight: 700; text-shadow: 2px 2px 4px rgba(0,0,0,0.2);">
+                            {{ total_penalites_payees|floatformat:0 }}
+                        </h3>
+                        <small style="opacity: 0.8;">{{ devise }}</small>
+                    </div>
+                </div>
+
+                <div class="col-md-2 mb-3">
+                    <div class="p-3" style="background: rgba(255,255,255,0.15); border-radius: 15px; backdrop-filter: blur(10px);">
+                        <i class="bi bi-percent" style="font-size: 2rem; opacity: 0.7;"></i>
+                        <h6 class="mt-2 mb-1" style="opacity: 0.9; text-transform: uppercase; letter-spacing: 1px; font-size: 0.8rem;">Intérêts</h6>
+                        <h3 style="font-weight: 700; text-shadow: 2px 2px 4px rgba(0,0,0,0.2);">
+                            {{ total_interets_percus|floatformat:0 }}
+                        </h3>
+                        <small style="opacity: 0.8;">{{ devise }}</small>
+                    </div>
+                </div>
+
+                <div class="col-md-2 mb-3">
+                    <div class="p-3" style="background: rgba(255,255,255,0.15); border-radius: 15px; backdrop-filter: blur(10px);">
+                        <i class="bi bi-credit-card-2-back" style="font-size: 2rem; opacity: 0.7;"></i>
+                        <h6 class="mt-2 mb-1" style="opacity: 0.9; text-transform: uppercase; letter-spacing: 1px; font-size: 0.8rem;">Crédits restants</h6>
+                        <h3 style="font-weight: 700; text-shadow: 2px 2px 4px rgba(0,0,0,0.2);">
+                            {{ total_credits_restants|floatformat:0 }}
+                        </h3>
+                        <small style="opacity: 0.8;">{{ devise }}</small>
+                    </div>
+                </div>
+
+                <div class="col-md-2 mb-3">
+                    <div class="p-3" style="background: rgba(255,255,255,0.15); border-radius: 15px; backdrop-filter: blur(10px);">
+                        <i class="bi bi-cart-dash-fill" style="font-size: 2rem; opacity: 0.7;"></i>
+                        <h6 class="mt-2 mb-1" style="opacity: 0.9; text-transform: uppercase; letter-spacing: 1px; font-size: 0.8rem;">Dépenses</h6>
+                        <h3 style="font-weight: 700; text-shadow: 2px 2px 4px rgba(0,0,0,0.2);">
+                            {{ total_depenses|floatformat:0 }}
+                        </h3>
+                        <small style="opacity: 0.8;">{{ devise }}</small>
+                    </div>
+                </div>
+
+                <div class="col-md-2 mb-3">
+                    <div class="p-3" style="background: rgba(255,255,255,0.15); border-radius: 15px; backdrop-filter: blur(10px);">
+                        <i class="bi bi-wallet2" style="font-size: 2rem; opacity: 0.7;"></i>
+                        <h6 class="mt-2 mb-1" style="opacity: 0.9; text-transform: uppercase; letter-spacing: 1px; font-size: 0.8rem;">Solde caisse</h6>
+                        <h3 style="font-weight: 700; text-shadow: 2px 2px 4px rgba(0,0,0,0.2);">
+                            {{ solde_caisse|floatformat:0 }}
+                        </h3>
                         <small style="opacity: 0.8;">{{ devise }}</small>
                     </div>
                 </div>
                 
-                <div class="col-md-3 mb-3">
+                <div class="col-md-2 mb-3">
                     <div class="p-4" style="background: linear-gradient(135deg, rgba(67, 233, 123, 0.3) 0%, rgba(56, 249, 215, 0.3) 100%); border-radius: 15px; border: 3px solid rgba(255,255,255,0.5); box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
-                        <i class="bi bi-piggy-bank-fill" style="font-size: 3rem; opacity: 0.9; animation: pulse 2s infinite;"></i>
-                        <h6 class="mt-3 mb-2" style="opacity: 1; text-transform: uppercase; letter-spacing: 2px; font-weight: 700;">CAPITAL TOTAL</h6>
-                        <h1 style="font-weight: 900; font-size: 2.8rem; text-shadow: 3px 3px 6px rgba(0,0,0,0.3);">
-                            {{ capital_association|floatformat:3 }}
-                        </h1>
-                        <small style="opacity: 0.9; font-weight: 600; font-size: 1.1rem;">{{ devise }}</small>
+                        <i class="bi bi-piggy-bank-fill" style="font-size: 2.5rem; opacity: 0.9;"></i>
+                        <h6 class="mt-2 mb-1" style="opacity: 1; text-transform: uppercase; letter-spacing: 2px; font-weight: 700; font-size: 0.9rem;">CAPITAL TOTAL</h6>
+                        <h2 style="font-weight: 900; font-size: 2rem; text-shadow: 3px 3px 6px rgba(0,0,0,0.3);">
+                            {{ capital_association|floatformat:0 }}
+                        </h2>
+                        <small style="opacity: 0.9; font-weight: 600;">{{ devise }}</small>
                     </div>
                 </div>
             </div>
@@ -768,7 +836,9 @@
             <div class="text-center mt-4 p-3" style="background: rgba(255,255,255,0.1); border-radius: 10px;">
                 <small style="opacity: 0.9;">
                     <i class="bi bi-info-circle me-2"></i>
-                    Capital = (Cotisations + Imprévus + Remboursements + Intérêts) − (Dépenses + Crédits accordés)
+                    Solde caisse = Cotisations + Remboursements + Pénalités + Intérêts − Crédits (mois en cours)<br>
+                    Capital = Solde caisse + Crédits restants à recevoir<br>
+                    <span style="opacity: 0.7;">{{ total_cotisations_mois_actuel|floatformat:3 }} + {{ total_remboursements_mois|floatformat:3 }} + {{ total_penalites_payees_mois|floatformat:3 }} + {{ total_interets_percus_mois|floatformat:3 }} − {{ total_credits_mois_actuel|floatformat:3 }} = {{ solde_caisse|floatformat:3 }} (caisse) + {{ total_credits_restants|floatformat:3 }} (créances) = {{ capital_association|floatformat:3 }} {{ devise }}</span>
                 </small>
             </div>
         </div>

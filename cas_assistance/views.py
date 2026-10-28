@@ -3,6 +3,7 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db.models import Q, Sum
+from django.views.decorators.http import require_POST
 from twiyungunganye.pdf_utils import save_pdf_and_respond
 from decimal import Decimal
 
@@ -17,10 +18,13 @@ def get_tenant(request):
 
 
 def qs_for_tenant(request, qs, field='tenant'):
+    """Filtre un queryset par le tenant de la requête (fail-closed)."""
+    if getattr(request, 'is_superadmin', False):
+        return qs
     tenant = get_tenant(request)
-    if tenant and not getattr(request, 'is_superadmin', False):
-        return qs.filter(**{field: tenant})
-    return qs
+    if tenant is None:
+        return qs.none()
+    return qs.filter(**{field: tenant})
 
 
 def is_dirigeant(user):
@@ -96,6 +100,7 @@ def modifier_assistance(request, pk):
 
 @login_required
 @user_passes_test(is_dirigeant)
+@require_POST
 def supprimer_assistance(request, pk):
     assistance = get_object_or_404(
         qs_for_tenant(request, CasAssistance.objects.all()), pk=pk

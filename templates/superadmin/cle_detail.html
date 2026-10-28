@@ -5,7 +5,7 @@
 <div class="row mt-4">
     <div class="col-md-6">
         <div class="card p-3">
-            <table class="table table-sm">
+            <div class="table-responsive"><table class="table table-sm">
                 <tr><td>Association</td><td><a href="{% url 'superadmin:tenant_detail' cle.tenant.pk %}">{{ cle.tenant.nom }}</a></td></tr>
                 <tr><td>Plan</td><td>{{ cle.label_plan }}</td></tr>
                 <tr><td>Statut</td><td>{{ cle.get_statut_display }}</td></tr>
@@ -15,7 +15,7 @@
                 <tr><td>Utilisée</td><td>{% if cle.utilisee %}Oui ({{ cle.date_utilisation|date:"d/m/Y H:i" }}){% else %}Non{% endif %}</td></tr>
                 <tr><td>HMAC</td><td><code>{{ cle.empreinte_hmac|default:"-" }}</code></td></tr>
                 <tr><td>Notes</td><td>{{ cle.notes|default:"-" }}</td></tr>
-            </table>
+            </table></div>
             {% if cle.statut != 'REVOQUEE' %}
             <a href="{% url 'superadmin:cle_revoquer' cle.pk %}" class="btn btn-danger"><i class="fas fa-ban"></i> Révoquer cette clé</a>
             {% endif %}
@@ -24,7 +24,7 @@
     <div class="col-md-6">
         <div class="card p-3">
             <h5>Audit</h5>
-            <table class="table table-sm">
+            <div class="table-responsive"><table class="table table-sm">
                 <thead><tr><th>Action</th><th>Date</th></tr></thead>
                 <tbody>
                     {% for a in audits %}
@@ -33,7 +33,7 @@
                     <tr><td colspan="2" class="text-muted">Aucun audit</td></tr>
                     {% endfor %}
                 </tbody>
-            </table>
+            </table></div>
         </div>
     </div>
 </div>

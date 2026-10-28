@@ -3,36 +3,56 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>{% block title %}SuperAdmin{% endblock %} - {{ config_app.nom_app|default:'Gestion Multi-Tenant' }}</title>
     {% if config_app.favicon %}
     <link rel="icon" type="image/png" href="{{ config_app.favicon.url }}">
     {% endif %}
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        body { background: #f4f6f9; }
+        body { background: #F6F8F4; color: #12201A; font-family: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", sans-serif; }
         .sidebar {
-            background: #343a40;
+            background: linear-gradient(160deg, #14532D, #0B3A20);
             min-height: 100vh;
             padding-top: 1rem;
             transition: transform .3s ease;
         }
+        .sidebar h5 { font-weight: 800; letter-spacing: -.01em; }
+        .sidebar hr { border-color: rgba(255,255,255,.12); }
         .sidebar a {
-            color: rgba(255,255,255,.8);
+            color: rgba(255,255,255,.78);
             text-decoration: none;
-            padding: .5rem 1rem;
+            padding: .55rem 1rem;
             display: block;
+            border-radius: 0 10px 10px 0;
+            margin-right: 10px;
+            border-left: 3px solid transparent;
         }
-        .sidebar a:hover, .sidebar a.active { color: #fff; background: rgba(255,255,255,.1); }
-        .sidebar .nav-section { color: #adb5bd; font-size: .75rem; text-transform: uppercase; padding: 1rem 1rem .25rem; }
+        .sidebar a:hover, .sidebar a.active { color: #fff; background: rgba(232,169,43,.16); border-left-color: #E8A92B; }
+        .sidebar .nav-section { color: rgba(255,255,255,.42); font-size: .72rem; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; padding: 1rem 1rem .25rem; }
         .main-content { padding: 2rem; }
-        .card { border-radius: .5rem; box-shadow: 0 2px 4px rgba(0,0,0,.05); }
+        .card { background: #fff; border: 1px solid #DCE5DE; border-radius: 20px; box-shadow: 0 24px 50px -40px rgba(20,83,45,.45); }
+        .card-header { background: transparent; color: #12201A; border-bottom: 1px solid #DCE5DE; border-radius: 20px 20px 0 0 !important; font-weight: 700; }
         .stat-card { border-left: 4px solid; }
-        .stat-card.tenants { border-left-color: #007bff; }
-        .stat-card.cles { border-left-color: #28a745; }
-        .stat-card.actifs { border-left-color: #ffc107; }
-        .stat-card.expirees { border-left-color: #dc3545; }
+        .stat-card.tenants { border-left-color: #14532D; }
+        .stat-card.cles { border-left-color: #1F7A45; }
+        .stat-card.actifs { border-left-color: #E8A92B; }
+        .stat-card.expirees { border-left-color: #B3261E; }
+        .btn-primary { background: #14532D; border-color: #14532D; }
+        .btn-primary:hover, .btn-primary:focus { background: #1F7A45; border-color: #1F7A45; }
+        .btn-outline-primary { color: #14532D; border-color: #14532D; }
+        .btn-outline-primary:hover { background: #14532D; border-color: #14532D; color: #fff; }
+        .form-control:focus, .form-select:focus { border-color: #14532D; box-shadow: 0 0 0 .2rem rgba(20,83,45,.12); }
+        .table thead { background: #E1EBE3 !important; color: #14532D !important; }
+        .table > :not(caption) > * > * { border-bottom-color: #DCE5DE !important; }
+        .table tbody tr:hover { background: rgba(225,235,227,.45); }
+        .alert { border-radius: 14px; border: 1px solid #DCE5DE; border-left-width: 4px; box-shadow: none; }
+        footer { background: #fff; border-top: 1px solid #DCE5DE; color: #5B6B62; }
+        footer small { color: #5B6B62 !important; }
 
         /* Sidebar mobile overlay */
         .sidebar-overlay {
@@ -48,10 +68,10 @@
         .sidebar-toggle-btn {
             display: none;
             position: fixed;
-            top: .5rem; left: .5rem;
+            top: .5rem; right: .5rem;
             z-index: 1040;
             border: none;
-            background: #343a40;
+            background: #14532D;
             color: #fff;
             padding: .5rem .7rem;
             border-radius: .25rem;
@@ -61,13 +81,25 @@
         @media (max-width: 767px) {
             .sidebar-toggle-btn { display: block; }
             .sidebar {
+                display: block !important;
                 position: fixed;
                 top: 0; left: 0;
                 width: 260px;
+                height: 100vh;
+                height: 100dvh;
+                max-height: 100vh;
+                max-height: 100dvh;
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
+                overscroll-behavior: contain;
+                scroll-padding-bottom: calc(2rem + env(safe-area-inset-bottom));
+                padding-bottom: calc(2rem + env(safe-area-inset-bottom));
                 z-index: 1030;
                 transform: translateX(-100%);
             }
             .sidebar.show { transform: translateX(0); }
+            .sidebar::-webkit-scrollbar { width: 6px; }
+            .sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,.35); border-radius: 3px; }
             .main-content { padding: 1rem; padding-top: 3rem; }
         }
 
@@ -103,7 +135,7 @@
     </style>
 </head>
 <body>
-    <button class="sidebar-toggle-btn" id="sidebarToggleBtn" onclick="toggleSidebar()">
+    <button type="button" class="sidebar-toggle-btn" id="sidebarToggleBtn" onclick="toggleSidebar()" aria-label="Ouvrir le menu" aria-controls="superadminSidebar" aria-expanded="false">
         <i class="fas fa-bars"></i>
     </button>
     <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
@@ -148,6 +180,11 @@
                     <i class="fas fa-plus-circle me-2"></i>Générer une clé
                 </a>
                 <hr class="text-white">
+                <div class="nav-section">Données</div>
+                <a href="{% url 'superadmin:extraction_donnees' %}" class="{% if request.resolver_match.url_name == 'extraction_donnees' %}active{% endif %}">
+                    <i class="fas fa-file-excel me-2"></i>Extraction des données
+                </a>
+                <hr class="text-white">
                 <div class="nav-section">Configuration</div>
                 <a href="{% url 'superadmin:configurer_app' %}" class="{% if request.resolver_match.url_name == 'configurer_app' %}active{% endif %}">
                     <i class="fas fa-cog me-2"></i>Configuration app
@@ -184,8 +221,12 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
     function toggleSidebar() {
-        document.getElementById('superadminSidebar').classList.toggle('show');
-        document.getElementById('sidebarOverlay').classList.toggle('show');
+        var sidebar = document.getElementById('superadminSidebar');
+        var overlay = document.getElementById('sidebarOverlay');
+        var button = document.getElementById('sidebarToggleBtn');
+        var open = sidebar.classList.toggle('show');
+        overlay.classList.toggle('show', open);
+        if (button) { button.setAttribute('aria-expanded', open ? 'true' : 'false'); }
     }
     document.addEventListener('DOMContentLoaded', function() {
         var sidebar = document.getElementById('superadminSidebar');

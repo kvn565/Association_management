@@ -15,20 +15,86 @@
             <div class="col-md-4 mb-3">
                 <label class="form-label">{{ form.nif.label }}</label>
                 {{ form.nif }}
+                {% for e in form.nif.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
             </div>
             <div class="col-md-4 mb-3">
                 <label class="form-label">{{ form.nom.label }}</label>
                 {{ form.nom }}
+                {% for e in form.nom.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
             </div>
             <div class="col-md-2 mb-3">
                 <label class="form-label">{{ form.sigle.label }}</label>
                 {{ form.sigle }}
+                {% for e in form.sigle.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
             </div>
             <div class="col-md-2 mb-3">
                 <label class="form-label">{{ form.sous_domaine.label }}</label>
                 {{ form.sous_domaine }}
                 <div class="form-text">{{ form.sous_domaine.help_text }}</div>
                 {% for e in form.sous_domaine.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+            </div>
+        </div>
+
+        <h5 class="text-primary mb-3 mt-4"><i class="bi bi-geo-alt me-2"></i>Coordonnées</h5>
+        <div class="row">
+            <div class="col-md-3 mb-3">
+                <label class="form-label">{{ form.province.label }}</label>
+                {{ form.province }}
+                {% for e in form.province.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+            </div>
+            <div class="col-md-3 mb-3">
+                <label class="form-label">{{ form.commune.label }}</label>
+                {{ form.commune }}
+                {% for e in form.commune.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+            </div>
+            <div class="col-md-3 mb-3">
+                <label class="form-label">{{ form.quartier.label }}</label>
+                {{ form.quartier }}
+                {% for e in form.quartier.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+            </div>
+            <div class="col-md-3 mb-3">
+                <label class="form-label">{{ form.avenue.label }}</label>
+                {{ form.avenue }}
+                {% for e in form.avenue.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+            </div>
+            <div class="col-md-3 mb-3">
+                <label class="form-label">{{ form.numero.label }}</label>
+                {{ form.numero }}
+                {% for e in form.numero.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+            </div>
+            <div class="col-md-3 mb-3">
+                <label class="form-label">{{ form.boite_postale.label }}</label>
+                {{ form.boite_postale }}
+                {% for e in form.boite_postale.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+            </div>
+            <div class="col-md-3 mb-3">
+                <label class="form-label">{{ form.telephone.label }}</label>
+                {{ form.telephone }}
+                {% for e in form.telephone.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+            </div>
+            <div class="col-md-3 mb-3">
+                <label class="form-label">{{ form.email.label }}</label>
+                {{ form.email }}
+                {% for e in form.email.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+            </div>
+            <div class="col-md-6 mb-3">
+                <label class="form-label">{{ form.logo.label }}</label>
+                {{ form.logo }}
+                {% for e in form.logo.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+            </div>
+        </div>
+
+        <h5 class="text-primary mb-3 mt-4"><i class="bi bi-cash-coin me-2"></i>Cotisations</h5>
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label class="form-label">{{ form.montant_cotisation_mensuelle.label }}</label>
+                {{ form.montant_cotisation_mensuelle }}
+                {% for e in form.montant_cotisation_mensuelle.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+            </div>
+            <div class="col-md-6 mb-3">
+                <label class="form-label">{{ form.montant_cotisation_imprevu_mensuelle.label }}</label>
+                {{ form.montant_cotisation_imprevu_mensuelle }}
+                {% for e in form.montant_cotisation_imprevu_mensuelle.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
             </div>
         </div>
 

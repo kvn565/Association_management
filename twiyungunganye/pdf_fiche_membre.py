@@ -6,6 +6,7 @@ from decimal import Decimal
 import qrcode
 from django.conf import settings
 from django.http import HttpResponse
+from django.shortcuts import get_object_or_404
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.db.models import Sum
 from reportlab.lib import colors
@@ -20,11 +21,21 @@ from .pdf_utils import save_pdf_and_respond
 
 
 def is_admin_or_gestionnaire(user):
-    return user.is_authenticated and (user.is_admin or user.is_admin)
+    return user.is_authenticated and user.is_admin
 
 
 def get_tenant(request):
     return getattr(request, 'tenant', None)
+
+
+def qs_for_tenant(request, qs, field='tenant'):
+    """Filtre un queryset par le tenant de la requête (fail-closed)."""
+    if getattr(request, 'is_superadmin', False):
+        return qs
+    tenant = get_tenant(request)
+    if tenant is None:
+        return qs.none()
+    return qs.filter(**{field: tenant})
 
 
 def get_devise(request):
@@ -82,7 +93,7 @@ def _generate_qr_code(association, tenant):
 @login_required
 @user_passes_test(is_admin_or_gestionnaire)
 def fiche_membre_pdf(request, pk):
-    membre = Membre.objects.select_related('tenant').get(pk=pk)
+    membre = get_object_or_404(qs_for_tenant(request, Membre.objects.all()), pk=pk)
     tenant = get_tenant(request)
     if tenant and membre.tenant_id and membre.tenant_id != tenant.pk:
         from django.http import HttpResponseForbidden

@@ -29,7 +29,7 @@
                     </div>
                     <div class="col-md-8">
                         <h5 class="text-primary mb-3">Informations</h5>
-                        <table class="table table-borderless">
+                        <div class="table-responsive"><table class="table table-borderless">
                             <tr>
                                 <td><strong>NIF :</strong></td>
                                 <td>{{ tenant.nif|default:"Non renseigné" }}</td>
@@ -70,7 +70,7 @@
                                 <td><strong>Date création :</strong></td>
                                 <td>{{ tenant.date_creation|date:"d/m/Y" }}</td>
                             </tr>
-                        </table>
+                        </table></div>
                     </div>
                 </div>
 
@@ -79,7 +79,7 @@
                 <div class="row">
                     <div class="col-md-6">
                         <h5 class="text-primary mb-3"><i class="bi bi-cash-coin me-2"></i>Montants des cotisations</h5>
-                        <table class="table table-borderless">
+                        <div class="table-responsive"><table class="table table-borderless">
                             <tr>
                                 <td>Cotisation mensuelle :</td>
                                 <td><strong>{{ tenant.montant_cotisation_mensuelle|floatformat:3 }} {{ devise }}</strong></td>
@@ -88,11 +88,11 @@
                                 <td>Cotisation imprévu :</td>
                                 <td><strong>{{ tenant.montant_cotisation_imprevu_mensuelle|floatformat:3 }} {{ devise }}</strong></td>
                             </tr>
-                        </table>
+                        </table></div>
                     </div>
                     <div class="col-md-6">
                         <h5 class="text-primary mb-3"><i class="bi bi-bar-chart me-2"></i>Statistiques</h5>
-                        <table class="table table-borderless">
+                        <div class="table-responsive"><table class="table table-borderless">
                             <tr>
                                 <td>Membres actifs :</td>
                                 <td><strong>{{ total_membres }}</strong></td>
@@ -101,7 +101,7 @@
                                 <td>Total cotisations :</td>
                                 <td><strong>{{ total_cotisations|floatformat:3 }} {{ devise }}</strong></td>
                             </tr>
-                        </table>
+                        </table></div>
                     </div>
                 </div>
 

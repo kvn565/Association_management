@@ -6,12 +6,12 @@
 <style>
     /* Styles responsive pour la liste des membres */
     .membres-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #14532D 0%, #0B3A20 100%);
         padding: 1.5rem;
         border-radius: 15px;
         color: white;
         margin-bottom: 2rem;
-        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+        box-shadow: 0 10px 30px rgba(20, 83, 45, 0.3);
     }
 
     .membres-header h2 {
@@ -21,7 +21,7 @@
 
     .btn-add {
         background: white;
-        color: #667eea;
+        color: #14532D;
         font-weight: 600;
         transition: all 0.3s ease;
     }
@@ -29,7 +29,7 @@
     .btn-add:hover {
         transform: translateY(-2px);
         box-shadow: 0 5px 15px rgba(255,255,255,0.3);
-        color: #667eea;
+        color: #14532D;
     }
 
     /* Badges personnalisés */
@@ -114,7 +114,7 @@
             position: absolute;
             left: 0;
             font-weight: 600;
-            color: #667eea;
+            color: #14532D;
             width: 35%;
         }
 
@@ -306,6 +306,20 @@
                                         <i class="bi bi-pencil me-1"></i>
                                         <span class="d-none d-xl-inline">Modifier</span>
                                     </a>
+                                    {% if membre.pk != user.pk %}
+                                    <a href="{% url 'reinitialiser_mot_de_passe_membre' membre.pk %}" 
+                                       class="btn btn-sm btn-info btn-action"
+                                       title="Réinitialiser le mot de passe">
+                                        <i class="bi bi-key me-1"></i>
+                                        <span class="d-none d-xl-inline">Mot de passe</span>
+                                    </a>
+                                    {% endif %}
+                                    <a href="{% url 'supprimer_membre' membre.pk %}" 
+                                       class="btn btn-sm btn-danger btn-action"
+                                       title="Supprimer">
+                                        <i class="bi bi-trash me-1"></i>
+                                        <span class="d-none d-xl-inline">Supprimer</span>
+                                    </a>
                                     {% endif %}
                                 </div>
                             </td>
@@ -335,7 +349,7 @@
         <div class="col-md-3 mb-3">
             <div class="card border-0 shadow-sm">
                 <div class="card-body text-center">
-                    <i class="bi bi-people-fill" style="font-size: 2rem; color: #667eea;"></i>
+                    <i class="bi bi-people-fill" style="font-size: 2rem; color: #14532D;"></i>
                     <h3 class="mt-2 mb-0">{{ total_membres }}</h3>
                     <small class="text-muted">Total membres</small>
                 </div>

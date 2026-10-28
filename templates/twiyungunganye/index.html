@@ -1,339 +1,135 @@
-{% extends 'twiyungunganye/base.html' %}
-{% load static %}
-{% load menu_perms %}
+{% extends 'twiyungunganye/base_public.html' %}
+{% load static menu_perms %}
 
-{% block title %}Accueil - {{ config_app.nom_app|default:'Twiyungunganye' }}{% endblock %}
-
-{% block extra_head %}
-<style>
-.hero-carousel {
-    position: relative;
-    height: 85vh;
-    min-height: 500px;
-    overflow: hidden;
-}
-.hero-carousel .carousel,
-.hero-carousel .carousel-inner,
-.hero-carousel .carousel-item {
-    height: 100%;
-}
-.hero-carousel .carousel-item {
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
-}
-.hero-carousel .carousel-item::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background: linear-gradient(135deg, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.3) 50%, rgba(0,0,0,0.6) 100%);
-    z-index: 1;
-}
-.hero-carousel .carousel-caption {
-    z-index: 2;
-    bottom: 0;
-    top: 0;
-    left: 0;
-    right: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    padding: 2rem;
-}
-.hero-carousel .carousel-caption h1 {
-    font-size: 3.2rem;
-    font-weight: 800;
-    text-shadow: 2px 2px 8px rgba(0,0,0,0.5);
-    margin-bottom: 1rem;
-}
-.hero-carousel .carousel-caption p {
-    font-size: 1.25rem;
-    max-width: 700px;
-    opacity: 0.95;
-    text-shadow: 1px 1px 4px rgba(0,0,0,0.5);
-}
-.hero-carousel .carousel-caption .btn {
-    padding: 0.75rem 2rem;
-    font-weight: 600;
-    border-radius: 50px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-}
-.hero-carousel .carousel-control-prev,
-.hero-carousel .carousel-control-next {
-    z-index: 3;
-}
-.hero-carousel .carousel-indicators {
-    z-index: 3;
-}
-.hero-carousel .carousel-indicators button {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    margin: 0 6px;
-}
-.scroll-down {
-    position: absolute;
-    bottom: 30px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 3;
-    animation: bounce 2s infinite;
-    color: #fff;
-    font-size: 2rem;
-    opacity: 0.8;
-    cursor: pointer;
-}
-@keyframes bounce {
-    0%, 20%, 50%, 80%, 100% { transform: translateX(-50%) translateY(0); }
-    40% { transform: translateX(-50%) translateY(-10px); }
-    60% { transform: translateX(-50%) translateY(-5px); }
-}
-.feature-icon {
-    width: 80px;
-    height: 80px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin: 0 auto 1rem;
-    font-size: 2rem;
-    color: #fff;
-    transition: transform 0.3s ease;
-}
-.feature-card:hover .feature-icon {
-    transform: scale(1.15);
-}
-.feature-card {
-    border: none;
-    border-radius: 16px;
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
-    overflow: hidden;
-}
-.feature-card:hover {
-    transform: translateY(-6px);
-    box-shadow: 0 12px 35px rgba(0,0,0,0.12);
-}
-</style>
-{% endblock %}
+{% block title %}Accueil – {{ config_app.nom_app|default:'Vicoba Association' }}{% endblock %}
 
 {% block content %}
-{% with slides=config_app.hero_slides_json|json_parse features=config_app.features_json|json_parse %}
+<section class="view on" id="accueil">
+  <div class="herowrap">
+    <div class="slides" aria-hidden="true">
+      <div class="slide on" style="background-image:{% if config_app.slide_image_1 %}url('{{ config_app.slide_image_1.url }}'){% else %}url('{% static 'images/image12.png' %}'){% endif %}"></div>
+      <div class="slide" style="background-image:{% if config_app.slide_image_2 %}url('{{ config_app.slide_image_2.url }}'){% else %}url('{% static 'images/images1.jpg' %}'){% endif %}"></div>
+      <div class="slide" style="background-image:{% if config_app.slide_image_3 %}url('{{ config_app.slide_image_3.url }}'){% else %}url('{% static 'images/imd12.jpg' %}'){% endif %}"></div>
+    </div>
 
-<!-- ==================== HERO CAROUSEL ==================== -->
-{% if slides|length > 0 or not slides %}
-<div id="heroCarousel" class="carousel slide hero-carousel" data-bs-ride="carousel" data-bs-interval="5000">
-    <div class="carousel-indicators">
-        {% if config_app.hero_slides_json|json_parse|length > 0 %}
-        {% for slide in config_app.hero_slides_json|json_parse %}
-        <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="{{ forloop.counter0 }}" {% if forloop.first %}class="active"{% endif %}></button>
-        {% endfor %}
-        {% else %}
-        <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="0" class="active"></button>
-        <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="1"></button>
-        <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="2"></button>
-        {% endif %}
-    </div>
-    <div class="carousel-inner">
-        {% if config_app.hero_slides_json|json_parse|length > 0 %}
-        {% for slide in config_app.hero_slides_json|json_parse %}
-        {% with slide_num=forloop.counter %}
-        {% with slide_img=slide_num|get_slide_image:config_app %}
-        <div class="carousel-item {% if forloop.first %}active{% endif %}" style="background-image: url('{{ slide_img|default:slide.image|default:'https://images.unsplash.com/photo-1559526324-593bc073d938?q=80&w=2070&auto=format&fit=crop' }}');">
-            <div class="carousel-caption">
-                <h1>{% if slide.icone %}<i class="bi {{ slide.icone }}"></i> {% endif %}{{ slide.titre|default:config_app.nom_app }}</h1>
-                {% if slide.sous_titre %}<p>{{ slide.sous_titre }}</p>{% endif %}
-                <p>{{ slide.description|default:'' }}</p>
-                <div class="mt-3">
-                    {% if user.is_authenticated %}
-                        {% if forloop.first %}
-                        <a href="{% url 'dashboard' %}" class="btn btn-light btn-lg">
-                            <i class="bi bi-speedometer2"></i> Tableau de bord
-                        </a>
-                        {% endif %}
-                    {% else %}
-                        {% if forloop.first %}
-                        <a href="{% url 'login' %}" class="btn btn-light btn-lg me-2">
-                            <i class="bi bi-box-arrow-in-right"></i> Se connecter
-                        </a>
-                        <a href="{% url 'create_password' %}" class="btn btn-outline-light btn-lg">
-                            <i class="bi bi-key"></i> Créer mon mot de passe
-                        </a>
-                        {% elif forloop.counter == 2 %}
-                        <a href="{% url 'login' %}" class="btn btn-light btn-lg me-2"><i class="bi bi-box-arrow-in-right"></i> Se connecter</a>
-                        <a href="{% url 'create_password' %}" class="btn btn-outline-light btn-lg"><i class="bi bi-key"></i> Créer mon mot de passe</a>
-                        {% else %}
-                        <a href="{% url 'login' %}" class="btn btn-light btn-lg me-2">
-                            <i class="bi bi-box-arrow-in-right"></i> Se connecter
-                        </a>
-                        <a href="{% url 'create_password' %}" class="btn btn-outline-light btn-lg">
-                            <i class="bi bi-key"></i> Créer mon mot de passe
-                        </a>
-                        {% endif %}
-                    {% endif %}
-                </div>
-            </div>
+    <div class="hero" id="s-accueil">
+      <div>
+        <h1>Épargnez ensemble, empruntez en confiance.</h1>
+        <p class="lead">Suivez vos cotisations, demandez un crédit et consultez chaque remboursement. Tout votre groupe voit les mêmes chiffres.</p>
+        <div class="cta">
+          {% if user.is_authenticated %}
+          <a class="btn" href="{% url 'dashboard' %}">Tableau de bord</a>
+          {% else %}
+          <a class="btn" href="{% url 'login' %}">Se connecter</a>
+          <a class="btn ghost" href="{% url 'create_password' %}">Créer mon mot de passe</a>
+          {% endif %}
         </div>
-        {% endwith %}
-        {% endwith %}
-        {% endfor %}
-        {% else %}
-        <!-- Slides par défaut si aucun JSON configuré -->
-        <div class="carousel-item active" style="background-image: url('https://images.unsplash.com/photo-1559526324-593bc073d938?q=80&w=2070&auto=format&fit=crop');">
-            <div class="carousel-caption">
-                <h1><i class="bi bi-people-fill"></i> {{ config_app.nom_app|default:'Twiyungunganye' }}</h1>
-                <p>La plateforme de gestion d'association simple et transparente</p>
-                <div class="mt-3">
-                    {% if user.is_authenticated %}
-                    <a href="{% url 'dashboard' %}" class="btn btn-light btn-lg"><i class="bi bi-speedometer2"></i> Tableau de bord</a>
-                    {% else %}
-                    <a href="{% url 'login' %}" class="btn btn-light btn-lg me-2"><i class="bi bi-box-arrow-in-right"></i> Se connecter</a>
-                    <a href="{% url 'create_password' %}" class="btn btn-outline-light btn-lg"><i class="bi bi-key"></i> Créer mon mot de passe</a>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-        <div class="carousel-item" style="background-image: url('https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?q=80&w=2070&auto=format&fit=crop');">
-            <div class="carousel-caption">
-                <h1><i class="bi bi-graph-up-arrow"></i> Gérez vos cotisations</h1>
-                <p>Suivez les cotisations régulières et imprévues en toute simplicité</p>
-                <div class="mt-3">
-                    {% if not user.is_authenticated %}
-                    <a href="{% url 'login' %}" class="btn btn-light btn-lg me-2"><i class="bi bi-box-arrow-in-right"></i> Se connecter</a>
-                    <a href="{% url 'create_password' %}" class="btn btn-outline-light btn-lg"><i class="bi bi-key"></i> Créer mon mot de passe</a>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-        <div class="carousel-item" style="background-image: url('https://images.unsplash.com/photo-1522202176988-66273c2b55c9?q=80&w=2070&auto=format&fit=crop');">
-            <div class="carousel-caption">
-                <h1><i class="bi bi-phone"></i> Accès mobile</h1>
-                <p>Utilisez l'application depuis votre téléphone, où que vous soyez</p>
-                <div class="mt-3">
-                    {% if not user.is_authenticated %}
-                    <a href="{% url 'login' %}" class="btn btn-light btn-lg me-2"><i class="bi bi-box-arrow-in-right"></i> Se connecter</a>
-                    <a href="{% url 'create_password' %}" class="btn btn-outline-light btn-lg"><i class="bi bi-key"></i> Créer mon mot de passe</a>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-        {% endif %}
-    </div>
-    <button class="carousel-control-prev" type="button" data-bs-target="#heroCarousel" data-bs-slide="prev">
-        <span class="carousel-control-prev-icon"></span>
-    </button>
-    <button class="carousel-control-next" type="button" data-bs-target="#heroCarousel" data-bs-slide="next">
-        <span class="carousel-control-next-icon"></span>
-    </button>
-    <div class="scroll-down" onclick="document.getElementById('features').scrollIntoView({behavior:'smooth'})">
-        <i class="bi bi-chevron-double-down"></i>
-    </div>
-</div>
-{% endif %}
+      </div>
 
-<!-- ==================== FEATURES ==================== -->
-<div id="features" class="container py-5">
-    <div class="text-center mb-5">
-        <h2 class="fw-bold">Fonctionnalités</h2>
-        <p class="text-muted lead">Tout ce dont votre association a besoin pour une gestion efficace</p>
-    </div>
-    <div class="row g-4">
-        {% for f in config_app.features_json|json_parse %}
-        <div class="col-md-4">
-            <div class="card feature-card h-100 text-center p-3 shadow-sm">
-                <div class="card-body">
-                    <div class="feature-icon" style="background: {{ f.couleur|default:'linear-gradient(135deg, #667eea, #764ba2)' }};">
-                        <i class="bi {{ f.icone|default:'bi-star' }}"></i>
-                    </div>
-                    <h5 class="card-title fw-bold mt-3">{{ f.titre|default:'Fonctionnalité' }}</h5>
-                    <p class="card-text text-muted">{{ f.description|default:'' }}</p>
-                </div>
-            </div>
+      <div class="card" aria-label="Aperçu du tableau de bord">
+        <div class="row">
+          <div class="ring" style="--p:72"><b>72 %</b></div>
+          <div>
+            <div class="mute">Cotisations du mois</div>
+            <strong style="font-size:1.6rem">1 440 000 FBu</strong>
+            <div class="mute">sur 2 000 000 FBu attendus</div>
+          </div>
         </div>
-        {% empty %}
-        <div class="col-12 text-center text-muted py-5">
-            <i class="bi bi-grid-3x3-gap" style="font-size:3rem;"></i>
-            <p class="mt-2">Aucune fonctionnalité configurée pour le moment.</p>
-        </div>
-        {% endfor %}
+        <ul class="list">
+          <li><span>Cotisation d’octobre</span><span class="ok">Payée</span></li>
+          <li><span>Crédit en cours</span><span>Échéance le 15 nov.</span></li>
+          <li><span>Épargne totale</span><span class="ok">+ 85 000 FBu</span></li>
+        </ul>
+      </div>
     </div>
-</div>
 
-<!-- ==================== CONTACT / ABOUT ==================== -->
-<div class="bg-light py-5">
-    <div class="container">
-        <div class="row justify-content-center">
-            <div class="col-lg-8">
-                <div class="card border-0 shadow-sm">
-                    <div class="card-header bg-white border-bottom-0 pt-4">
-                        <h4 class="mb-0"><i class="bi bi-info-circle text-primary me-2"></i> À propos</h4>
-                    </div>
-                    <div class="card-body px-4 pb-4">
-                        {% if config_app.apropos_contenu %}
-                        <div class="mb-4">{{ config_app.apropos_contenu|safe }}</div>
-                        {% endif %}
-
-                        {% if association %}
-                        <div class="row">
-                            <div class="col-md-6">
-                                <table class="table table-borderless mb-0">
-                                    <tr><th class="ps-0" width="35%">Nom :</th><td class="ps-0">{{ association.nom }}</td></tr>
-                                    {% if association.sigle %}<tr><th class="ps-0">Sigle :</th><td class="ps-0">{{ association.sigle }}</td></tr>{% endif %}
-                                    {% if association.telephone %}<tr><th class="ps-0">Téléphone :</th><td class="ps-0">{{ association.telephone }}</td></tr>{% endif %}
-                                    {% if association.email %}<tr><th class="ps-0">Email :</th><td class="ps-0">{{ association.email }}</td></tr>{% endif %}
-                                    {% if association.adresse %}<tr><th class="ps-0">Adresse :</th><td class="ps-0">{{ association.adresse }}</td></tr>{% endif %}
-                                </table>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="p-3 rounded" style="background: linear-gradient(135deg, #667eea15, #764ba215);">
-                                    <h6 class="fw-bold"><i class="bi bi-piggy-bank me-2"></i>Notre mission</h6>
-                                    <p class="small text-muted mb-0">
-                                        {{ config_app.about_mission|default:"Offrir à chaque membre une plateforme simple et transparente pour gérer ses cotisations, accéder à des crédits et contribuer au développement de l'association." }}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                        {% endif %}
-                        {% if config_app.email_contact or config_app.telephone_contact %}
-                        <hr>
-                        <div class="text-muted small">
-                            <p class="mb-1 fw-bold">Contact général :</p>
-                            {% if config_app.email_contact %}<p class="mb-0"><i class="bi bi-envelope me-1"></i> {{ config_app.email_contact }}</p>{% endif %}
-                            {% if config_app.telephone_contact %}<p class="mb-0"><i class="bi bi-telephone me-1"></i> {{ config_app.telephone_contact }}</p>{% endif %}
-                        </div>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-        </div>
+    <div class="dots">
+      <button type="button" class="on" aria-label="Photo 1"></button>
+      <button type="button" aria-label="Photo 2"></button>
+      <button type="button" aria-label="Photo 3"></button>
     </div>
-</div>
-{% endwith %}
-{% endblock %}
+  </div>
 
-{% block extra_js %}
-<script>
-function telechargerFiche(urlName) {
-    var selectEl = document.getElementById('tenant-select');
-    console.log('tenant-select element:', selectEl);
-    if (!selectEl) {
-        alert('Erreur: liste d\'associations introuvable.');
-        return;
-    }
-    var tenant = selectEl.value;
-    console.log('Selected tenant value:', tenant);
-    if (!tenant) {
-        alert('Veuillez sélectionner une association.');
-        return;
-    }
-    var urls = {
-        'fiche_inscription_pdf': '{% url "fiche_inscription_pdf" %}',
-        'demande_credit_pdf': '{% url "demande_credit_pdf" %}'
-    };
-    window.open(urls[urlName] + '?tenant=' + tenant, '_blank');
-}
-</script>
+  <div class="section" id="s-apropos">
+    <span class="kicker">À propos de nous</span>
+    <h2>Comprendre le mot « VICOBA »</h2>
+    <p class="lead2">VICOBA vient de l’anglais <strong>Village Community Banks</strong>, soit en français « banques communautaires villageoises ». C’est un système d’épargne et de crédit géré par un groupe de personnes d’une même communauté : chaque membre met de l’argent de côté régulièrement, et cette caisse commune sert à accorder de petits prêts aux membres.</p>
+    <div class="defs">
+      <div><h3>Le sigle</h3><p>Village Community Banks : des « banques » créées et gérées par les habitants eux-mêmes, à l’échelle d’un village ou d’un quartier.</p></div>
+      <div><h3>L’origine</h3><p>Le modèle s’est développé en Tanzanie, où l’État l’a mis en place avec l’organisation SEDIT (Social and Economic Development Initiative of Tanzania).</p></div>
+      <div><h3>Le principe</h3><p>Les membres mettent leurs économies en commun dans une caisse que le groupe gère lui-même, puis se prêtent de petites sommes à faible taux d’intérêt.</p></div>
+      <div><h3>Le but</h3><p>Offrir des services d’épargne et de crédit à ceux que les banques classiques atteignent mal, surtout les femmes, et financer de petites activités qui génèrent un revenu.</p></div>
+    </div>
+    <div class="about">
+      <div>
+        <h3 style="margin:0 0 10px">Et Vicoba Association ?</h3>
+        <p>Vicoba Association aide les groupes d’épargne et de crédit à gérer leurs cotisations, leurs prêts et leurs remboursements au même endroit, en toute transparence.</p>
+        <p>Notre objectif : que chaque membre sache à tout moment où en sont ses cotisations et celles du groupe, sans cahier à recopier ni calcul à refaire.</p>
+      </div>
+      <div class="stats">
+        <div><b>2</b>associations accompagnées</div>
+        <div><b>100 %</b>des opérations consultables par les membres</div>
+      </div>
+    </div>
+    <p class="src">Définitions rédigées à partir de : <a href="https://africa.unwomen.org/en/stories/feature-story/2026/05/vicoba-where-financial-inclusion-meets-leadership-with-women-at-the-forefront" target="_blank" rel="noopener">ONU Femmes Afrique</a>, <a href="https://en.wikipedia.org/wiki/Community_banking_models" target="_blank" rel="noopener">Wikipedia</a> et <a href="https://eajahme.mzumbe.ac.tz/index.php/eajahme/article/download/8/5/19" target="_blank" rel="noopener">East African Journal of Health and Medical Education (Mzumbe)</a>.</p>
+  </div>
+
+  <div class="section" id="s-fonctionnalites">
+    <span class="kicker">Fonctionnalités</span>
+    <h2>Tout ce qu’il faut pour gérer votre association.</h2>
+    <div class="feat">
+      <div><h3>Épargne collective</h3><p>Chaque cotisation est enregistrée et visible par le groupe.</p></div>
+      <div><h3>Crédit simple</h3><p>Demande en ligne, validation et suivi du remboursement.</p></div>
+      <div><h3>Calcul des intérêts</h3><p>Les intérêts sont calculés automatiquement selon les règles de votre association.</p></div>
+      <div><h3>Pénalités de remboursement</h3><p>Les retards sont repérés et les pénalités appliquées sans calcul manuel.</p></div>
+      <div><h3>Gestion des dépenses</h3><p>Enregistrez les dépenses de l’association et gardez une trace de chacune.</p></div>
+      <div><h3>Rapport mensuel et périodique</h3><p>Obtenez le bilan du mois ou d’une période de votre choix.</p></div>
+    </div>
+  </div>
+
+  <div class="section" id="s-tarifs">
+    <span class="kicker">Tarifs</span>
+    <h2>Un abonnement adapté à la taille de votre association.</h2>
+    <div class="billing" role="group" aria-label="Période de facturation">
+      <button type="button" class="on" data-bill="m">Mensuel</button>
+      <button type="button" data-bill="y">Annuel</button>
+    </div>
+    <div class="plans">
+      <div class="plan">
+        <h3>Starter</h3>
+        <p class="for">Pour les petites associations et tontines</p>
+        <div class="price"><b data-m="45 000" data-y="500 000">45 000</b> BIF <span data-m="/ mois" data-y="/ an">/ mois</span></div>
+        <p class="yr">Économisez 40 000 BIF par an</p>
+        <ul><li>Jusqu’à 50 membres</li><li>Cotisations, remboursements, pénalités</li><li>Rapports PDF simples</li></ul>
+        <a class="btn ghost" href="#s-contact">Choisir Starter</a>
+      </div>
+      <div class="plan featured">
+        <span class="badge">Recommandé</span>
+        <h3>Pro</h3>
+        <p class="for">Pour les associations qui grandissent</p>
+        <div class="price"><b data-m="85 000" data-y="1 000 000">85 000</b> BIF <span data-m="/ mois" data-y="/ an">/ mois</span></div>
+        <ul><li>Jusqu’à 300 membres</li><li>Tout Starter inclus</li><li>Calcul automatique des intérêts</li><li>Rapports avancés</li><li>Gestion des dépenses</li><li>Alertes</li><li>Support prioritaire</li></ul>
+        <a class="btn" href="#s-contact">Choisir Pro</a>
+      </div>
+      <div class="plan">
+        <h3>Entreprise</h3>
+        <p class="for">Pour les mutuelles et coopératives</p>
+        <div class="price"><b>Personnalisable</b></div>
+        <p class="mute" style="margin:0">Tarif adapté à la taille de votre organisation</p>
+        <ul><li>Membres illimités</li><li>Multi-utilisateurs</li><li>Multi-caisses</li><li>Export comptable</li><li>Tableau de bord DG</li><li>Hébergement dédié</li><li>Formation</li></ul>
+        <a class="btn ghost" href="#s-contact">Nous contacter</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="section" id="s-contact">
+    <span class="kicker">Contactez-nous</span>
+    <h2>Une question ? Parlons-en.</h2>
+    <div class="contact">
+      <div class="card"><h3>Téléphone</h3><p>+257 22 28 12 73<br>+257 68 42 04 20</p></div>
+      <div class="card"><h3>E-mail</h3><p>info@burundijobs.bi</p></div>
+      <div class="card"><h3>Adresse</h3><p>Immeuble Premium House, Bureau 111</p></div>
+    </div>
+  </div>
+</section>
 {% endblock %}

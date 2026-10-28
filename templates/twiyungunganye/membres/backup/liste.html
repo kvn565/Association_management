@@ -8,7 +8,7 @@
 <div class="card">
     <div class="card-body">
         {% if membres %}
-        <table class="table table-hover">
+        <div class="table-responsive"><table class="table table-hover">
             <thead><tr><th>Nom</th><th>Carte ID</th><th>Email</th><th>Téléphone</th><th>Statut</th><th>Actions</th></tr></thead>
             <tbody>
             {% for membre in membres %}
@@ -25,7 +25,7 @@
             </tr>
             {% endfor %}
             </tbody>
-        </table>
+        </table></div>
         {% else %}
         <div class="text-center py-5"><p>Aucun membre</p></div>
         {% endif %}

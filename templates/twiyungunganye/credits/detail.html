@@ -6,12 +6,12 @@
 <style>
     /* En-tête détail crédit */
     .detail-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #14532D 0%, #0B3A20 100%);
         padding: 1.5rem;
         border-radius: 15px;
         color: white;
         margin-bottom: 2rem;
-        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+        box-shadow: 0 10px 30px rgba(20, 83, 45, 0.3);
     }
 
     .detail-header h2 {
@@ -36,7 +36,7 @@
     }
 
     .info-card .card-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #14532D 0%, #0B3A20 100%);
         color: white;
         font-weight: 600;
         padding: 1rem 1.25rem;
@@ -67,7 +67,7 @@
     }
 
     .info-card .card-body strong {
-        color: #667eea;
+        color: #14532D;
         font-weight: 600;
     }
 
@@ -88,7 +88,7 @@
     }
 
     .remboursement-card .card-header {
-        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        background: linear-gradient(135deg, #C98A1B 0%, #8A5A0B 100%);
         color: white;
         padding: 1rem 1.25rem;
         border: none;
@@ -99,7 +99,7 @@
     }
 
     .remboursement-card .table thead {
-        background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+        background: linear-gradient(135deg, rgba(20, 83, 45, 0.1) 0%, rgba(11, 58, 32, 0.1) 100%);
     }
 
     /* Boutons d'action */
@@ -194,7 +194,7 @@
             position: absolute;
             left: 0;
             font-weight: 600;
-            color: #667eea;
+            color: #14532D;
             width: 40%;
         }
 
@@ -341,7 +341,7 @@
                                         <strong class="text-success">{{ remb.montant_rembourse|floatformat:3 }}</strong> {{ devise }}
                                     </td>
                                     <td data-label="Reste:">
-                                        <strong class="text-warning">{{ remb.reste_a_rembourser|floatformat:3 }}</strong> {{ devise }}
+                                        <strong class="text-warning">{{ remb.credit.get_reste_a_rembourser|floatformat:3 }}</strong> {{ devise }}
                                     </td>
                                     <td data-label="Date:">
                                         {{ remb.date_remboursement|date:"d/m/Y" }}

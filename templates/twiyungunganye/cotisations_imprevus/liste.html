@@ -7,12 +7,12 @@
 <style>
     /* En-tête imprévus */
     .imprevus-header {
-        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        background: linear-gradient(135deg, #C98A1B 0%, #8A5A0B 100%);
         padding: 1.5rem;
         border-radius: 15px;
         color: white;
         margin-bottom: 2rem;
-        box-shadow: 0 10px 30px rgba(240, 147, 251, 0.3);
+        box-shadow: 0 10px 30px rgba(201, 138, 27, 0.3);
     }
 
     .imprevus-header h2 {
@@ -48,19 +48,19 @@
     }
 
     .stat-card.primary {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #14532D 0%, #0B3A20 100%);
     }
 
     .stat-card.success {
-        background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+        background: linear-gradient(135deg, #1F7A45 0%, #2E9059 100%);
     }
 
     .stat-card.warning {
-        background: linear-gradient(135deg, #ffd32a 0%, #f59f00 100%);
+        background: linear-gradient(135deg, #E8A92B 0%, #B97F12 100%);
     }
 
     .stat-card.danger {
-        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        background: linear-gradient(135deg, #C98A1B 0%, #8A5A0B 100%);
     }
 
     /* Responsive */
@@ -142,7 +142,7 @@
             position: absolute;
             left: 0;
             font-weight: 600;
-            color: #f093fb;
+            color: #C98A1B;
             width: 40%;
         }
 
@@ -179,9 +179,42 @@
                 <i class="bi bi-heart-fill me-2"></i>
                 Cotisations Imprévus / Cas Sociaux
             </h2>
-            <a href="{% url 'ajouter_cotisation_imprevu' %}" class="btn btn-light">
-                <i class="bi bi-plus-circle me-1"></i> Ajouter
-            </a>
+            <div class="d-flex gap-2">
+                <button type="submit" form="exportCotisationsImprevusPdfForm" class="btn btn-light">
+                    <i class="bi bi-file-earmark-pdf me-1"></i> PDF
+                </button>
+                <button type="submit" form="exportCotisationsImprevusExcelForm" class="btn btn-outline-light">
+                    <i class="bi bi-file-earmark-excel me-1"></i> Excel
+                </button>
+                <a href="{% url 'ajouter_cotisation_imprevu' %}" class="btn btn-light">
+                    <i class="bi bi-plus-circle me-1"></i> Ajouter
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row justify-content-end mb-4">
+        <div class="col-12 col-md-8 col-lg-6 col-xl-5">
+            <form id="exportCotisationsImprevusPdfForm" action="{% url 'export_cotisations_imprevus_pdf' %}" method="get">
+                <div class="input-group input-group-sm shadow-sm rounded">
+                    <span class="input-group-text bg-white border-end-0 text-muted">
+                        <i class="bi bi-calendar-range me-2"></i> Paiements du :
+                    </span>
+                    <input type="date" name="date_debut" class="form-control border-start-0" title="Date de paiement (début)">
+                    <span class="input-group-text bg-light text-muted border-start-0 border-end-0">au</span>
+                    <input type="date" name="date_fin" class="form-control border-start-0" title="Date de paiement (fin)">
+                </div>
+            </form>
+            <form id="exportCotisationsImprevusExcelForm" action="{% url 'export_cotisations_imprevus_excel' %}" method="get" style="margin-top: 0.5rem;">
+                <div class="input-group input-group-sm shadow-sm rounded">
+                    <span class="input-group-text bg-white border-end-0 text-muted">
+                        <i class="bi bi-calendar-range me-2"></i> Paiements du :
+                    </span>
+                    <input type="date" name="date_debut" class="form-control border-start-0" title="Date de paiement (début)">
+                    <span class="input-group-text bg-light text-muted border-start-0 border-end-0">au</span>
+                    <input type="date" name="date_fin" class="form-control border-start-0" title="Date de paiement (fin)">
+                </div>
+            </form>
         </div>
     </div>
 
@@ -284,6 +317,12 @@
                                    title="Modifier">
                                     <i class="bi bi-pencil me-1"></i>
                                     <span class="d-none d-lg-inline">Modifier</span>
+                                </a>
+                                <a href="{% url 'supprimer_cotisation_imprevu' cotisation.pk %}" 
+                                   class="btn btn-sm btn-danger"
+                                   title="Supprimer">
+                                    <i class="bi bi-trash me-1"></i>
+                                    <span class="d-none d-lg-inline">Supprimer</span>
                                 </a>
                             </td>
                         </tr>

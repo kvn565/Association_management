@@ -70,12 +70,26 @@ class Tenant(models.Model):
     @property
     def cle_active(self):
         today = timezone.localdate()
-        return self.cles_activation.filter(
+        # Filtre SQL uniquement sur des chaînes (statut/flag) : la fonction SQLite
+        # django_datetime_cast_date échoue silencieusement (NULL) sur des dates
+        # stockées au format ISO (ex: 2026-09-16T...+00:00) et ferait croire à
+        # une licence expirée. On valide donc date_fin en Python.
+        cles = self.cles_activation.filter(
             statut='ACTIVE',
             utilisee=True,
             active=True,
-            date_fin__date__gte=today,
-        ).order_by('-date_creation').first()
+        ).order_by('-date_creation')
+        for cle in cles:
+            date_fin = cle.date_fin
+            if date_fin is None:
+                continue
+            try:
+                if date_fin.date() < today:
+                    continue
+            except (AttributeError, ValueError, TypeError):
+                continue
+            return cle
+        return None
 
     @property
     def licence_valide(self):
@@ -250,9 +264,9 @@ class CleActivation(models.Model):
 
     @classmethod
     def _hmac(cls, cle_visible, sous_domaine):
-        secret = settings.SECRET_KEY.encode()
+        secret = getattr(settings, 'LICENCE_SECRET_KEY', settings.SECRET_KEY)
         msg = f"{cle_visible}:{sous_domaine}".encode()
-        return hmac.new(secret, msg, hashlib.sha256).hexdigest()
+        return hmac.new(secret.encode(), msg, hashlib.sha256).hexdigest()
 
     @property
     def label_plan(self):

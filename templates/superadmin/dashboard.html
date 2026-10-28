@@ -75,10 +75,12 @@
 {% endblock %}
 
 {% block extra_js %}
+{{ repartition_membres|json_script:"repartition-membres-data" }}
+{{ cotisations_par_mois|json_script:"cotisations-par-mois-data" }}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
 (function() {
-    var pieData = {{ repartition_membres|safe }};
+    var pieData = JSON.parse(document.getElementById('repartition-membres-data').textContent);
     var pieLabels = pieData.map(function(d) { return d.label; });
     var pieValues = pieData.map(function(d) { return d.total; });
     var ctx1 = document.getElementById('chartRepartition');
@@ -99,7 +101,7 @@
         });
     }
 
-    var barData = {{ cotisations_par_mois|safe }};
+    var barData = JSON.parse(document.getElementById('cotisations-par-mois-data').textContent);
     var barLabels = barData.map(function(d) { return d.mois_cot || ''; });
     var barValues = barData.map(function(d) { return parseFloat(d.total) || 0; });
     var ctx2 = document.getElementById('chartCotisations');

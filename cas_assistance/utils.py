@@ -1,6 +1,4 @@
-import os
 from io import BytesIO
-from django.conf import settings
 from django.db.models import Sum
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
@@ -84,11 +82,5 @@ def generer_rapport_assistance_pdf(mois, annee, tenant=None):
     elements.append(Paragraph(f"Solde Restant : {solde}", styles['Normal']))
 
     doc.build(elements)
-
-    pdf_dir = os.path.join(settings.MEDIA_ROOT, 'rapports')
-    os.makedirs(pdf_dir, exist_ok=True)
-    filepath = os.path.join(pdf_dir, nom_fichier)
-    with open(filepath, 'wb') as f:
-        f.write(buffer.getvalue())
 
     return buffer

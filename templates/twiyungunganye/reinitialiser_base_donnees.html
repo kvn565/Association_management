@@ -21,7 +21,7 @@
                         <h5 class="mb-0">📊 Données qui seront supprimées :</h5>
                     </div>
                     <div class="card-body">
-                        <table class="table table-bordered">
+                        <div class="table-responsive"><table class="table table-bordered">
                             <thead>
                                 <tr>
                                     <th>Type de données</th>
@@ -53,14 +53,26 @@
                                     <td><i class="bi bi-percent"></i> Intérêts</td>
                                     <td class="text-end"><strong>{{ stats.interets }}</strong></td>
                                 </tr>
+                                <tr>
+                                    <td><i class="bi bi-shield-exclamation"></i> Pénalités</td>
+                                    <td class="text-end"><strong>{{ stats.penalites }}</strong></td>
+                                </tr>
+                                <tr>
+                                    <td><i class="bi bi-umbrella"></i> Imprévus</td>
+                                    <td class="text-end"><strong>{{ stats.imprevus }}</strong></td>
+                                </tr>
+                                <tr>
+                                    <td><i class="bi bi-heart"></i> Assistances</td>
+                                    <td class="text-end"><strong>{{ stats.assistances }}</strong></td>
+                                </tr>
                                 <tr class="table-danger">
                                     <td><strong>TOTAL</strong></td>
                                     <td class="text-end">
-                                        <strong>{{ stats.membres|add:stats.cotisations|add:stats.credits|add:stats.remboursements|add:stats.suggestions|add:stats.interets }}</strong>
+                                        <strong>{{ stats.membres|add:stats.cotisations|add:stats.imprevus|add:stats.credits|add:stats.remboursements|add:stats.suggestions|add:stats.interets|add:stats.penalites|add:stats.assistances }}</strong>
                                     </td>
                                 </tr>
                             </tbody>
-                        </table>
+                        </table></div>
                     </div>
                 </div>
 

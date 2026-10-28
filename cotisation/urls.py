@@ -15,21 +15,38 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import path, include, re_path
 from django.conf import settings
 from django.conf.urls.static import static
-from django.shortcuts import redirect
+from django.views.static import serve
 from superadmin import views as superadmin_views
+
+# L'interface d'administration Django est réservée aux superutilisateurs
+# (les comptes `is_staff` non superusers n'y ont plus accès).
+admin.site.has_permission = lambda request: (
+    request.user.is_active and request.user.is_superuser
+)
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path(f'{settings.SUPERADMIN_LOGIN_PATH}/', superadmin_views.superadmin_login, name='superadmin_login'),
     path('superadmin/', include('superadmin.urls', namespace='superadmin')),
     path('setup/', superadmin_views.inscription_chef, name='inscription_chef'),
     path('', include('twiyungunganye.urls')),
     path('cas-assistance/', include('cas_assistance.urls', namespace='cas_assistance')),
 ]
 
-# Servir les fichiers media en développement
+# L'application est servie en local (waitress) sans serveur web externe :
+# les médias doivent rester accessibles même avec DEBUG=False.
+urlpatterns += [
+    re_path(
+        r'^%s(?P<path>.*)$' % settings.MEDIA_URL.lstrip('/'),
+        serve,
+        {'document_root': settings.MEDIA_ROOT},
+    ),
+]
+
+# Les fichiers statiques sont servis par WhiteNoise ; on garde le fallback
+# Django uniquement en mode DEBUG.
 if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

@@ -22,10 +22,13 @@ def get_tenant(request):
 
 
 def qs_for_tenant(request, qs, field='tenant'):
+    """Filtre un queryset par le tenant de la requête (fail-closed)."""
+    if getattr(request, 'is_superadmin', False):
+        return qs
     tenant = get_tenant(request)
-    if tenant and not getattr(request, 'is_superadmin', False):
-        return qs.filter(**{field: tenant})
-    return qs
+    if tenant is None:
+        return qs.none()
+    return qs.filter(**{field: tenant})
 
 
 @login_required
@@ -48,12 +51,12 @@ def approuver_credit_strict(request, pk):
     
     # ÉTAPE 1 : Calculer le total des entrées
     from django.db.models import Sum
-    from .models import Cotisation, CotisationImprevu, Remboursement, Depense
+    from .models import Cotisation, CotisationImprevu, Remboursement, Depense, Interet
     qs = lambda m: qs_for_tenant(request, m.objects.all())
     total_cotisations = qs(Cotisation).filter(statut='PAYE').aggregate(Sum('montant'))['montant__sum'] or Decimal('0')
     total_imprevus = qs(CotisationImprevu).filter(statut='PAYE').aggregate(Sum('montant'))['montant__sum'] or Decimal('0')
     total_remb_principal = qs(Remboursement).aggregate(Sum('montant_rembourse'))['montant_rembourse__sum'] or Decimal('0')
-    total_remb_interets = qs(Remboursement).aggregate(Sum('interet_rembourse'))['interet_rembourse__sum'] or Decimal('0')
+    total_remb_interets = qs(Interet).filter(date_remboursement__isnull=False).aggregate(Sum('interet_rembourse'))['interet_rembourse__sum'] or Decimal('0')
     total_entrees = total_cotisations + total_imprevus + total_remb_principal + total_remb_interets
     
     # ÉTAPE 2 : Calculer les sorties (dépenses + crédits en cours)

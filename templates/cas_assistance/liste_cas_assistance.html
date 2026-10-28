@@ -79,7 +79,10 @@
                     <td data-label="Actions">
                         {% if user.is_admin %}
                         <a href="{% url 'cas_assistance:modifier' cas.pk %}" class="btn btn-sm btn-warning"><i class="bi bi-pencil"></i></a>
-                        <a href="{% url 'cas_assistance:supprimer' cas.pk %}" class="btn btn-sm btn-danger" onclick="return confirm('Voulez-vous supprimer ce cas ?');"><i class="bi bi-trash"></i></a>
+                        <form method="post" action="{% url 'cas_assistance:supprimer' cas.pk %}" class="d-inline" onsubmit="return confirm('Voulez-vous supprimer ce cas ?');">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-danger"><i class="bi bi-trash"></i></button>
+                        </form>
                         {% else %}
                         <span class="text-muted small">—</span>
                         {% endif %}

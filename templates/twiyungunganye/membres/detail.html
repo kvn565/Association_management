@@ -6,12 +6,12 @@
 <style>
     /* En-tête profil */
     .profile-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #14532D 0%, #0B3A20 100%);
         padding: 2rem;
         border-radius: 15px;
         color: white;
         margin-bottom: 2rem;
-        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+        box-shadow: 0 10px 30px rgba(20, 83, 45, 0.3);
         position: relative;
         overflow: hidden;
     }
@@ -25,6 +25,12 @@
         height: 300px;
         background: rgba(255, 255, 255, 0.1);
         border-radius: 50%;
+        pointer-events: none;
+    }
+
+    .profile-header > .d-flex {
+        position: relative;
+        z-index: 1;
     }
 
     .profile-header h2 {
@@ -43,7 +49,7 @@
         align-items: center;
         justify-content: center;
         font-size: 2.5rem;
-        color: #667eea;
+        color: #14532D;
         margin-bottom: 1rem;
         box-shadow: 0 4px 15px rgba(0,0,0,.2);
     }
@@ -64,7 +70,7 @@
     }
 
     .info-card .card-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #14532D 0%, #0B3A20 100%);
         color: white;
         font-weight: 600;
         padding: 1rem 1.25rem;
@@ -96,7 +102,7 @@
     }
 
     .info-card .card-body strong {
-        color: #667eea;
+        color: #14532D;
         font-weight: 600;
         min-width: 120px;
     }
@@ -116,12 +122,12 @@
     }
 
     .activity-card.cotisations .card-header {
-        background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+        background: linear-gradient(135deg, #1F7A45 0%, #2E9059 100%);
         color: white;
     }
 
     .activity-card.credits .card-header {
-        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        background: linear-gradient(135deg, #C98A1B 0%, #8A5A0B 100%);
         color: white;
     }
 
@@ -140,7 +146,7 @@
     }
 
     .activity-card .table thead {
-        background: rgba(102, 126, 234, 0.05);
+        background: rgba(20, 83, 45, 0.05);
     }
 
     /* Badge personnalisé */
@@ -249,7 +255,7 @@
             position: absolute;
             left: 0;
             font-weight: 600;
-            color: #667eea;
+            color: #14532D;
             width: 40%;
         }
 
@@ -314,6 +320,16 @@
                 {% if request.user.pk == membre.pk or request.user.is_admin %}
                 <a href="{% url 'modifier_profil_dirigeant' %}" class="btn btn-light btn-sm">
                     <i class="bi bi-pencil-square me-1"></i> Modifier
+                </a>
+                {% endif %}
+                {% if request.user.pk == membre.pk %}
+                <a href="{% url 'changer_mot_de_passe' %}" class="btn btn-light btn-sm">
+                    <i class="bi bi-key me-1"></i> Changer mot de passe
+                </a>
+                {% endif %}
+                {% if request.user.is_admin and request.user.pk != membre.pk %}
+                <a href="{% url 'reinitialiser_mot_de_passe_membre' membre.pk %}" class="btn btn-light btn-sm">
+                    <i class="bi bi-key me-1"></i> Réinitialiser mot de passe
                 </a>
                 {% endif %}
             </div>

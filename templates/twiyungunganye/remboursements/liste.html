@@ -39,10 +39,12 @@
                         <th>Membre</th>
                         <th>Crédit #</th>
                         <th>Montant</th>
-                        <th>Intérêt</th>
                         <th>Total</th>
                         <th>Reste</th>
                         <th>Date</th>
+                        {% if user.is_admin or user.is_gestionnaire %}
+                        <th class="text-center">Actions</th>
+                        {% endif %}
                     </tr>
                 </thead>
                 <tbody>
@@ -51,10 +53,19 @@
                     <td data-label="Membre">{{ remb.credit.membre.get_full_name }}</td>
                     <td data-label="Crédit #">{{ remb.credit.id_credit }}</td>
                     <td data-label="Montant">{{ remb.montant_rembourse|floatformat:3 }} {{ devise }}</td>
-                    <td data-label="Intérêt">{{ remb.interet_rembourse|floatformat:3 }} {{ devise }}</td>
-                    <td data-label="Total">{{ remb.montant_rembourse|add:remb.interet_rembourse|floatformat:3 }} {{ devise }}</td>
-                    <td data-label="Reste">{{ remb.reste_a_rembourser|floatformat:3 }} {{ devise }}</td>
+                    <td data-label="Total">{{ remb.montant_rembourse|floatformat:3 }} {{ devise }}</td>
+                    <td data-label="Reste">{{ remb.credit.get_reste_a_rembourser|floatformat:3 }} {{ devise }}</td>
                     <td data-label="Date">{{ remb.date_remboursement|date:"d/m/Y" }}</td>
+                    {% if user.is_admin or user.is_gestionnaire %}
+                    <td data-label="Actions" class="text-center">
+                        <a href="{% url 'modifier_remboursement' remb.id_rembourse %}" class="btn btn-sm btn-warning" title="Modifier">
+                            <i class="bi bi-pencil"></i>
+                        </a>
+                        <a href="{% url 'supprimer_remboursement' remb.id_rembourse %}" class="btn btn-sm btn-danger" title="Supprimer">
+                            <i class="bi bi-trash"></i>
+                        </a>
+                    </td>
+                    {% endif %}
                 </tr>
                 {% endfor %}
                 </tbody>

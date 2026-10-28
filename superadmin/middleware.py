@@ -23,9 +23,16 @@ def _get_subdomain(request):
 
 
 def _get_client_ip(request):
-    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-    if x_forwarded_for:
-        return x_forwarded_for.split(',')[0].strip()
+    """Adresse IP du client.
+
+    On ne fait pas confiance à X-Forwarded-For par défaut : l'application est
+    servie en local par waitress, sans proxy de confiance. Le header n'est
+    utilisé que si l'option DJANGO_TRUST_PROXY est explicitement activée.
+    """
+    if getattr(settings, 'TRUST_PROXY_HEADERS', False):
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            return x_forwarded_for.split(',')[0].strip()
     return request.META.get('REMOTE_ADDR', '0.0.0.0')
 
 
@@ -84,6 +91,7 @@ class LicenceMiddleware(MiddlewareMixin):
         '/static/',
         '/media/',
         '/superadmin/licence-expiree/',
+        '/logout/',
         '/setup/',
         '/favicon.ico',
     ]
@@ -212,7 +220,7 @@ def _parse_user_agent(user_agent):
 
 
 class ConnexionAuditMiddleware(MiddlewareMixin):
-    """Enregistre chaque connexion des utilisateurs authentifiés"""
+    """Enregistre la connexion des utilisateurs authentifiés (une fois par session)."""
 
     EXEMPT_PATHS = ['/static/', '/media/', '/favicon.ico']
 
@@ -221,6 +229,13 @@ class ConnexionAuditMiddleware(MiddlewareMixin):
             return None
 
         if not request.user.is_authenticated:
+            return None
+
+        # Évite d'écrire une ligne en base à chaque requête HTTP.
+        try:
+            if request.session.get('connexion_auditee'):
+                return None
+        except AttributeError:
             return None
 
         try:
@@ -241,5 +256,6 @@ class ConnexionAuditMiddleware(MiddlewareMixin):
                 systeme=info['systeme'],
                 chemin=request.path,
             )
+            request.session['connexion_auditee'] = True
         except Exception as e:
             logger.error(f"[AUDIT] Erreur enregistrement connexion: {e}")

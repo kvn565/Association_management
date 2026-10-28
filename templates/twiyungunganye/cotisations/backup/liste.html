@@ -8,7 +8,7 @@
 <div class="card">
     <div class="card-body">
         {% if cotisations %}
-        <table class="table table-hover">
+        <div class="table-responsive"><table class="table table-hover">
             <thead><tr><th>Membre</th><th>Période</th><th>Montant</th><th>Statut</th><th>Date paiement</th></tr></thead>
             <tbody>
             {% for cot in cotisations %}
@@ -25,7 +25,7 @@
             </tr>
             {% endfor %}
             </tbody>
-        </table>
+        </table></div>
         {% else %}<div class="text-center py-5"><p>Aucune cotisation</p></div>{% endif %}
     </div>
 </div>

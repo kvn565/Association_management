@@ -5,19 +5,37 @@
 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
     <h2 class="mb-0"><i class="bi bi-percent"></i> Intérêts mensuels</h2>
     <div class="d-flex flex-wrap gap-2">
+        <button type="submit" form="exportInteretsPdfForm" class="btn btn-outline-danger">
+            <i class="bi bi-file-earmark-pdf me-1"></i> Tous les intérêts
+        </button>
         <button type="submit" form="exportInteretsForm" class="btn btn-outline-primary">
             <i class="bi bi-file-earmark-excel me-1"></i> Exporter Excel
         </button>
         {% if user.is_admin or user.is_gestionnaire %}
-        <a href="{% url 'generer_tous_interets' %}" class="btn btn-primary">
-            <i class="bi bi-calculator me-1"></i> Générer tous les intérêts
-        </a>
+        <form method="post" action="{% url 'generer_tous_interets' %}" class="d-inline">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-primary">
+                <i class="bi bi-calculator me-1"></i> Générer tous les intérêts
+            </button>
+        </form>
         {% endif %}
     </div>
 </div>
 <div class="row justify-content-end mb-4">
     <div class="col-12 col-md-8 col-lg-6 col-xl-5">
-        <form id="exportInteretsForm" action="{% url 'export_interets_excel' %}" method="get">
+        <form id="exportInteretsPdfForm" action="{% url 'export_interets_pdf' %}" method="get">
+            <div class="input-group input-group-sm shadow-sm rounded">
+                <span class="input-group-text bg-white border-end-0 text-muted">
+                    <i class="bi bi-calendar-range me-2"></i> Période du :
+                </span>
+                <input type="date" name="date_debut" class="form-control border-start-0" title="Date de calcul (début)">
+                <span class="input-group-text bg-light text-muted border-start-0 border-end-0">au</span>
+                <input type="date" name="date_fin" class="form-control border-start-0" title="Date de calcul (fin)">
+                {% if annee_filter %}<input type="hidden" name="annee" value="{{ annee_filter }}">{% endif %}
+                {% if mois_filter %}<input type="hidden" name="mois" value="{{ mois_filter }}">{% endif %}
+            </div>
+        </form>
+        <form id="exportInteretsForm" action="{% url 'export_interets_excel' %}" method="get" style="margin-top: 0.5rem;">
             <div class="input-group input-group-sm shadow-sm rounded">
                 <span class="input-group-text bg-white border-end-0 text-muted">
                     <i class="bi bi-calendar-range me-2"></i> Période du :
@@ -30,63 +48,193 @@
     </div>
 </div>
 
-<div class="card">
+<!-- Filtres -->
+<div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
+    <span class="fw-bold me-2">Filtrer :</span>
+    <a href="{% url 'liste_interets' %}" class="btn btn-sm {% if not annee_filter and not mois_filter %}btn-dark{% else %}btn-outline-secondary{% endif %}">
+        <i class="bi bi-list"></i> Tout
+    </a>
+    {% for an in annees_disponibles %}
+    <a href="{% url 'liste_interets' %}?annee={{ an }}{% if mois_filter %}&mois={{ mois_filter }}{% endif %}{% if credit_filter %}&credit={{ credit_filter }}{% endif %}" class="btn btn-sm {% if annee_filter == an %}btn-dark{% else %}btn-outline-secondary{% endif %}">
+        {{ an }}
+    </a>
+    {% endfor %}
+    <div class="dropdown d-inline-block">
+        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+            {% if mois_filter %}
+                {% for m, nom in mois_list %}{% if mois_filter == m %}{{ nom }}{% endif %}{% endfor %}
+            {% else %}
+                Mois
+            {% endif %}
+        </button>
+        <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="{% url 'liste_interets' %}{% if annee_filter %}?annee={{ annee_filter }}{% endif %}{% if credit_filter %}{% if annee_filter %}&{% else %}?{% endif %}credit={{ credit_filter }}{% endif %}">Tous les mois</a></li>
+            {% for m, nom in mois_list %}
+            <li><a class="dropdown-item" href="{% url 'liste_interets' %}?mois={{ m }}{% if annee_filter %}&annee={{ annee_filter }}{% endif %}{% if credit_filter %}&credit={{ credit_filter }}{% endif %}">{{ nom }}</a></li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+
+{% for item in interets_data %}
+<div class="card mb-4">
+    <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2 {% if item.total_reste_tous_credits == 0 %}bg-success bg-opacity-10{% else %}bg-light{% endif %}">
+        <div>
+            <h5 class="mb-0">
+                {% if item.total_reste_tous_credits == 0 %}
+                    <i class="bi bi-check-circle-fill text-success me-2"></i>
+                {% else %}
+                    <i class="bi bi-person-circle me-2"></i>
+                {% endif %}
+                {{ item.membre.get_full_name }}
+                {% if item.total_reste_tous_credits == 0 %}
+                    <span class="badge bg-success ms-2">Soldé</span>
+                {% else %}
+                    <span class="badge bg-warning text-dark ms-2">En cours</span>
+                {% endif %}
+            </h5>
+            <small class="text-muted">{{ item.credits|length }} crédit(s)</small>
+        </div>
+        <div class="small text-end">
+            <span class="me-3">Total intérêts : <strong>{{ item.total_interets_tous_credits|floatformat:3 }} {{ devise }}</strong></span>
+            <span class="me-3">Remboursé : <strong class="text-success">{{ item.total_rembourse_tous_credits|floatformat:3 }} {{ devise }}</strong></span>
+            <span>Reste : <strong class="{% if item.total_reste_tous_credits == 0 %}text-success{% else %}text-danger{% endif %}">{% if item.total_reste_tous_credits == 0 %}0{% else %}{{ item.total_reste_tous_credits|floatformat:3 }}{% endif %} {{ devise }}</strong></span>
+        </div>
+    </div>
+    {% for credit_data in item.credits %}
     <div class="card-body p-0">
-        {% if interets_data %}
+        <div class="p-2 bg-white border-bottom d-flex flex-wrap align-items-center gap-2">
+            <strong>Crédit #{{ credit_data.credit.id_credit }}</strong>
+            <span class="badge bg-info ms-2">{{ credit_data.montant_accorde|floatformat:0 }} {{ devise }}</span>
+            <span class="badge bg-secondary ms-1">{{ credit_data.taux_interet }}% / mois</span>
+            {% if credit_data.reste_cumule == 0 %}
+                <span class="badge bg-success ms-1"><i class="bi bi-check-circle"></i> Entièrement payé</span>
+            {% endif %}
+            <span class="ms-auto small text-muted">Accordé le {{ credit_data.date_accord|date:"d/m/Y" }}</span>
+            <span class="small">Cumulé : <strong>{{ credit_data.total_calcule|floatformat:3 }} {{ devise }}</strong></span>
+            <span class="small">Remboursé : <strong class="text-success">{{ credit_data.total_rembourse|floatformat:3 }} {{ devise }}</strong></span>
+            {% if credit_data.reste_cumule > 0 %}
+                <span class="small">Reste : <strong class="text-danger">{{ credit_data.reste_cumule|floatformat:3 }} {{ devise }}</strong></span>
+            {% endif %}
+        </div>
         <div class="table-responsive">
-            <table class="table table-hover mb-0" id="interetsTable">
-                <thead>
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
                     <tr>
-                        <th>Membre</th>
-                        <th>Crédit #</th>
-                        <th>Montant accordé</th>
-                        <th>Taux</th>
-                        <th>Date accord</th>
-                        <th>Mois écoulés</th>
+                        <th>Période</th>
                         <th>Intérêt mensuel</th>
-                        <th>Intérêt cumulé</th>
-                        <th>Enregistré</th>
+                        <th>Remboursé</th>
+                        <th>Reste</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
-                {% for item in interets_data %}
-                <tr>
-                    <td data-label="Membre">{{ item.membre.get_full_name }}</td>
-                    <td data-label="Crédit #">{{ item.credit.id_credit }}</td>
-                    <td data-label="Montant">{{ item.montant_accorde|floatformat:3 }} {{ devise }}</td>
-                    <td data-label="Taux">{{ item.taux_interet }}%</td>
-                    <td data-label="Date">{{ item.date_accord|date:"d/m/Y" }}</td>
-                    <td data-label="Mois">{{ item.mois_ecoules }}</td>
-                    <td data-label="Mensuel">{{ item.interet_mensuel|floatformat:3 }} {{ devise }}</td>
-                    <td data-label="Cumulé"><strong>{{ item.interet_cumule|floatformat:3 }} {{ devise }}</strong></td>
-                    <td data-label="Enregistré">{{ item.total_enregistre|floatformat:3 }} {{ devise }}</td>
-                    <td data-label="Actions">
-                        {% if item.interet_cumule > item.total_enregistre %}
-                        <a href="{% url 'generer_interets' item.credit.id_credit %}" class="btn btn-sm btn-primary" title="Générer intérêts">
-                            <i class="bi bi-calculator"></i> Générer
-                        </a>
-                        {% else %}
-                        <span class="text-success"><i class="bi bi-check-circle"></i> À jour</span>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% endfor %}
+                    {% for detail in credit_data.mois_details %}
+                    <tr class="{% if detail.reste == 0 %}table-success{% endif %}">
+                        <td data-label="Période">
+                            {{ detail.mois_nom }} {{ detail.annee }}
+                            {% if detail.reste == 0 %}
+                                <i class="bi bi-check-circle-fill text-success ms-1"></i>
+                            {% endif %}
+                        </td>
+                        <td data-label="Intérêt">{{ detail.interet_mensuel|floatformat:3 }} {{ devise }}</td>
+                        <td data-label="Remboursé">
+                            {% if detail.interet_rembourse > 0 %}
+                                <span class="text-success">{{ detail.interet_rembourse|floatformat:3 }} {{ devise }}</span>
+                                {% if detail.date_remboursement %}
+                                <br><small class="text-muted">le {{ detail.date_remboursement|date:"d/m/Y" }}</small>
+                                {% else %}
+                                <br><small class="text-warning"><i class="bi bi-exclamation-triangle"></i> Date manquante</small>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td data-label="Reste">
+                            {% if detail.reste > 0 %}
+                                <span class="text-danger fw-bold">{{ detail.reste|floatformat:3 }} {{ devise }}</span>
+                            {% else %}
+                                <span class="text-success fw-bold"><i class="bi bi-check-circle-fill"></i> Payé</span>
+                            {% endif %}
+                        </td>
+                        <td data-label="Actions">
+                            {% if detail.reste > 0 %}
+                            <a href="{% url 'ajouter_interet_rembourse' detail.pk %}" class="btn btn-sm btn-success" title="Enregistrer un remboursement">
+                                <i class="bi bi-cash"></i> Rembourser
+                            </a>
+                            {% endif %}
+                            <div class="d-flex align-items-center gap-1 mt-1 flex-wrap">
+                                {% if detail.date_remboursement %}
+                                    <span class="text-success small">{{ detail.date_remboursement|date:"d/m/Y" }}</span>
+                                {% endif %}
+                                <a href="{% url 'modifier_date_remboursement_interet' detail.pk %}" class="btn btn-sm btn-outline-primary" title="Définir la date">
+                                    <i class="bi bi-calendar-plus"></i>
+                                </a>
+                                <a href="{% url 'modifier_interet_rembourse' detail.pk %}" class="btn btn-sm btn-outline-warning" title="Modifier le montant remboursé">
+                                    <i class="bi bi-pen"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-3">
+                            Aucun intérêt généré pour ce crédit.
+                            <form method="post" action="{% url 'generer_interets' credit_data.credit.id_credit %}" class="d-inline ms-2">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-primary">
+                                    <i class="bi bi-calculator"></i> Générer
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
                 </tbody>
             </table>
         </div>
-        {% else %}
-        <div class="text-center py-5">
-            <p class="text-muted mb-0">Aucun crédit avec intérêts à calculer</p>
-        </div>
-        {% endif %}
     </div>
+    {% endfor %}
 </div>
+{% empty %}
+<div class="text-center py-5">
+    <p class="text-muted mb-0">Aucun crédit avec intérêts à calculer</p>
+</div>
+{% endfor %}
+
+{% if page_obj.paginator.num_pages > 1 %}
+<div class="d-flex justify-content-center mt-4">
+    <nav>
+        <ul class="pagination">
+            {% if page_obj.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page=1{% if annee_filter %}&annee={{ annee_filter }}{% endif %}{% if mois_filter %}&mois={{ mois_filter }}{% endif %}{% if credit_filter %}&credit={{ credit_filter }}{% endif %}">&laquo;</a>
+            </li>
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if annee_filter %}&annee={{ annee_filter }}{% endif %}{% if mois_filter %}&mois={{ mois_filter }}{% endif %}{% if credit_filter %}&credit={{ credit_filter }}{% endif %}">Précédent</a>
+            </li>
+            {% endif %}
+            {% for num in page_obj.paginator.page_range %}
+            <li class="page-item {% if num == page_obj.number %}active{% endif %}">
+                <a class="page-link" href="?page={{ num }}{% if annee_filter %}&annee={{ annee_filter }}{% endif %}{% if mois_filter %}&mois={{ mois_filter }}{% endif %}{% if credit_filter %}&credit={{ credit_filter }}{% endif %}">{{ num }}</a>
+            </li>
+            {% endfor %}
+            {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if annee_filter %}&annee={{ annee_filter }}{% endif %}{% if mois_filter %}&mois={{ mois_filter }}{% endif %}{% if credit_filter %}&credit={{ credit_filter }}{% endif %}">Suivant</a>
+            </li>
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if annee_filter %}&annee={{ annee_filter }}{% endif %}{% if mois_filter %}&mois={{ mois_filter }}{% endif %}{% if credit_filter %}&credit={{ credit_filter }}{% endif %}">&raquo;</a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+</div>
+{% endif %}
 
 <style>
 @media (max-width: 767px) {
-    #interetsTable thead { display: none; }
-    #interetsTable tbody tr {
+    .table thead { display: none; }
+    .table tbody tr {
         display: block;
         border: 1px solid #dee2e6;
         border-radius: .5rem;
@@ -95,7 +243,7 @@
         background: #fff;
         box-shadow: 0 2px 4px rgba(0,0,0,.05);
     }
-    #interetsTable tbody td {
+    .table tbody td {
         display: flex;
         justify-content: space-between;
         align-items: center;
@@ -104,8 +252,8 @@
         border-bottom: 1px solid #f0f0f0;
         text-align: right;
     }
-    #interetsTable tbody td:last-child { border-bottom: none; }
-    #interetsTable tbody td::before {
+    .table tbody td:last-child { border-bottom: none; }
+    .table tbody td::before {
         content: attr(data-label);
         font-weight: 600;
         text-align: left;

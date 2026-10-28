@@ -12,21 +12,78 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 
 from pathlib import Path
 import os
+import secrets
+import sys
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
-BASE_DIR = Path(__file__).resolve().parent.parent
+# ── Chemins (développement / exe figé PyInstaller) ──────────────
+#  - En développement : BASE_DIR = dossier du projet
+#  - Dans l'exe figé : COTISATION_RUN_DIR pointe vers le dossier OÙ se
+#    trouve l'exe (db.sqlite3, media/, logs/ y vivent). Les ressources en
+#    lecture seule (templates, static) sont dans le dossier temporaire
+#    _MEIPASS extrait au lancement.
+_FROZEN  = getattr(sys, 'frozen', False)
+_MEIPASS = getattr(sys, '_MEIPASS', None)
+
+_RUN_DIR = os.environ.get('COTISATION_RUN_DIR')
+if _RUN_DIR:
+    BASE_DIR = Path(_RUN_DIR)
+elif _FROZEN:
+    BASE_DIR = Path(os.path.dirname(sys.executable))
+else:
+    BASE_DIR = Path(__file__).resolve().parent.parent
+
+SRC_DIR = Path(_MEIPASS) if (_FROZEN and _MEIPASS) else BASE_DIR
+
+
+# ── Chargement du fichier .env (sans dépendance externe) ────────
+def _load_env_file(path):
+    try:
+        with open(path, 'r', encoding='utf-8') as fh:
+            for raw in fh:
+                line = raw.strip()
+                if not line or line.startswith('#') or '=' not in line:
+                    continue
+                key, value = line.split('=', 1)
+                key = key.strip()
+                value = value.strip().strip('"').strip("'")
+                if key and key not in os.environ:
+                    os.environ[key] = value
+    except OSError:
+        pass
+
+
+for _env_path in (BASE_DIR / '.env', SRC_DIR / '.env'):
+    if _env_path.exists():
+        _load_env_file(_env_path)
+        break
+
+
+def _env_bool(name, default=False):
+    return os.environ.get(name, str(default)).strip().lower() in ('1', 'true', 'yes', 'on')
 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-hr2yzi=wfk$qjoz$@nq_ca4#k45uy#(x1a3q%v$-=ou#39dqfo'
+# La clé secrète n'est plus écrite en dur : elle vient du fichier .env.
+# Si elle est absente, une clé éphémère est générée (les sessions seront
+# invalidées au redémarrage) plutôt que d'exposer un secret dans le code.
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY') or secrets.token_urlsafe(64)
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+# Clé dédiée à la signature des licences. L'ancienne valeur reste le repli
+# par défaut afin de ne pas invalider les empreintes HMAC déjà enregistrées.
+_LEGACY_LICENCE_KEY = 'django-insecure-hr2yzi=wfk$qjoz$@nq_ca4#k45uy#(x1a3q%v$-=ou#39dqfo'
+LICENCE_SECRET_KEY = os.environ.get('LICENCE_SECRET_KEY') or _LEGACY_LICENCE_KEY
 
-ALLOWED_HOSTS = ['*']
+# DEBUG désactivé par défaut (sécurité). Activable en local via .env.
+DEBUG = _env_bool('DJANGO_DEBUG', False)
+
+# Hôtes autorisés : local par défaut, extensible via .env.
+ALLOWED_HOSTS = [
+    h.strip() for h in os.environ.get(
+        'DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1,[::1]'
+    ).split(',') if h.strip()
+]
 
 
 # Application definition
@@ -45,6 +102,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -62,7 +120,7 @@ TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
         'DIRS': [
-            os.path.join(BASE_DIR, 'templates'),
+            os.path.join(SRC_DIR, 'templates'),
         ],
         'APP_DIRS': True,
         'OPTIONS': {
@@ -89,6 +147,11 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
+        # Attend jusqu'à 20 s en cas de verrou d'écriture (Passenger peut
+        # lancer plusieurs processus sur le même fichier SQLite).
+        'OPTIONS': {
+            'timeout': 20,
+        },
     }
 }
 
@@ -134,8 +197,12 @@ USE_TZ = True
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_DIRS = [
-    BASE_DIR / 'static',
+    SRC_DIR / 'static',
 ]
+
+# WhiteNoise : sert les fichiers statiques sans serveur externe (utile dans
+# l'exe figé où collectstatic n'a pas besoin de tourner).
+WHITENOISE_USE_FINDERS = True
 
 # Media files (uploads)
 MEDIA_URL = '/media/'
@@ -168,4 +235,48 @@ MESSAGE_TAGS = {
 # ─── Multi-Tenant Configuration ──────────────────────────────
 SUPERADMIN_DOMAIN = 'superadmin'
 LICENCE_EXPIRED_URL = '/superadmin/licence-expiree/'
-SITE_DOMAIN = 'localhost:8000'  # À changer en production
+SITE_DOMAIN = os.environ.get('DJANGO_SITE_DOMAIN', 'localhost:8000')
+
+# Chemin secret de la connexion superadmin. Modifiable via .env pour ne pas
+# être deviné par un utilisateur ordinaire.
+SUPERADMIN_LOGIN_PATH = (
+    os.environ.get('SUPERADMIN_LOGIN_PATH', 'connexion-admi/login').strip('/')
+    or 'connexion-admi/login'
+)
+
+
+# ─── Sécurité (Niveau 2 de la check-list) ────────────────────
+# L'application est servie en HTTP local par défaut. Les protections HTTPS
+# sont donc désactivées par défaut mais activables via .env pour un
+# déploiement derrière HTTPS.
+_SECURE_HTTPS = _env_bool('DJANGO_SECURE_HTTPS', False)
+
+X_FRAME_OPTIONS = 'DENY'
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_REFERRER_POLICY = 'same-origin'
+
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_SAMESITE = 'Lax'
+
+SESSION_COOKIE_SECURE = _SECURE_HTTPS
+CSRF_COOKIE_SECURE = _SECURE_HTTPS
+SECURE_SSL_REDIRECT = _SECURE_HTTPS
+SECURE_HSTS_SECONDS = int(os.environ.get('DJANGO_HSTS_SECONDS', '0' if not _SECURE_HTTPS else '31536000'))
+SECURE_HSTS_INCLUDE_SUBDOMAINS = _SECURE_HTTPS
+SECURE_HSTS_PRELOAD = _SECURE_HTTPS
+
+if _SECURE_HTTPS:
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+CSRF_TRUSTED_ORIGINS = [
+    o.strip() for o in os.environ.get('DJANGO_CSRF_TRUSTED_ORIGINS', '').split(',') if o.strip()
+]
+
+# Anti brute-force du formulaire de connexion (sans dépendance externe).
+LOGIN_MAX_ATTEMPTS = int(os.environ.get('LOGIN_MAX_ATTEMPTS', '5'))
+LOGIN_LOCKOUT_SECONDS = int(os.environ.get('LOGIN_LOCKOUT_SECONDS', '900'))
+
+# Les en-têtes X-Forwarded-* ne sont pris en compte que derrière un proxy
+# de confiance explicitement déclaré.
+TRUST_PROXY_HEADERS = _env_bool('DJANGO_TRUST_PROXY', False)

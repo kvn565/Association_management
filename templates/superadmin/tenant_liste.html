@@ -22,9 +22,12 @@
                     <td data-label="Actions">
                         <a href="{% url 'superadmin:tenant_detail' t.pk %}" class="btn btn-sm btn-info" title="Détails"><i class="fas fa-eye"></i></a>
                         <a href="{% url 'superadmin:tenant_modifier' t.pk %}" class="btn btn-sm btn-warning" title="Modifier"><i class="fas fa-edit"></i></a>
-                        <a href="{% url 'superadmin:tenant_toggle' t.pk %}" class="btn btn-sm btn-secondary" title="{% if t.actif %}Suspendre{% else %}Réactiver{% endif %}">
-                            {% if t.actif %}<i class="fas fa-pause"></i>{% else %}<i class="fas fa-play"></i>{% endif %}
-                        </a>
+                        <form method="post" action="{% url 'superadmin:tenant_toggle' t.pk %}" class="d-inline">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-secondary" title="{% if t.actif %}Suspendre{% else %}Réactiver{% endif %}">
+                                {% if t.actif %}<i class="fas fa-pause"></i>{% else %}<i class="fas fa-play"></i>{% endif %}
+                            </button>
+                        </form>
                         {% if t.nb_cles == 0 %}
                         <a href="{% url 'superadmin:cle_generer' t.pk %}" class="btn btn-sm btn-success" title="Clé"><i class="fas fa-key"></i></a>
                         {% endif %}

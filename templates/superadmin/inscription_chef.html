@@ -1,274 +1,308 @@
-{% extends 'twiyungunganye/base.html' %}
+{% extends 'twiyungunganye/base_public.html' %}
 {% load static %}
 
-{% block title %}Configuration de votre association{% endblock %}
+{% block title %}Configuration de votre association — {{ config_app.nom_app|default:'Twiyungunganye' }}{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-lg-8">
-        <!-- ⚠️ Avis important : contact admin -->
-        <div class="alert alert-warning d-flex align-items-center shadow-sm mb-4" style="border-left: 5px solid #dc3545;">
-            <i class="bi bi-telephone-fill me-3 fs-4" style="color:#dc3545;"></i>
-            <div>
-                <strong class="d-block mb-1">Avant de créer votre association, contactez l'administrateur</strong>
-                <span>
-                    <i class="bi bi-whatsapp me-1"></i> +257 71 56 57 46 &nbsp;|&nbsp;
-                    <i class="bi bi-envelope me-1"></i> kevin.ngenda@gmail.com
-                </span>
-                <div class="small text-muted mt-1">
-                    L'administrateur vous fournira un <strong>NIF</strong> pour activer votre association.
-                </div>
-            </div>
+<section class="setup-page">
+  <div class="setup-intro">
+    <span class="pill">Première connexion</span>
+    <h2>Configuration de votre association</h2>
+    <p class="mute">
+      Saisissez le NIF fourni par l'administrateur, vérifiez le nom de votre association,
+      puis créez votre compte de dirigeant.
+    </p>
+  </div>
+
+  <div class="setup-grid">
+    <div class="card setup-card">
+      <div class="notice" role="note">
+        <span class="notice-mark">!</span>
+        <div>
+          <strong>Avant de créer votre association, contactez l'administrateur</strong>
+          <p>
+            <a href="tel:{{ config_app.telephone_contact|default:'+25771565746'|cut:' ' }}">{{ config_app.telephone_contact|default:"+257 71 56 57 46" }}</a>
+            <span class="sep">|</span>
+            <a href="mailto:{{ config_app.email_contact|default:'kevin.ngenda@gmail.com' }}">{{ config_app.email_contact|default:"kevin.ngenda@gmail.com" }}</a>
+          </p>
+          <p class="mute">L'administrateur vous fournira un <strong>NIF</strong> pour activer votre association.</p>
+        </div>
+      </div>
+
+      <form method="post" novalidate id="inscriptionForm">
+        {% csrf_token %}
+
+        {% for error in form.non_field_errors %}
+        <p class="msg error" role="alert">{{ error }}</p>
+        {% endfor %}
+
+        <h3 class="section-title">Identification de l'association</h3>
+
+        <div class="field">
+          <label for="{{ form.nif.id_for_label }}">{{ form.nif.label }}</label>
+          <div class="nif-row">
+            {{ form.nif }}
+            <button class="btn sm ghost" type="button" onclick="lookupNif()">Vérifier</button>
+          </div>
+          <p class="help">{{ form.nif.help_text }}</p>
+          <div id="nifError" class="err hidden"></div>
+          {% for e in form.nif.errors %}<p class="err">{{ e }}</p>{% endfor %}
         </div>
 
-        <div class="card">
-            <div class="card-header text-center">
-                <h4 class="mb-0"><i class="bi bi-building-gear me-2"></i>Configuration de votre association</h4>
-            </div>
-            <div class="card-body p-4">
-
-                <div class="alert alert-info">
-                    <i class="bi bi-info-circle me-2"></i>
-                    Saisissez votre <strong>NIF</strong> ci-dessous pour que les informations de votre association
-                    s'affichent automatiquement. Complétez ensuite les autres champs.
-                </div>
-
-                <form method="post" novalidate id="inscriptionForm">
-                    {% csrf_token %}
-
-                    {% if form.non_field_errors %}
-                    <div class="alert alert-danger">
-                        {% for error in form.non_field_errors %}{{ error }}{% endfor %}
-                    </div>
-                    {% endif %}
-
-                    <!-- ═══════════════ NIF + Association ═══════════════ -->
-                    <h5 class="text-success mb-3">
-                        <i class="bi bi-building me-2"></i>Identification de l'association
-                    </h5>
-
-                    <div class="row">
-                        <div class="col-md-12 mb-3">
-                            <label class="form-label fw-bold">{{ form.nif.label }}</label>
-                            <div class="input-group input-group-lg">
-                                {{ form.nif }}
-                                <button class="btn btn-outline-secondary" type="button" id="btnLookupNif" onclick="lookupNif()">
-                                    <i class="bi bi-search"></i>
-                                </button>
-                            </div>
-                            <div class="form-text">{{ form.nif.help_text }}</div>
-                            <div id="nifError" class="text-danger small mt-1" style="display:none;"></div>
-                            {% if form.nif.errors %}<div class="text-danger small">{{ form.nif.errors.0 }}</div>{% endif %}
-                        </div>
-                    </div>
-
-                    <!-- Association info (auto-filled) -->
-                    <div id="associationInfo" class="{% if not tenant_info %}d-none{% endif %} mb-3">
-                        <div class="card bg-light border-success">
-                            <div class="card-body py-2">
-                                <div class="d-flex align-items-center">
-                                    <i class="bi bi-building-check fs-3 text-success me-3"></i>
-                                    <div>
-                                        <strong id="assocNom" class="fs-5">
-                                            {{ tenant_info.nom|default:'' }}
-                                        </strong>
-                                        <span id="assocSigle" class="badge bg-success ms-2">
-                                            {{ tenant_info.sigle|default:'' }}
-                                        </span>
-                                        <div class="text-muted small">
-                                            <i class="bi bi-check-circle-fill text-success me-1"></i>Association trouvée
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- ═══════════════ Localité ═══════════════ -->
-                    <hr>
-                    <h5 class="text-primary mb-3"><i class="bi bi-geo-alt me-2"></i>Localité de l'association</h5>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">{{ form.province.label }}</label>
-                            {{ form.province }}
-                            {% if form.province.errors %}<div class="text-danger small">{{ form.province.errors.0 }}</div>{% endif %}
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">{{ form.commune.label }}</label>
-                            {{ form.commune }}
-                            {% if form.commune.errors %}<div class="text-danger small">{{ form.commune.errors.0 }}</div>{% endif %}
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">{{ form.quartier.label }}</label>
-                            {{ form.quartier }}
-                            {% if form.quartier.errors %}<div class="text-danger small">{{ form.quartier.errors.0 }}</div>{% endif %}
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label">{{ form.avenue.label }}</label>
-                            {{ form.avenue }}
-                            {% if form.avenue.errors %}<div class="text-danger small">{{ form.avenue.errors.0 }}</div>{% endif %}
-                        </div>
-                        <div class="col-md-2 mb-3">
-                            <label class="form-label">{{ form.numero.label }}</label>
-                            {{ form.numero }}
-                            {% if form.numero.errors %}<div class="text-danger small">{{ form.numero.errors.0 }}</div>{% endif %}
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">{{ form.boite_postale.label }}</label>
-                            {{ form.boite_postale }}
-                            {% if form.boite_postale.errors %}<div class="text-danger small">{{ form.boite_postale.errors.0 }}</div>{% endif %}
-                        </div>
-                    </div>
-
-                    <!-- ═══════════════ Dirigeant ═══════════════ -->
-                    <hr>
-                    <h5 class="text-primary mb-3"><i class="bi bi-person me-2"></i>Informations personnelles du dirigeant</h5>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">{{ form.nom.label }}</label>
-                            {{ form.nom }}
-                            {% if form.nom.errors %}<div class="text-danger small">{{ form.nom.errors.0 }}</div>{% endif %}
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">{{ form.prenom.label }}</label>
-                            {{ form.prenom }}
-                            {% if form.prenom.errors %}<div class="text-danger small">{{ form.prenom.errors.0 }}</div>{% endif %}
-                        </div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">{{ form.email.label }}</label>
-                            {{ form.email }}
-                            {% if form.email.errors %}<div class="text-danger small">{{ form.email.errors.0 }}</div>{% endif %}
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">{{ form.telephone.label }}</label>
-                            {{ form.telephone }}
-                            {% if form.telephone.errors %}<div class="text-danger small">{{ form.telephone.errors.0 }}</div>{% endif %}
-                        </div>
-                    </div>
-
-                    <!-- ═══════════════ Compte ═══════════════ -->
-                    <hr>
-                    <h5 class="text-primary mb-3"><i class="bi bi-key me-2"></i>Votre compte de connexion</h5>
-                    <div class="row">
-                        <div class="col-md-12 mb-3">
-                            <label class="form-label">{{ form.carte_identite.label }}</label>
-                            {{ form.carte_identite }}
-                            <div class="form-text">{{ form.carte_identite.help_text }}</div>
-                            {% if form.carte_identite.errors %}<div class="text-danger small">{{ form.carte_identite.errors.0 }}</div>{% endif %}
-                        </div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">{{ form.password1.label }}</label>
-                            <div class="input-group">
-                                {{ form.password1 }}
-                                <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('id_password1', this)">
-                                    <i class="bi bi-eye"></i>
-                                </button>
-                            </div>
-                            {% if form.password1.errors %}<div class="text-danger small">{{ form.password1.errors.0 }}</div>{% endif %}
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">{{ form.password2.label }}</label>
-                            <div class="input-group">
-                                {{ form.password2 }}
-                                <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('id_password2', this)">
-                                    <i class="bi bi-eye"></i>
-                                </button>
-                            </div>
-                            {% if form.password2.errors %}<div class="text-danger small">{{ form.password2.errors.0 }}</div>{% endif %}
-                        </div>
-                    </div>
-
-                    <div class="d-grid gap-2 mt-4">
-                        <button type="submit" class="btn btn-primary btn-lg">
-                            <i class="bi bi-check-lg me-2"></i>Activer et commencer
-                        </button>
-                    </div>
-                </form>
-            </div>
+        <div id="associationInfo" class="assoc-found{% if not tenant_info %} hidden{% endif %}">
+          <span class="assoc-badge" id="assocInitial">
+            {% if tenant_info %}{{ tenant_info.nom|slice:":1"|upper }}{% else %}A{% endif %}
+          </span>
+          <div>
+            <strong id="assocNom">{{ tenant_info.nom|default:'' }}</strong>
+            <span id="assocSigle" class="mute">{{ tenant_info.sigle|default:'' }}</span>
+            <p class="ok" id="assocStatus">Association trouvée</p>
+          </div>
         </div>
+
+        <h3 class="section-title">Localité de l'association</h3>
+        <div class="fgrid two">
+          <div class="field">
+            <label for="{{ form.province.id_for_label }}">{{ form.province.label }}</label>
+            {{ form.province }}
+            {% for e in form.province.errors %}<p class="err">{{ e }}</p>{% endfor %}
+          </div>
+          <div class="field">
+            <label for="{{ form.commune.id_for_label }}">{{ form.commune.label }}</label>
+            {{ form.commune }}
+            {% for e in form.commune.errors %}<p class="err">{{ e }}</p>{% endfor %}
+          </div>
+        </div>
+        <div class="fgrid three">
+          <div class="field">
+            <label for="{{ form.quartier.id_for_label }}">{{ form.quartier.label }}</label>
+            {{ form.quartier }}
+            {% for e in form.quartier.errors %}<p class="err">{{ e }}</p>{% endfor %}
+          </div>
+          <div class="field">
+            <label for="{{ form.avenue.id_for_label }}">{{ form.avenue.label }}</label>
+            {{ form.avenue }}
+            {% for e in form.avenue.errors %}<p class="err">{{ e }}</p>{% endfor %}
+          </div>
+          <div class="field">
+            <label for="{{ form.numero.id_for_label }}">{{ form.numero.label }}</label>
+            {{ form.numero }}
+            {% for e in form.numero.errors %}<p class="err">{{ e }}</p>{% endfor %}
+          </div>
+        </div>
+        <div class="fgrid two">
+          <div class="field">
+            <label for="{{ form.boite_postale.id_for_label }}">{{ form.boite_postale.label }}</label>
+            {{ form.boite_postale }}
+            {% for e in form.boite_postale.errors %}<p class="err">{{ e }}</p>{% endfor %}
+          </div>
+        </div>
+
+        <h3 class="section-title">Informations personnelles du dirigeant</h3>
+        <div class="fgrid two">
+          <div class="field">
+            <label for="{{ form.nom.id_for_label }}">{{ form.nom.label }}</label>
+            {{ form.nom }}
+            {% for e in form.nom.errors %}<p class="err">{{ e }}</p>{% endfor %}
+          </div>
+          <div class="field">
+            <label for="{{ form.prenom.id_for_label }}">{{ form.prenom.label }}</label>
+            {{ form.prenom }}
+            {% for e in form.prenom.errors %}<p class="err">{{ e }}</p>{% endfor %}
+          </div>
+        </div>
+        <div class="fgrid two">
+          <div class="field">
+            <label for="{{ form.email.id_for_label }}">{{ form.email.label }}</label>
+            {{ form.email }}
+            {% for e in form.email.errors %}<p class="err">{{ e }}</p>{% endfor %}
+          </div>
+          <div class="field">
+            <label for="{{ form.telephone.id_for_label }}">{{ form.telephone.label }}</label>
+            {{ form.telephone }}
+            {% for e in form.telephone.errors %}<p class="err">{{ e }}</p>{% endfor %}
+          </div>
+        </div>
+
+        <h3 class="section-title">Votre compte de connexion</h3>
+        <div class="field">
+          <label for="{{ form.carte_identite.id_for_label }}">{{ form.carte_identite.label }}</label>
+          {{ form.carte_identite }}
+          <p class="help">{{ form.carte_identite.help_text }}</p>
+          {% for e in form.carte_identite.errors %}<p class="err">{{ e }}</p>{% endfor %}
+        </div>
+        <div class="fgrid two">
+          <div class="field">
+            <label for="{{ form.password1.id_for_label }}">{{ form.password1.label }}</label>
+            <div class="pw">
+              {{ form.password1 }}
+              <button type="button" data-target="{{ form.password1.id_for_label }}">Afficher</button>
+            </div>
+            {% for e in form.password1.errors %}<p class="err">{{ e }}</p>{% endfor %}
+          </div>
+          <div class="field">
+            <label for="{{ form.password2.id_for_label }}">{{ form.password2.label }}</label>
+            <div class="pw">
+              {{ form.password2 }}
+              <button type="button" data-target="{{ form.password2.id_for_label }}">Afficher</button>
+            </div>
+            {% for e in form.password2.errors %}<p class="err">{{ e }}</p>{% endfor %}
+          </div>
+        </div>
+
+        <div class="setup-actions">
+          <button type="submit" class="btn">Activer et commencer</button>
+        </div>
+        <p class="login-link">Déjà configuré ? <a href="{% url 'login' %}">Se connecter</a></p>
+      </form>
     </div>
-</div>
+
+    <aside class="setup-aside">
+      <div class="aside-card">
+        <h3>Comment ça marche ?</h3>
+        <ol class="steps">
+          <li>Obtenez votre NIF auprès de l'administrateur.</li>
+          <li>Vérifiez que le nom de l'association affiché est correct.</li>
+          <li>Créez le compte du dirigeant pour accéder au tableau de bord.</li>
+        </ol>
+      </div>
+      <div class="aside-card contact-card">
+        <h3>Besoin d'aide ?</h3>
+        <p class="mute">Notre équipe vous accompagne pour l'activation de votre espace.</p>
+        <p><strong>{{ config_app.telephone_contact|default:"+257 71 56 57 46" }}</strong></p>
+        <p><strong>{{ config_app.email_contact|default:"kevin.ngenda@gmail.com" }}</strong></p>
+        <a class="btn sm ghost" href="{% url 'login' %}">Retour à la connexion</a>
+      </div>
+    </aside>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_head %}
+<style>
+  .setup-page{max-width:1160px;margin:0 auto;padding:clamp(28px,6vw,72px) clamp(16px,5vw,64px) 72px}
+  .setup-intro{max-width:720px;margin:0 0 28px}
+  .setup-intro h2{margin:10px 0 8px}
+  .pill{display:inline-flex;align-items:center;gap:6px;background:var(--sage);color:var(--brand);font-weight:700;font-size:.8rem;letter-spacing:.02em;padding:6px 12px;border-radius:999px}
+  .setup-grid{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:24px;align-items:start}
+  .setup-card{padding:clamp(20px,4vw,36px)}
+  .setup-aside{position:sticky;top:90px;display:grid;gap:16px}
+  .aside-card{background:var(--sage);border:1px solid var(--line);border-radius:20px;padding:22px}
+  .aside-card h3{margin:0 0 10px;font-size:1.05rem;color:var(--brand)}
+  .aside-card p{margin:0 0 8px}
+  .aside-card .btn{width:100%;margin-top:8px;background:transparent}
+  .steps{margin:0;padding-left:20px;display:grid;gap:8px;color:var(--mute);font-size:.92rem}
+  .notice{display:flex;gap:14px;background:#FFF4DB;border:1px solid #F3D9A4;border-left:4px solid var(--sun);border-radius:16px;padding:16px 18px;margin-bottom:22px}
+  .notice-mark{flex:none;width:30px;height:30px;border-radius:50%;background:var(--sun);color:#12201A;display:grid;place-items:center;font-weight:800}
+  .notice strong{display:block;margin-bottom:4px}
+  .notice p{margin:4px 0 0;font-size:.9rem}
+  .notice a{color:var(--brand);font-weight:700;text-decoration:none}
+  .notice .sep{color:var(--mute);padding:0 4px}
+  .section-title{display:flex;align-items:center;gap:8px;font-size:1.05rem;color:var(--brand);margin:30px 0 14px;padding-bottom:10px;border-bottom:1px solid var(--line)}
+  .fgrid{display:grid;gap:0 16px}
+  .fgrid.two{grid-template-columns:1fr 1fr}
+  .fgrid.three{grid-template-columns:1.2fr 1fr .7fr}
+  .field{min-width:0;margin-bottom:14px}
+  .field label{margin:0 0 6px}
+  .field .help,.help{color:var(--mute);font-size:.82rem;margin:6px 0 0}
+  .err{color:#8A1C13;font-size:.85rem;margin:6px 0 0}
+  .hidden{display:none!important}
+  .nif-row{display:flex;gap:10px;align-items:stretch}
+  .nif-row input{flex:1;min-width:0}
+  .nif-row .btn{margin:0;white-space:nowrap;flex:none}
+  .assoc-found{display:flex;align-items:center;gap:14px;background:var(--sage);border:1px solid var(--line);border-radius:16px;padding:16px;margin:16px 0 0}
+  .assoc-badge{width:44px;height:44px;border-radius:12px;background:var(--brand);color:var(--sun);display:grid;place-items:center;font-weight:800;flex:none}
+  .assoc-found strong{display:block;font-size:1.02rem}
+  .assoc-found .mute{display:block}
+  .assoc-found .ok{margin:4px 0 0;color:var(--brand);font-size:.85rem;font-weight:700}
+  .pw input{padding-right:90px}
+  .login-link{margin:18px 0 0;font-size:.9rem;color:var(--mute);text-align:center}
+  .login-link a{color:var(--brand);font-weight:700}
+  .setup-actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:28px}
+  .setup-actions .btn{flex:1;min-width:200px}
+  @media(max-width:900px){
+    .setup-grid{grid-template-columns:1fr}
+    .setup-aside{position:static;order:-1;grid-template-columns:1fr 1fr}
+    .fgrid.two,.fgrid.three{grid-template-columns:1fr}
+  }
+  @media(max-width:560px){
+    .setup-aside{grid-template-columns:1fr}
+    .nif-row{flex-direction:column}
+    .nif-row .btn{width:100%}
+  }
+</style>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-function togglePassword(fieldId, btn) {
-    var field = document.getElementById(fieldId);
-    var icon = btn.querySelector('i');
-    if (field.type === 'password') {
-        field.type = 'text';
-        icon.className = 'bi bi-eye-slash';
-    } else {
-        field.type = 'password';
-        icon.className = 'bi bi-eye';
-    }
-}
-
 var AJAX_LOOKUP_URL = '{% url "superadmin:ajax_lookup_nif" %}';
 
-function lookupNif() {
-    var nif = document.getElementById('id_nif_input').value.trim();
-    var errorDiv = document.getElementById('nifError');
-    var infoDiv = document.getElementById('associationInfo');
-
-    errorDiv.style.display = 'none';
-    infoDiv.classList.add('d-none');
-
-    if (!nif) {
-        errorDiv.textContent = 'Veuillez saisir un NIF.';
-        errorDiv.style.display = 'block';
-        return;
-    }
-
-    fetch(AJAX_LOOKUP_URL + '?nif=' + encodeURIComponent(nif))
-        .then(function(r) { return r.json(); })
-        .then(function(data) {
-            if (data.found) {
-                document.getElementById('assocNom').textContent = data.nom;
-                document.getElementById('assocSigle').textContent = data.sigle || '';
-                var fillFields = ['province', 'commune', 'quartier', 'avenue', 'numero', 'boite_postale'];
-                fillFields.forEach(function(f) {
-                    var el = document.getElementById('id_' + f);
-                    if (el && data[f] && !el.value) {
-                        el.value = data[f];
-                    }
-                });
-                infoDiv.classList.remove('d-none');
-            } else {
-                errorDiv.textContent = data.error || 'NIF introuvable.';
-                errorDiv.style.display = 'block';
-            }
-        })
-        .catch(function(err) {
-            errorDiv.textContent = 'Erreur de connexion. Veuillez réessayer.';
-            errorDiv.style.display = 'block';
-        });
+function showError(message) {
+  var errorDiv = document.getElementById('nifError');
+  errorDiv.textContent = message;
+  errorDiv.classList.remove('hidden');
 }
 
-// Auto-lookup on NIF field blur
-document.addEventListener('DOMContentLoaded', function() {
-    var nifInput = document.getElementById('id_nif_input');
-    if (nifInput) {
-        nifInput.addEventListener('blur', function() {
-            if (this.value.trim()) lookupNif();
+function lookupNif() {
+  var nif = document.getElementById('id_nif_input').value.trim();
+  var errorDiv = document.getElementById('nifError');
+  var infoDiv = document.getElementById('associationInfo');
+
+  errorDiv.classList.add('hidden');
+  infoDiv.classList.add('hidden');
+
+  if (!nif) {
+    showError('Veuillez saisir un NIF.');
+    return;
+  }
+
+  fetch(AJAX_LOOKUP_URL + '?nif=' + encodeURIComponent(nif))
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      if (data.found) {
+        document.getElementById('assocNom').textContent = data.nom;
+        document.getElementById('assocSigle').textContent = data.sigle || '';
+        document.getElementById('assocInitial').textContent = (data.nom || 'A').charAt(0).toUpperCase();
+        var fillFields = ['province', 'commune', 'quartier', 'avenue', 'numero', 'boite_postale'];
+        fillFields.forEach(function (f) {
+          var el = document.getElementById('id_' + f);
+          if (el && data[f] && !el.value) {
+            el.value = data[f];
+          }
         });
-        nifInput.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                lookupNif();
-            }
-        });
-    }
+        infoDiv.classList.remove('hidden');
+      } else {
+        showError(data.error || 'NIF introuvable.');
+      }
+    })
+    .catch(function () {
+      showError('Erreur de connexion. Veuillez réessayer.');
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+  var nifInput = document.getElementById('id_nif_input');
+  if (nifInput) {
+    nifInput.addEventListener('blur', function () {
+      if (this.value.trim()) lookupNif();
+    });
+    nifInput.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        lookupNif();
+      }
+    });
+  }
+
+  document.querySelectorAll('.pw button[data-target]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var field = document.getElementById(btn.getAttribute('data-target'));
+      if (!field) return;
+      var visible = field.type === 'password';
+      field.type = visible ? 'text' : 'password';
+      btn.textContent = visible ? 'Masquer' : 'Afficher';
+    });
+  });
 });
 </script>
 {% endblock %}
