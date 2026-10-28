@@ -1,0 +1,54 @@
+{% extends 'twiyungunganye/base.html' %}
+{% block title %}Définir la date de remboursement{% endblock %}
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-12 col-md-8 col-lg-6">
+            <div class="card shadow-lg border-0">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h3 class="mb-0"><i class="bi bi-calendar-check"></i> Date de remboursement</h3>
+                        <a href="{% url 'liste_interets' %}" class="btn btn-secondary btn-sm">
+                            <i class="bi bi-arrow-left"></i> Retour
+                        </a>
+                    </div>
+
+                    <div class="card bg-light mb-4">
+                        <div class="card-body">
+                            <p class="mb-1"><strong>Membre :</strong> {{ interet.credit.membre.get_full_name }}</p>
+                            <p class="mb-1"><strong>Crédit # :</strong> {{ interet.credit.id_credit }}</p>
+                            <p class="mb-1"><strong>Période :</strong> {{ interet.get_mois_nom }} {{ interet.annee }}</p>
+                            <p class="mb-1"><strong>Montant remboursé :</strong> {{ interet.interet_rembourse|floatformat:3 }} {{ devise }}</p>
+                            <p class="mb-0"><strong>Date actuelle :</strong>
+                                {% if interet.date_remboursement %}
+                                    <span class="text-success">{{ interet.date_remboursement|date:"d/m/Y" }}</span>
+                                {% else %}
+                                    <span class="text-warning">Non définie</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label class="form-label">Date de remboursement</label>
+                            <input type="date" name="date_remboursement"
+                                   value="{{ interet.date_remboursement|date:'Y-m-d' }}"
+                                   class="form-control form-control-lg" required>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="bi bi-check-circle me-1"></i> Enregistrer
+                            </button>
+                            <a href="{% url 'liste_interets' %}" class="btn btn-secondary btn-lg">
+                                <i class="bi bi-x-circle me-1"></i> Annuler
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
