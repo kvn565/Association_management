@@ -17,10 +17,19 @@
     .part-cell .label { color: #6c757d; font-weight: 600; }
     .part-cell .val { font-weight: 600; }
     .part-cell .val.cot { color: #0d6efd; }
+    .part-cell .val.imp { color: #6f42c1; }
     .part-cell .val.int { color: #198754; }
     .part-cell .val.rem { color: #fd7e14; }
     .part-cell .val.pen { color: #dc3545; }
     .part-none { color: #dee2e6; font-size: 0.85rem; }
+    .table-paiements th, .table-paiements td { text-align: center; vertical-align: middle; font-size: 0.7rem; }
+    .table-paiements th:first-child, .table-paiements td:first-child { text-align: left; min-width: 140px; font-size: 0.8rem; }
+    .table-paiements td { padding: 0.2rem 0.4rem; }
+    .paiement-cell { display: flex; flex-direction: column; gap: 1px; font-size: 0.65rem; }
+    .paiement-cell .p-line { display: flex; justify-content: space-between; gap: 0.3rem; }
+    .paiement-cell .p-label { color: #6c757d; font-weight: 600; }
+    .paiement-cell .p-val { font-weight: 600; }
+    .paiement-total { font-weight: 700; color: #0d6efd; font-size: 0.75rem; }
 </style>
 
 <div class="report-container">
@@ -32,7 +41,7 @@
     </div>
 
     <div class="card shadow mb-4" style="border-radius: 15px; border: none;">
-        <div class="card-header text-white text-center py-3" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 15px 15px 0 0;">
+        <div class="card-header text-white text-center py-3" style="background: linear-gradient(135deg, #14532D 0%, #0B3A20 100%); border-radius: 15px 15px 0 0;">
             <i class="bi bi-file-earmark-text" style="font-size: 2rem;"></i>
             <h5 class="mt-2 mb-0">Sélectionnez la période</h5>
         </div>
@@ -72,7 +81,7 @@
     {% if mois_data %}
     <!-- TABLEAU DES PARTICIPANTS -->
     <div class="card shadow mb-4" style="border-radius: 15px; border: none;">
-        <div class="card-header text-white py-3" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); border-radius: 15px 15px 0 0;">
+        <div class="card-header text-white py-3" style="background: linear-gradient(135deg, #1F7A45 0%, #2E9059 100%); border-radius: 15px 15px 0 0;">
             <h5 class="mb-0"><i class="bi bi-people me-2"></i> Participants aux cotisations</h5>
         </div>
         <div class="card-body p-3">
@@ -93,12 +102,13 @@
                             <td class="sticky-col fw-semibold">{{ row.membre.get_full_name }}</td>
                             <td class="text-center fw-bold">{{ row.mois_cotises }}/{{ mois_list|length }}</td>
                             {% for m, a in mois_list %}
-                            {% with key=m|stringformat:"s"|add:"-"|add:a|stringformat:"s" %}
+                            {% with key=m|make_key:a %}
                             {% with cell=row|dictkey:key %}
                             <td>
-                                {% if cell.cotisation or cell.interet != 0 or cell.remboursement != 0 or cell.penalite != 0 %}
+                                {% if cell.cotisation or cell.imprevu or cell.interet != 0 or cell.remboursement != 0 or cell.penalite != 0 %}
                                 <div class="part-cell">
                                     {% if cell.cotisation %}<span class="label">C:</span><span class="val cot">{{ cell.cotisation|floatformat:0 }}</span>{% endif %}
+                                    {% if cell.imprevu %}<span class="label">Imp:</span><span class="val imp">{{ cell.imprevu|floatformat:0 }}</span>{% endif %}
                                     {% if cell.interet != 0 %}<span class="label">I:</span><span class="val int">{{ cell.interet|floatformat:0 }}</span>{% endif %}
                                     {% if cell.remboursement != 0 %}<span class="label">R:</span><span class="val rem">{{ cell.remboursement|floatformat:0 }}</span>{% endif %}
                                     {% if cell.penalite != 0 %}<span class="label">P:</span><span class="val pen">{{ cell.penalite|floatformat:0 }}</span>{% endif %}
@@ -121,7 +131,7 @@
     <!-- TABLEAU RÉCAPITULATIF -->
     <div class="card shadow" style="border-radius: 15px; border: none;">
         <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2 py-3"
-             style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 15px 15px 0 0;">
+             style="background: linear-gradient(135deg, #14532D 0%, #0B3A20 100%); border-radius: 15px 15px 0 0;">
             <h5 class="mb-0 text-white"><i class="bi bi-table me-2"></i>Récapitulatif par mois</h5>
             {% with dernier=mois_data|last %}
             <a href="{% url 'rapport_periode_pdf' mois_debut=mois_data.0.mois annee_debut=mois_data.0.annee mois_fin=dernier.mois annee_fin=dernier.annee %}" class="btn btn-sm btn-light">
@@ -141,10 +151,10 @@
                             <th class="text-end">Remboursements</th>
                             <th class="text-end">Intérêts</th>
                             <th class="text-end">Pénalités</th>
-                            <th class="text-end">Crédits</th>
-                            <th class="text-end">Solde mois</th>
-                            <th class="text-end">Cumul caisse</th>
-                        </tr>
+<th class="text-end">Crédits</th>
+                             <th class="text-end">Dépenses</th>
+                             <th class="text-end">Solde en caisse</th>
+                         </tr>
                     </thead>
                     <tbody>
                         {% for d in mois_data %}
@@ -156,23 +166,24 @@
                             <td class="text-end">{{ d.remboursements|floatformat:3 }}</td>
                             <td class="text-end">{{ d.interets|floatformat:3 }}</td>
                             <td class="text-end">{{ d.penalites|floatformat:3 }}</td>
-                            <td class="text-end">{{ d.credits|floatformat:3 }}</td>
-                            <td class="text-end{% if d.solde_mois < 0 %} negatif{% endif %}">{{ d.solde_mois|floatformat:3 }}</td>
-                            <td class="text-end{% if d.cumul < 0 %} negatif{% endif %}">{{ d.cumul|floatformat:3 }}</td>
+<td class="text-end">{{ d.credits|floatformat:3 }}</td>
+                             <td class="text-end">{{ d.depenses|floatformat:3 }}</td>
+                             <td class="text-end">{{ d.reste_caisse|floatformat:3 }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
                     <tfoot>
                         <tr class="totals-row">
-                            <td><strong>TOTAL / MAX</strong></td>
+                            <td><strong>TOTAL (Eff.&nbsp;= MAX)</strong></td>
                             <td class="text-end">{{ totals.effectif }}</td>
                             <td class="text-end">{{ totals.cotisations|floatformat:3 }}</td>
                             <td class="text-end">{{ totals.imprevus|floatformat:3 }}</td>
                             <td class="text-end">{{ totals.remboursements|floatformat:3 }}</td>
                             <td class="text-end">{{ totals.interets|floatformat:3 }}</td>
                             <td class="text-end">{{ totals.penalites|floatformat:3 }}</td>
-                            <td class="text-end">{{ totals.credits|floatformat:3 }}</td>
-                            <td colspan="2"></td>
+<td class="text-end">{{ totals.credits|floatformat:3 }}</td>
+                             <td class="text-end">{{ totals.depenses|floatformat:3 }}</td>
+                             <td></td>
                         </tr>
                     </tfoot>
                 </table>
@@ -182,7 +193,7 @@
 
     <!-- BILAN IMPREVUS / ASSISTANCES -->
     <div class="card shadow mt-4" style="border-radius: 15px; border: none;">
-        <div class="card-header text-white py-3" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); border-radius: 15px 15px 0 0;">
+        <div class="card-header text-white py-3" style="background: linear-gradient(135deg, #1F7A45 0%, #2E9059 100%); border-radius: 15px 15px 0 0;">
             <h5 class="mb-0"><i class="bi bi-currency-exchange me-2"></i> Bilan Imprévus / Assistances</h5>
         </div>
         <div class="card-body p-4">
@@ -216,6 +227,60 @@
             </table>
         </div>
     </div>
+
+    <!-- NOUVEAU TABLEAU : PAIEMENTS PAR MEMBRE -->
+    {% if paiements_par_membre %}
+    <div class="card shadow mt-4" style="border-radius: 15px; border: none;">
+        <div class="card-header text-white py-3" style="background: linear-gradient(135deg, #C98A1B 0%, #8A5A0B 100%); border-radius: 15px 15px 0 0;">
+            <h5 class="mb-0"><i class="bi bi-cash-stack me-2"></i> Paiements par membre</h5>
+        </div>
+        <div class="card-body p-3">
+            <div class="table-responsive">
+                <table class="table table-bordered table-sm mb-0 table-paiements">
+                    <thead>
+                        <tr>
+                            <th class="sticky-col thead-dark-th" style="background: #212529 !important;">Membre</th>
+                            {% for m, a in mois_list %}
+                            <th class="thead-dark-th">{{ MOIS_NOMS|dictkey:m }} {{ a }}</th>
+                            {% endfor %}
+                            <th class="thead-dark-th">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in paiements_par_membre %}
+                        <tr>
+                            <td class="sticky-col fw-semibold">{{ row.membre.get_full_name }}</td>
+                            {% for m, a in mois_list %}
+                            {% with key=m|make_key:a %}
+                            {% with cell=row|dictkey:key %}
+                            <td>
+                                {% if cell.total > 0 %}
+                                <div class="paiement-cell">
+                                    {% if cell.cotisation > 0 %}<div class="p-line"><span class="p-label">Cot:</span><span class="p-val" style="color:#0d6efd;">{{ cell.cotisation|floatformat:0 }}</span></div>{% endif %}
+                                    {% if cell.imprevu > 0 %}<div class="p-line"><span class="p-label">Imp:</span><span class="p-val" style="color:#6f42c1;">{{ cell.imprevu|floatformat:0 }}</span></div>{% endif %}
+                                    {% if cell.remboursement > 0 %}<div class="p-line"><span class="p-label">Rem:</span><span class="p-val" style="color:#fd7e14;">{{ cell.remboursement|floatformat:0 }}</span></div>{% endif %}
+                                    {% if cell.interet > 0 %}<div class="p-line"><span class="p-label">Int:</span><span class="p-val" style="color:#198754;">{{ cell.interet|floatformat:0 }}</span></div>{% endif %}
+                                    {% if cell.penalite > 0 %}<div class="p-line"><span class="p-label">Pén:</span><span class="p-val" style="color:#dc3545;">{{ cell.penalite|floatformat:0 }}</span></div>{% endif %}
+                                    <hr style="margin:1px 0;border-color:#dee2e6;">
+                                    <div class="paiement-total text-end">{{ cell.total|floatformat:0 }}</div>
+                                </div>
+                                {% else %}
+                                <span class="part-none">—</span>
+                                {% endif %}
+                            </td>
+                            {% endwith %}
+                            {% endwith %}
+                            {% endfor %}
+                            <td class="paiement-total text-center">{{ row.total_general|floatformat:0 }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     {% endif %}
 </div>
 {% endblock %}

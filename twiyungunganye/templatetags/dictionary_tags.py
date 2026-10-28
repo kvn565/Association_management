@@ -12,3 +12,10 @@ def dictkey(d, key):
         return d[int(key)]
     except (ValueError, TypeError, IndexError, KeyError):
         return None
+
+
+@register.filter
+def make_key(mois, annee):
+    """Construit une clé 'mois-annee' pour lookup dans les dictionnaires participants"""
+    return f'{mois}-{annee}'
+
